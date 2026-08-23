@@ -1,0 +1,29 @@
+/* TOKENS DE CORES */
+:root {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f8fafc;
+  --color-bg-tertiary: #f1f5f9;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94a3b8;
+  --color-border-subtle: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+  --color-accent-indigo: #6366f1;
+  --color-accent-hover: #4f46e5;
+  --color-accent-emerald: #10b981;
+  --color-card-bg: #ffffff;
+  --color-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] {
+  --color-bg-primary: #07090e;
+  --color-bg-secondary: #0d111a;
+  --color-bg-tertiary: #161b26;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-card-bg: #0d111a;
+  --color-card-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}

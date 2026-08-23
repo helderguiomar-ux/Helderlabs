@@ -1,0 +1,604 @@
+// HelderLabs ERP — schema de dados inicial
+// Módulos cobertos até agora: CRM (Lead -> Opportunity -> Customer) e Gestão
+// de Condomínios (Building -> Unit -> Owner/Fee, Assembly -> Vote, Expense).
+// Os restantes módulos (Vendas, Faturação, Financeiro, Tarefas) vão estender
+// este schema mais tarde, reutilizando sempre Tenant / User como eixo
+// central, conforme o princípio de "modelo de dados integrado" do projeto.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Núcleo multi-tenant
+// ---------------------------------------------------------------------------
+
+enum TenantStatus {
+  PROVISIONING
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  DELETED
+}
+
+model Tenant {
+  id        String       @id @default(cuid())
+  name      String
+  slug      String?      @unique
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  postalCode String?
+  country   String       @default("Portugal")
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  users         User[]
+  activities    UserActivity[]
+  leads         Lead[]
+  opportunities Opportunity[]
+  customers     Customer[]
+  communications Communication[]
+  buildings     Building[]
+  
+  settings      TenantSetting[]
+  tenantModules TenantModule[]
+  applications  ApplicationInstance[]
+
+  @@map("tenants")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PLATFORM_ADMIN
+  TENANT_OWNER
+  TENANT_ADMIN
+  MANAGER
+  SALES
+  USER
+  READ_ONLY
+}
+
+// Como esta conta entrou (para decidir se pede password ou não, e para
+// associar/desassociar logins sociais). EMAIL continua a ser o único
+// método com password.
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  MICROSOFT
+  APPLE
+}
+
+model User {
+  id           String       @id @default(cuid())
+  tenantId     String
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  name         String
+  email        String       @unique
+  passwordHash String?
+  // Autenticação Email+OTP
+  otpHash      String?
+  otpExpiresAt DateTime?
+  authProvider AuthProvider @default(EMAIL)
+  // "sub" devolvido pelo provider OAuth — junto com authProvider, identifica
+  // a conta de forma única nesse provider. Fica null para contas EMAIL.
+  oauthSubject String?
+  role         UserRole     @default(USER)
+  active       Boolean      @default(true)
+  
+  isOnline     Boolean      @default(false)
+  lastSeen     DateTime?
+  sessionToken String?
+  avatar       String?
+  status       UserStatus   @default(ACTIVE)
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  activities            UserActivity[]
+  assignedLeads         Lead[]         @relation("LeadAssignedUser")
+  assignedOpportunities Opportunity[]  @relation("OpportunityAssignedUser")
+  assignedCustomers     Customer[]     @relation("CustomerAssignedUser")
+  applicationAssignments ApplicationAssignment[]
+
+  // NULL não colide com NULL em constraints únicas do Postgres, por isso
+  // vários utilizadores EMAIL (oauthSubject null) coexistem sem problema —
+  // esta constraint só é "ativa" para contas que de facto têm oauthSubject.
+  @@unique([authProvider, oauthSubject])
+  @@index([tenantId])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// CRM: Lead -> Qualification -> Opportunity -> Proposal -> Negotiation -> Won -> Customer
+// ---------------------------------------------------------------------------
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFICATION
+  CONVERTED
+  LOST
+}
+
+model Lead {
+  id             String     @id @default(cuid())
+  tenantId       String
+  tenant         Tenant     @relation(fields: [tenantId], references: [id])
+  company        String
+  name           String
+  email          String?
+  phone          String?
+  mobile         String?
+  role           String?
+  website        String?
+  source         String
+  status         LeadStatus @default(NEW)
+  assignedUserId String?
+  assignedUser   User?      @relation("LeadAssignedUser", fields: [assignedUserId], references: [id])
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  opportunities  Opportunity[]
+  communications Communication[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("leads")
+}
+
+enum OpportunityStage {
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+model Opportunity {
+  id             String           @id @default(cuid())
+  tenantId       String
+  tenant         Tenant           @relation(fields: [tenantId], references: [id])
+  title          String
+  leadId         String?
+  lead           Lead?            @relation(fields: [leadId], references: [id])
+  customerId     String?
+  customer       Customer?        @relation(fields: [customerId], references: [id])
+  stage          OpportunityStage @default(QUALIFICATION)
+  estimatedValue Float
+  probability    Int              @default(0)
+  assignedUserId String?
+  assignedUser   User?            @relation("OpportunityAssignedUser", fields: [assignedUserId], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([stage])
+  @@map("opportunities")
+}
+
+// ---------------------------------------------------------------------------
+// Cliente 360º: dados comerciais + contactos + histórico
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id             String   @id @default(cuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  companyName    String
+  website        String?
+  assignedUserId String?
+  assignedUser   User?    @relation("CustomerAssignedUser", fields: [assignedUserId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  contacts       Contact[]
+  opportunities  Opportunity[]
+  communications Communication[]
+
+  @@index([tenantId])
+  @@map("customers")
+}
+
+model Contact {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  name       String
+  email      String?
+  phone      String?
+  role       String?
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
+  @@map("contacts")
+}
+
+// Histórico de interações — partilhado entre Lead e Customer, para que o
+// histórico da Lead sobreviva à conversão em Cliente (ver EnterpriseCRMService).
+model Communication {
+  id              String   @id @default(cuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  leadId          String?
+  lead            Lead?    @relation(fields: [leadId], references: [id])
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  type            String   // email | call | meeting | whatsapp | note
+  subject         String?
+  content         String?
+  occurredAt      DateTime @default(now())
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([leadId])
+  @@index([customerId])
+  @@map("communications")
+}
+
+// ---------------------------------------------------------------------------
+// Gestão de Condomínios — Tenant = administradora de condomínios (cliente
+// pagante); os modelos abaixo representam os condomínios que essa
+// administradora gere. Desenho herdado do plano do Antigravity (16/08/2026,
+// "Guia de Arranque de Trabalho — Condomínios"), adaptado às convenções já
+// usadas neste schema (cuid, @@map em snake_case, @@index([tenantId])).
+//
+// Isolamento multi-tenant: só Building tem tenantId direto (é o "âncora" do
+// condomínio ao tenant) — Unit/Owner/Fee/Assembly/Vote/Expense isolam-se
+// TRANSITIVAMENTE via buildingId/unitId/assemblyId, exatamente como Contact
+// já isola transitivamente via Customer neste schema. Consequência prática:
+// a Prisma Client Extension (tenantScopedClient.ts) só protege Building
+// automaticamente — para os restantes modelos, o service layer tem de
+// confirmar primeiro que o Building/Unit pai pertence ao tenant antes de ler
+// ou escrever (ver EnterpriseCondominiosService).
+// ---------------------------------------------------------------------------
+
+model Building {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  name          String
+  address       String
+  municipality  String
+  taxNumber     String?  // NIF do condomínio
+  totalPermille Int      @default(1000) // soma das permilagens
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  units      Unit[]
+  assemblies Assembly[]
+  expenses   Expense[]
+
+  @@index([tenantId])
+  @@map("buildings")
+}
+
+model Unit {
+  id         String   @id @default(cuid())
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  identifier String   // ex: "Bloco 4, 2 Esq"
+  permille   Int      // permilagem da fração
+  ownerId    String?
+  owner      Owner?   @relation(fields: [ownerId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fees Fee[]
+
+  @@index([buildingId])
+  @@map("units")
+}
+
+model Owner {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+
+  units Unit[]
+
+  @@map("owners")
+}
+
+enum FeeStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+model Fee {
+  id        String    @id @default(cuid())
+  unitId    String
+  unit      Unit      @relation(fields: [unitId], references: [id])
+  period    String    // "2026-09"
+  amount    Float
+  status    FeeStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([unitId])
+  @@index([status])
+  @@map("fees")
+}
+
+enum AssemblyType {
+  ORDINARY
+  EXTRAORDINARY
+}
+
+model Assembly {
+  id         String       @id @default(cuid())
+  buildingId String
+  building   Building     @relation(fields: [buildingId], references: [id])
+  type       AssemblyType
+  date       DateTime
+  minutesUrl String?      // ata digitalizada
+  createdAt  DateTime     @default(now())
+
+  votes Vote[]
+
+  @@index([buildingId])
+  @@map("assemblies")
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  assemblyId String
+  assembly   Assembly @relation(fields: [assemblyId], references: [id])
+  topic      String   // ex: "Oposição a Alojamento Local"
+  resultText String?
+  passed     Boolean?
+
+  @@index([assemblyId])
+  @@map("votes")
+}
+
+model Expense {
+  id         String   @id @default(cuid())
+  buildingId String
+  building   Building @relation(fields: [buildingId], references: [id])
+  category   String
+  amount     Float
+  supplier   String?
+  occurredAt DateTime @default(now())
+
+  @@index([buildingId])
+  @@map("expenses")
+}
+// ---------------------------------------------------------------------------
+// Platform Core & Super Admin Additions
+// ---------------------------------------------------------------------------
+
+// Modules
+model Module {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true) // Global switch
+  
+  tenantModules TenantModule[]
+  instances     ApplicationInstance[]
+  
+  @@map("modules")
+}
+
+model TenantModule {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  moduleId  String
+  module    Module   @relation(fields: [moduleId], references: [id])
+  isActive  Boolean  @default(true) // Tenant level switch
+
+  @@unique([tenantId, moduleId])
+  @@map("tenant_modules")
+}
+
+// Permissions
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  
+  rolePermissions RolePermission[]
+  
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         UserRole
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  
+  @@unique([role, permissionId])
+  @@map("role_permissions")
+}
+
+// Settings
+model PlatformSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  category    String   @default("General")
+  
+  @@map("platform_settings")
+}
+
+model TenantSetting {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  key       String
+  value     String
+  category  String   @default("General")
+  
+  @@unique([tenantId, key])
+  @@map("tenant_settings")
+}
+
+// Audit Log
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actorEmail   String?
+  actorType    String?
+  tenantId     String?
+  action       String
+  resource     String?
+  resourceId   String?
+  timestamp    DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+  result       String?
+  oldValue     String?
+  newValue     String?
+  
+  @@index([tenantId])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// Account Requests
+model AccountRequest {
+  id           String    @id @default(cuid())
+  companyName  String?
+  contactName  String?
+  email        String    @unique
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  otpHash      String?
+  otpExpiresAt DateTime?
+  createdAt    DateTime  @default(now())
+  
+  @@map("account_requests")
+}
+enum UserStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  SUSPENDED
+  INACTIVE
+}
+
+model UserActivity {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  type          String
+  description   String
+  page          String?
+  metadata      Json?
+  
+  createdAt     DateTime  @default(now())
+  
+  @@index([userId])
+  @@index([tenantId])
+  @@index([createdAt])
+  @@map("user_activities")
+}
+
+// ---------------------------------------------------------------------------
+// Sistema de Módulos como Aplicativos
+//
+// Cada Tenant pode activar módulos (CRM, Finance, Condomínios, etc.) como
+// instâncias independentes com configuração própria. Os utilizadores são
+// depois atribuídos a cada aplicativo com um role específico dentro desse
+// aplicativo (diferente do role global do utilizador).
+//
+// Status do aplicativo:
+//   DISABLED  — módulo desligado para este tenant
+//   TRIAL     — módulo activo em modo de teste (dados fictícios OK)
+//   ACTIVE    — módulo em produção total
+//   ARCHIVED  — módulo desactivado permanentemente
+// ---------------------------------------------------------------------------
+
+enum ApplicationStatus {
+  DISABLED
+  TRIAL
+  ACTIVE
+  ARCHIVED
+}
+
+enum ApplicationAssignmentStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  REMOVED
+}
+
+model ApplicationInstance {
+  id        String            @id @default(cuid())
+
+  // Qual módulo (CRM, Finance, Condomínios, etc.)
+  moduleId  String
+  module    Module            @relation(fields: [moduleId], references: [id])
+
+  // Qual tenant usa este módulo
+  tenantId  String
+  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+
+  // Estado do aplicativo para este tenant
+  status    ApplicationStatus @default(TRIAL)
+
+  // Configuração flexível por módulo (JSON)
+  // Ex CRM:          { "leadSources": ["web","phone"], "currency": "EUR" }
+  // Ex Finance:      { "taxRegime": "PT", "fiscalYear": "calendar" }
+  // Ex Condomínios:  { "defaultPermille": 1000 }
+  config    Json              @default("{}")
+
+  // Utilizadores atribuídos a este aplicativo
+  assignments ApplicationAssignment[]
+
+  // Auditoria
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  createdBy String?           // userId do criador
+
+  @@unique([tenantId, moduleId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("application_instances")
+}
+
+model ApplicationAssignment {
+  id            String                    @id @default(cuid())
+
+  // Utilizador atribuído
+  userId        String
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Aplicativo a que é atribuído
+  applicationId String
+  application   ApplicationInstance       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  // Role dentro deste aplicativo (independente do role global)
+  // Ex: "ADMIN", "MANAGER", "USER", "VIEWER", "AUDITOR"
+  roleInApp     String                    @default("USER")
+
+  // Estado da atribuição
+  status        ApplicationAssignmentStatus @default(ACTIVE)
+
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@unique([userId, applicationId])
+  @@index([userId])
+  @@index([applicationId])
+  @@map("application_assignments")
+}

@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "cd backend && npm run build",
+  "outputDirectory": "backend/public",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/api/index.ts"
+    },
+    {
+      "source": "/health",
+      "destination": "/backend/api/index.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/backend/public/$1"
+    }
+  ]
+}

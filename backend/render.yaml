@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: helderlabs-erp-backend
+    env: node
+    buildCommand: npm install && npx prisma generate && npm run build && npx prisma migrate deploy
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: helderlabs-erp-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DEFAULT_SUPER_ADMIN_EMAIL
+        value: "helderguiomar@gmail.com"
+      - key: PORT
+        value: "3333"
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: helderlabs-erp-db
+    databaseName: helderlabs_erp
+    user: helderlabs_admin
+    plan: free

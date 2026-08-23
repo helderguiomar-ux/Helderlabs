@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="meta-title">HELDERLABS | Consultoria Tecnológica & Business Analysis</title>
+  <meta id="meta-description" name="description" content="Engenharia de software personalizada, análise de processos e inteligência artificial aplicada ao seu negócio.">
+
+  <!-- UNIFIED DESIGN SYSTEM TOKENS -->
+  <link rel="stylesheet" href="/assets/css/design-system/colors.css">
+  <link rel="stylesheet" href="/assets/css/design-system/typography.css">
+  <link rel="stylesheet" href="/assets/css/design-system/components.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    .flow-step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-family: var(--font-mono); color: var(--color-accent-indigo); margin-top: 0.75rem; font-weight: bold; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 9999; }
+    .modal-content { background: var(--color-bg-secondary); border: 1px solid var(--color-border-strong); border-radius: 16px; width: 100%; max-width: 440px; padding: 2.5rem; position: relative; box-shadow: var(--color-card-shadow); }
+    .modal-close { position: absolute; top: 1.25rem; right: 1.25rem; background: none; border: none; font-size: 1.5rem; color: var(--color-text-muted); cursor: pointer; }
+    .social-btn { display: flex; align-items: center; justify-content: center; gap: 0.75rem; width: 100%; padding: 0.75rem; border-radius: 8px; background: var(--color-bg-tertiary); border: 1px solid var(--color-border-subtle); color: var(--color-text-primary); font-size: 0.9rem; font-weight: 600; text-decoration: none; margin-bottom: 0.75rem; cursor: pointer; transition: all 0.2s ease; }
+    .social-btn:hover { background: var(--color-border-subtle); }
+    .divider { display: flex; align-items: center; text-align: center; margin: 1.25rem 0; color: var(--color-text-muted); font-size: 0.8rem; }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--color-border-subtle); }
+    .divider span { padding: 0 0.75rem; }
+    
+    /* Estilos do Formulário de Diagnóstico */
+    .lead-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .lead-form-group { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem; }
+    .lead-form-group.full-width { grid-column: span 2; }
+    .lead-form-group label { font-size: 0.85rem; font-weight: 600; color: var(--color-text-primary); }
+    .lead-input, .lead-select, .lead-textarea {
+      width: 100%; padding: 0.75rem 1rem; border-radius: 8px;
+      background: var(--color-bg-tertiary); border: 1px solid var(--color-border-subtle);
+      color: var(--color-text-primary); font-family: var(--font-sans); font-size: 0.9rem;
+      outline: none; transition: border-color 0.2s ease;
+    }
+    .lead-input:focus, .lead-select:focus, .lead-textarea:focus {
+      border-color: var(--color-accent-indigo); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+    }
+    .lead-feedback { padding: 1rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; margin-top: 1rem; display: none; }
+    .lead-feedback.success { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--color-accent-emerald); color: var(--color-accent-emerald); }
+    .lead-feedback.error { background: rgba(244, 63, 94, 0.15); border: 1px solid #f43f5e; color: #f43f5e; }
+  </style>
+</head>
+<body>
+
+<!-- Dev Banner — apenas visível em localhost, oculto em produção -->
+<div id="dev-banner" style="display:none; background:#f59e0b; color:#000; text-align:center; padding:0.4rem; font-weight:bold; font-family:monospace; font-size:12px; z-index:10000; position:relative;">
+  🔧 HELDERLABS ERP | LOCAL DEVELOPMENT | Version: 1.0.0-consolidada
+</div>
+<script>
+  (function() {
+    var h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0') {
+      document.getElementById('dev-banner').style.display = 'block';
+    }
+  })();
+</script>
+
+
+  <!-- HEADER MODULAR -->
+  <header class="header-glass">
+    <div class="container nav-grid">
+      <a href="/" class="brand-logo">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#6366F1"/>
+          <path d="M9 16L16 9L23 16L16 23L9 16Z" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="16" cy="16" r="3.5" fill="#10B981"/>
+        </svg>
+        <span>HELDER<span style="color:#6366F1;">LABS</span></span>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li><a href="#sobre" class="nav-link">Sobre</a></li>
+          <li><a href="#desafios" class="nav-link" data-i18n="nav_challenges">Desafios</a></li>
+          <li><a href="#casos" class="nav-link" data-i18n="nav_cases">Casos de Utilização</a></li>
+          <li><a href="#ia" class="nav-link" data-i18n="nav_ai">IA Aplicada</a></li>
+          <li><a href="#resultados" class="nav-link" data-i18n="nav_results">Resultados</a></li>
+          <li><a href="#diagnostico" class="nav-link" style="color:var(--color-accent-indigo); font-weight:bold;">Diagnóstico</a></li>
+        </ul>
+      </nav>
+
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <button id="lang-btn" class="btn btn-secondary" style="padding: 0.4rem 0.75rem; font-size: 0.85rem;">🌐 PT</button>
+        <button id="theme-btn" class="btn btn-secondary" style="padding: 0.4rem 0.6rem;" title="Alternar Tema (System/Light/Dark)">🌙</button>
+        <button id="open-auth-modal" class="btn btn-secondary" style="padding: 0.65rem 1rem; font-size: 0.85rem;" data-i18n="btn_login_client">Área de Cliente</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- HERO SECTION -->
+  <section class="section" style="padding-top: 4rem; padding-bottom: 4rem;">
+    <div class="container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center;">
+      <div>
+        <div class="hero-badge" data-i18n="hero_badge">SOFTWARE À MEDIDA • PROCESSOS INTELIGENTES</div>
+        <h1 class="hero-title"><span data-i18n="hero_title">O software deve adaptar-se ao seu negócio.</span> <span style="color:#6366F1;" data-i18n="hero_title_span">Não o contrário.</span></h1>
+        <p class="hero-subtitle" data-i18n="hero_subtitle">Analisamos os seus processos, eliminamos desperdícios, e desenvolvemos software personalizado com Inteligência Artificial para impulsar resultados reais.</p>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <a href="#diagnostico" class="btn btn-primary" style="padding: 0.875rem 1.75rem;" data-i18n="btn_diagnostic">Agendar Diagnóstico &rarr;</a>
+          <a href="#sobre" class="btn btn-secondary" style="padding: 0.875rem 1.75rem;">Conhecer a HELDERLABS</a>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: center; position: relative;">
+        <svg width="460" height="420" viewBox="0 0 460 420" fill="none">
+          <circle cx="230" cy="210" r="180" stroke="#6366F1" stroke-opacity="0.15" stroke-dasharray="4 4"/>
+          <circle cx="230" cy="210" r="130" stroke="#6366F1" stroke-opacity="0.2"/>
+          <circle cx="230" cy="210" r="80" stroke="#6366F1" stroke-opacity="0.3"/>
+          <circle cx="230" cy="210" r="45" fill="#0F172A"/>
+          <path d="M220 210L230 200L240 210L230 220L220 210Z" stroke="#6366F1" stroke-width="2"/>
+        </svg>
+
+        <div style="position: absolute; right: 20px; top: 20px; background: var(--color-card-bg); border: 1px solid var(--color-border-subtle); padding: 0.6rem 1rem; border-radius: 10px; display: flex; align-items: center; gap: 0.6rem; box-shadow: var(--color-card-shadow);">
+          <span style="color:#6366f1; font-weight:bold;">🏢</span><div><strong style="font-size:0.8rem; display:block;">Empresa</strong><small style="color:var(--color-text-muted); font-size:0.7rem;">O seu negócio</small></div>
+        </div>
+
+        <div style="position: absolute; right: 0px; top: 100px; background: var(--color-card-bg); border: 1px solid var(--color-border-subtle); padding: 0.6rem 1rem; border-radius: 10px; display: flex; align-items: center; gap: 0.6rem; box-shadow: var(--color-card-shadow);">
+          <span style="color:#6366f1; font-weight:bold;">⚙️</span><div><strong style="font-size:0.8rem; display:block;">Processos</strong><small style="color:var(--color-text-muted); font-size:0.7rem;">Como tudo acontece</small></div>
+        </div>
+
+        <div style="position: absolute; right: -10px; top: 180px; background: var(--color-card-bg); border: 1px solid var(--color-border-subtle); padding: 0.6rem 1rem; border-radius: 10px; display: flex; align-items: center; gap: 0.6rem; box-shadow: var(--color-card-shadow);">
+          <span style="color:#6366f1; font-weight:bold;">🔍</span><div><strong style="font-size:0.8rem; display:block;">Análise</strong><small style="color:var(--color-text-muted); font-size:0.7rem;">Identificamos oportunidades</small></div>
+        </div>
+
+        <div style="position: absolute; right: 0px; top: 260px; background: var(--color-card-bg); border: 1px solid var(--color-border-subtle); padding: 0.6rem 1rem; border-radius: 10px; display: flex; align-items: center; gap: 0.6rem; box-shadow: var(--color-card-shadow);">
+          <span style="color:#6366f1; font-weight:bold;">🧠</span><div><strong style="font-size:0.8rem; display:block;">Inteligência Artificial</strong><small style="color:var(--color-text-muted); font-size:0.7rem;">Automação e insights</small></div>
+        </div>
+
+        <div style="position: absolute; right: 30px; top: 340px; background: var(--color-card-bg); border: 1px solid var(--color-border-subtle); padding: 0.6rem 1rem; border-radius: 10px; display: flex; align-items: center; gap: 0.6rem; box-shadow: var(--color-card-shadow);">
+          <span style="color:#6366f1; font-weight:bold;">👥</span><div><strong style="font-size:0.8rem; display:block;">CRM</strong><small style="color:var(--color-text-muted); font-size:0.7rem;">Relacionamentos inteligentes</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A) SECÇÃO SOBRE (NOVA) -->
+  <section id="sobre" class="section" style="background: var(--color-bg-secondary); border-top: 1px solid var(--color-border-subtle); padding: 4.5rem 0;">
+    <div class="container">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3.5rem; align-items: center;">
+        <div>
+          <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-accent-indigo); text-transform: uppercase;">SOBRE A HELDERLABS</span>
+          <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.5rem; margin-bottom: 1.25rem;">28+ Anos de Liderança Executiva & Engenharia Prática</h2>
+          <p style="color: var(--color-text-secondary); line-height: 1.7; margin-bottom: 1rem; font-size: 0.95rem;">
+            A HELDERLABS nasceu da visão de que o melhor software empresarial não é desenhado numa bolha teórica, mas sim no terreno de operações reais.
+          </p>
+          <p style="color: var(--color-text-secondary); line-height: 1.7; margin-bottom: 1.5rem; font-size: 0.95rem;">
+            Com mais de <strong>28 anos de experiência em gestão executiva, turnaround empresarial, negociação B2B de elevado valor e arquitetura de sistemas</strong>, combinamos uma visão rigorosa de negócio com a capacidade técnica de programar as próprias soluções (*citizen developer*).
+          </p>
+          <div style="padding: 1.25rem; background: var(--color-bg-tertiary); border-left: 4px solid var(--color-accent-indigo); border-radius: 0 12px 12px 0;">
+            <p style="font-style: italic; color: var(--color-text-primary); font-size: 0.9rem; margin: 0; font-weight: 500;">
+              "Uma combinação rara entre a disciplina de gestão executiva de topo e a autonomia técnica para conceber, construir e implantar arquiteturas de software que resolvem problemas operacionais complexos."
+            </p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;">
+          <div class="card-linear" style="padding: 1.5rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📜</div>
+            <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem;">Engenharia de Requisitos</h4>
+            <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin: 0;">Mapeamento rigoroso de regras de negócio antes de escrever código.</p>
+          </div>
+          <div class="card-linear" style="padding: 1.5rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
+            <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem;">Turnaround & RevOps</h4>
+            <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin: 0;">Reestruturação de operações comerciais e financeiras com ROI comprovado.</p>
+          </div>
+          <div class="card-linear" style="padding: 1.5rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🏛️</div>
+            <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem;">Arquitetura & Compliance</h4>
+            <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin: 0;">Sistemas concebidos com elevados padrões de segurança e conformidade.</p>
+          </div>
+          <div class="card-linear" style="padding: 1.5rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🤖</div>
+            <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem;">IA Aplicada ao Negócio</h4>
+            <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin: 0;">Integração prática de LLMs e automação em fluxos de trabalho reais.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1. OS DESAFIOS QUE RESOLVEMOS -->
+  <section id="desafios" class="section" style="padding: 4.5rem 0;">
+    <div class="container">
+      <div style="text-align: center; max-width: 650px; margin: 0 auto 3rem auto;">
+        <span style="font-size: 0.8rem; font-weight: 700; color: #f43f5e; text-transform: uppercase;">DESAFIOS OPERACIONAIS</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.5rem;">Os problemas que eliminamos no seu negócio</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+        <div class="card-linear"><h3>Informação Dispersa</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.5rem;">Dados espalhados por ficheiros Excel, e-mails e sistemas isolados.</p></div>
+        <div class="card-linear"><h3>Processos Manuais & Duplicação</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.5rem;">Tarefas repetitivas e introdução dupla de informação pelas equipas.</p></div>
+        <div class="card-linear"><h3>Falta de Indicadores em Tempo Real</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.5rem;">Dificuldade em tomar decisões rápidas sem métricas consolidadas.</p></div>
+        <div class="card-linear"><h3>Software Rígido sem Crescimento</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.5rem;">Ferramentas comerciais que travam a expansão e exigem adaptações dolorosas.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. ANIMAÇÃO DE PIPELINE IA -->
+  <section id="ia" class="section" style="background: var(--color-bg-secondary); border-top: 1px solid var(--color-border-subtle); text-align: center; padding: 4.5rem 0;">
+    <div class="container">
+      <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-accent-indigo); text-transform: uppercase;">ARQUITETURA DE INTELIGÊNCIA ARTIFICIAL</span>
+      <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.5rem; margin-bottom: 1.5rem;">Como a IA processa o seu negócio em tempo real</h2>
+      
+      <!-- E) NOTA TÉCNICA REFORÇADA -->
+      <p style="color: var(--color-text-secondary); font-size: 0.9rem; max-width: 700px; margin: 0 auto 2.5rem auto; line-height: 1.6;">
+        ⚡ <em>Construído com tecnologia própria (JavaScript, Python, SQL) sem dependência de fornecedores terceiros — garantindo total autonomia, privacidade de dados e adaptação exata ao seu negócio.</em>
+      </p>
+
+      <div style="display: flex; gap: 1rem; justify-content: center; align-items: center; flex-wrap: wrap;">
+        <div class="card-linear" style="padding: 1.25rem; min-width: 140px;">📄 <strong>Documento</strong></div>
+        <span style="color: var(--color-accent-indigo); font-weight: bold;">&rarr;</span>
+        <div class="card-linear" style="padding: 1.25rem; min-width: 140px; border-color: var(--color-accent-indigo);">🤖 <strong>LLM Engine</strong></div>
+        <span style="color: var(--color-accent-indigo); font-weight: bold;">&rarr;</span>
+        <div class="card-linear" style="padding: 1.25rem; min-width: 140px;">🔍 <strong>Análise</strong></div>
+        <span style="color: var(--color-accent-indigo); font-weight: bold;">&rarr;</span>
+        <div class="card-linear" style="padding: 1.25rem; min-width: 140px;">🏷️ <strong>Classificação</strong></div>
+        <span style="color: var(--color-accent-indigo); font-weight: bold;">&rarr;</span>
+        <div class="card-linear" style="padding: 1.25rem; min-width: 140px;">⚡ <strong>Workflow</strong></div>
+        <span style="color: var(--color-accent-indigo); font-weight: bold;">&rarr;</span>
+        <div class="card-linear" style="padding: 1.25rem; min-width: 140px; border-color: var(--color-accent-emerald);">👥 <strong>CRM</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- C) CASOS DE UTILIZAÇÃO LIGADOS À EXPERIÊNCIA REAL -->
+  <section id="casos" class="section" style="padding: 4.5rem 0;">
+    <div class="container">
+      <div style="text-align: center; max-width: 600px; margin: 0 auto 3rem auto;">
+        <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-accent-indigo); text-transform: uppercase;">EXPERIÊNCIA PRÁTICA NO TERRENO</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.4rem;">Cenários de Aplicação por Sector</h2>
+        <p style="color: var(--color-text-secondary);">Arquiteturas nascidas e testadas dentro de operações reais de grande exigência.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+        <div class="card-linear">
+          <h3>Sociedades de Advogados</h3>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Construído com base em experiência direta em auditoria e compliance em contexto jurídico altamente regulado.</p>
+          <div class="flow-step">Cronologias &rarr; Pesquisa Documental &rarr; CRM Jurídico &rarr; Portal do Cliente</div>
+        </div>
+        <div class="card-linear">
+          <h3>Distribuição & Logística</h3>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Desenhado para ambientes comerciais com controlo rigoroso de margem, stocks e expedição rápida.</p>
+          <div class="flow-step">Gestão de Stocks &rarr; Portal de Clientes &rarr; Rastreabilidade &rarr; Faturação</div>
+        </div>
+        <div class="card-linear">
+          <h3>Telecomunicações & Serviços</h3>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Arquitetura nascida dentro de uma operação real de atendimento ao cliente de alto volume, não em teoria.</p>
+          <div class="flow-step">Gestão de Contratos &rarr; Validação IA &rarr; Automação Comercial &rarr; Analytics</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B) RESULTADOS & MÉTRICAS REAIS ANONIMIZADAS -->
+  <section id="resultados" class="section" style="background: var(--color-bg-secondary); border-top: 1px solid var(--color-border-subtle); padding: 4.5rem 0;">
+    <div class="container">
+      <div style="text-align: center; max-width: 650px; margin: 0 auto 3rem auto;">
+        <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-accent-emerald); text-transform: uppercase;">MÉTRICAS & IMPACTO COMPROVADO</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.5rem;">Resultados diretos na sua operação</h2>
+        <p style="color: var(--color-text-secondary);">Casos reais de sucesso executante e reestruturação tecnológica.</p>
+      </div>
+
+      <!-- BLOCOS DE RESULTADOS ESPERADOS -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2.5rem;">
+        <div class="card-linear" style="border-top: 3px solid var(--color-accent-emerald);"><h3>⚡ Produtividade</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.4rem;">+40% de eficiência operacional.</p></div>
+        <div class="card-linear" style="border-top: 3px solid var(--color-accent-indigo);"><h3>📊 Decisão com Dados</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.4rem;">Métricas confiáveis em tempo real.</p></div>
+        <div class="card-linear" style="border-top: 3px solid #06b6d4;"><h3>🤖 Automação</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.4rem;">Eliminação total de tarefas manuais.</p></div>
+        <div class="card-linear" style="border-top: 3px solid #f59e0b;"><h3>🛡️ Zero Erros</h3><p style="color:var(--color-text-secondary); font-size:0.85rem; margin-top:0.4rem;">Validação automática de conformidade.</p></div>
+      </div>
+
+      <!-- NOVAS MÉTRICAS REAIS ANONIMIZADAS EM CARDS -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5rem;">
+        <div class="card-linear" style="background: var(--color-bg-tertiary);">
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-accent-emerald); margin-bottom: 0.3rem;">~400%</div>
+          <h4 style="font-size: 0.95rem; font-weight: 700;">Crescimento de Faturação</h4>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Alcançado numa unidade de negócio estratégica através da reestruturação completa de processos operacionais e ferramentas.</p>
+        </div>
+
+        <div class="card-linear" style="background: var(--color-bg-tertiary);">
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--color-accent-indigo); margin-bottom: 0.3rem;">3 Anos</div>
+          <h4 style="font-size: 0.95rem; font-weight: 700;">Turnaround Empresarial</h4>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Reversão bem-sucedida de um resultado financeiro negativo para lucros consistentes através de rigor executivo e disciplina digital.</p>
+        </div>
+
+        <div class="card-linear" style="background: var(--color-bg-tertiary);">
+          <div style="font-size: 1.75rem; font-weight: 800; color: #06b6d4; margin-bottom: 0.3rem;">~40%</div>
+          <h4 style="font-size: 0.95rem; font-weight: 700;">Volume Comercial Direto</h4>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Responsável pessoal por uma fatia altamente significativa das vendas totais de uma equipa comercial em ambiente B2B de elevado volume.</p>
+        </div>
+
+        <div class="card-linear" style="background: var(--color-bg-tertiary);">
+          <div style="font-size: 1.75rem; font-weight: 800; color: #f59e0b; margin-bottom: 0.3rem;">100% Autónomo</div>
+          <h4 style="font-size: 0.95rem; font-weight: 700;">Plataforma de Auditoria & Workflow</h4>
+          <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.4rem;">Conceção e implementação integral de sistema de auditoria e controlo de qualidade para operações complexas de atendimento ao cliente.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D) FORMULÁRIO DE CAPTAÇÃO DE LEADS (NOVO PONTO DE ENTRADA PRINCIPAL) -->
+  <section id="diagnostico" class="section" style="padding: 4.5rem 0;">
+    <div class="container" style="max-width: 800px;">
+      <div style="text-align: center; margin-bottom: 2.5rem;">
+        <span style="font-size: 0.8rem; font-weight: 700; color: var(--color-accent-indigo); text-transform: uppercase;">AGENDE O SEU DIAGNÓSTICO GRATUITO</span>
+        <h2 style="font-size: 2.25rem; font-weight: 800; margin-top: 0.4rem;">Vamos analisar os processos da sua empresa</h2>
+        <p style="color: var(--color-text-secondary); font-size: 0.95rem; margin-top: 0.5rem;">
+          Preencha o formulário abaixo para agendar uma reunião inicial de análise. Estudamos o seu negócio antes de propor qualquer linha de código.
+        </p>
+      </div>
+
+      <div class="card-linear" style="padding: 2.5rem; background: var(--color-bg-secondary);">
+        <form id="lead-form">
+          <div class="lead-form-grid">
+            <div class="lead-form-group">
+              <label for="lead-name">Nome Completo *</label>
+              <input type="text" id="lead-name" class="lead-input" placeholder="Ex: Dr. João Silva" required>
+            </div>
+
+            <div class="lead-form-group">
+              <label for="lead-company">Empresa *</label>
+              <input type="text" id="lead-company" class="lead-input" placeholder="Ex: Sociedade / Empresa Lda" required>
+            </div>
+
+            <div class="lead-form-group">
+              <label for="lead-email">Email Profissional *</label>
+              <input type="email" id="lead-email" class="lead-input" placeholder="joao.silva@empresa.pt" required>
+            </div>
+
+            <div class="lead-form-group">
+              <label for="lead-phone">Telefone (Opcional)</label>
+              <input type="tel" id="lead-phone" class="lead-input" placeholder="+351 910 000 000">
+            </div>
+
+            <div class="lead-form-group full-width">
+              <label for="lead-sector">Sector de Atividade *</label>
+              <select id="lead-sector" class="lead-select" required>
+                <option value="" disabled selected>Selecione o sector do seu negócio...</option>
+                <option value="Advocacia / Jurídico">Advocacia / Serviços Jurídicos</option>
+                <option value="Distribuição e Logística">Distribuição & Logística</option>
+                <option value="Telecomunicações e TI">Telecomunicações & Tecnologia</option>
+                <option value="Serviços B2B / Consultoria">Serviços B2B / Consultoria</option>
+                <option value="Indústria e Manufatura">Indústria & Manufatura</option>
+                <option value="Outro">Outro Sector</option>
+              </select>
+            </div>
+
+            <div class="lead-form-group full-width">
+              <label for="lead-message">Qual é o principal desafio ou processo a otimizar? *</label>
+              <textarea id="lead-message" class="lead-textarea" rows="4" placeholder="Descreva sucintamente as dificuldades atuais (ex: informação dispersa em Excel, falta de automação, etc.)." required></textarea>
+            </div>
+          </div>
+
+          <button type="submit" id="lead-submit-btn" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.95rem; font-size: 1rem; margin-top: 0.5rem;">
+            Solicitar Diagnóstico Tecnológico &rarr;
+          </button>
+
+          <div id="lead-feedback" class="lead-feedback"></div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODAL PASSWORDLESS DE AUTENTICAÇÃO EVENT-BASED (ÁREA DE CLIENTES EXISTENTES) -->
+  <div id="auth-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button id="close-auth-modal" class="modal-close">&times;</button>
+      <h2 style="font-size: 1.5rem; font-weight: 800; margin-bottom: 0.5rem; text-align: center;">Área de Cliente Registado</h2>
+      <p style="color: var(--color-text-secondary); font-size: 0.85rem; text-align: center; margin-bottom: 1.5rem;">Efetue login na sua conta HELDERLABS.</p>
+
+      <a href="/login.html" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.85rem;">📧 Continuar com Email & OTP</a>
+    </div>
+  </div>
+
+  <script>
+    // 1. TRADUÇÃO DINÂMICA i18N COM SEO METADATA
+    let currentLang = localStorage.getItem('hl_lang') || 'pt';
+    const langBtn = document.getElementById('lang-btn');
+
+    async function loadTranslations(lang) {
+      try {
+        const res = await fetch(`/locales/${lang}.json`);
+        const translations = await res.json();
+
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (translations[key]) {
+            el.textContent = translations[key];
+          }
+        });
+
+        document.getElementById('meta-title').textContent = lang === 'pt' ? 'HELDERLABS | Consultoria Tecnológica & Business Analysis' : 'HELDERLABS | Tech Consulting & Business Analysis';
+        langBtn.textContent = lang === 'pt' ? '🌐 PT' : '🌐 EN';
+        localStorage.setItem('hl_lang', lang);
+      } catch (err) {}
+    }
+
+    langBtn.addEventListener('click', () => {
+      currentLang = currentLang === 'pt' ? 'en' : 'pt';
+      loadTranslations(currentLang);
+    });
+
+    loadTranslations(currentLang);
+
+    // 2. GESTÃO DE TEMA TRIPLE MODE (SYSTEM / LIGHT / DARK)
+    const themeBtn = document.getElementById('theme-btn');
+    const themes = ['dark', 'light', 'system'];
+    let themeIndex = themes.indexOf(localStorage.getItem('hl_theme') || 'dark');
+    if (themeIndex === -1) themeIndex = 0;
+
+    function applyTheme(mode) {
+      let activeTheme = mode;
+      if (mode === 'system') {
+        activeTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', activeTheme);
+      localStorage.setItem('hl_theme', mode);
+      themeBtn.textContent = mode === 'dark' ? '🌙' : (mode === 'light' ? '☀️' : '💻');
+    }
+
+    applyTheme(themes[themeIndex]);
+
+    themeBtn.addEventListener('click', () => {
+      themeIndex = (themeIndex + 1) % themes.length;
+      applyTheme(themes[themeIndex]);
+    });
+
+    // 3. CONTROLO DO MODAL PASSWORDLESS
+    const authModal = document.getElementById('auth-modal');
+    const openBtn = document.getElementById('open-auth-modal');
+    const closeBtn = document.getElementById('close-auth-modal');
+
+    openBtn.addEventListener('click', () => authModal.style.display = 'flex');
+    closeBtn.addEventListener('click', () => authModal.style.display = 'none');
+    authModal.addEventListener('click', (e) => {
+      if (e.target === authModal) authModal.style.display = 'none';
+    });
+
+    // 4. SUBMISSÃO CLIENT-SIDE DO FORMULÁRIO DE LEADS (D)
+    const leadForm = document.getElementById('lead-form');
+    const leadFeedback = document.getElementById('lead-feedback');
+    const leadSubmitBtn = document.getElementById('lead-submit-btn');
+
+    leadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('lead-name').value.trim();
+      const company = document.getElementById('lead-company').value.trim();
+      const email = document.getElementById('lead-email').value.trim();
+      const phone = document.getElementById('lead-phone').value.trim();
+      const sector = document.getElementById('lead-sector').value;
+      const message = document.getElementById('lead-message').value.trim();
+
+      // Validação básica client-side
+      if (!name || !company || !email || !sector || !message) {
+        leadFeedback.className = 'lead-feedback error';
+        leadFeedback.textContent = 'Por favor preencha todos os campos obrigatórios (*).';
+        leadFeedback.style.display = 'block';
+        return;
+      }
+
+      leadSubmitBtn.disabled = true;
+      leadSubmitBtn.textContent = 'A gravar pedido...';
+      leadFeedback.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/crm/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, company, email, phone, sector, message })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          leadFeedback.className = 'lead-feedback success';
+          leadFeedback.textContent = data.message || 'Pedido registado com sucesso!';
+          leadFeedback.style.display = 'block';
+          leadForm.reset();
+        } else {
+          throw new Error(data.error || 'Erro ao submeter o pedido.');
+        }
+      } catch (err) {
+        leadFeedback.className = 'lead-feedback error';
+        leadFeedback.textContent = err.message || 'Não foi possível enviar o pedido. Tente novamente.';
+        leadFeedback.style.display = 'block';
+      } finally {
+        leadSubmitBtn.disabled = false;
+        leadSubmitBtn.textContent = 'Solicitar Diagnóstico Tecnológico →';
+      }
+    });
+  </script>
+</body>
+</html>
+
+

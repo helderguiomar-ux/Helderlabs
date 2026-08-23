@@ -1,0 +1,8 @@
+/* TOKENS DE TIPOGRAFIA */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body { font-family: var(--font-sans); color: var(--color-text-primary); background-color: var(--color-bg-primary); }
+h1, h2, h3, h4 { font-weight: 800; letter-spacing: -0.03em; }

@@ -1,0 +1,229 @@
+﻿<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - HelderLabs ERP</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f6f8fa; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-box { background: #ffffff; border: 1px solid #d0d7de; border-radius: 6px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2); }
+        .logo { text-align: center; font-size: 24px; font-weight: 600; color: #24292f; margin-bottom: 24px; }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 14px; font-weight: 600; color: #24292f; margin-bottom: 8px; }
+        .input-group input { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #d0d7de; border-radius: 6px; box-sizing: border-box; }
+        .input-group input:focus { outline: none; border-color: #0969da; box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3); }
+        .btn { width: 100%; padding: 8px 16px; font-size: 14px; font-weight: 600; text-align: center; border: none; border-radius: 6px; cursor: pointer; background-color: #0d419f; color: #ffffff; margin-top: 10px; }
+        .btn:hover { background-color: #1f6feb; }
+        .btn-link { background: none; color: #0969da; padding: 0; margin-top: 15px; border: none; cursor: pointer; text-decoration: underline; font-size: 14px; width: 100%; text-align: center; }
+        .error { color: #cf222e; font-size: 13px; margin-bottom: 16px; display: none; text-align: center; padding: 10px; background: #ffebe9; border: 1px solid #ff8182; border-radius: 6px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .otp-inputs { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
+        .otp-inputs input { width: 40px; height: 48px; text-align: center; font-size: 20px; font-weight: 600; border: 1px solid #d0d7de; border-radius: 6px; }
+        .success-banner { background: #dafbe1; color: #1a7f37; border: 1px solid #4ac26b; padding: 10px; border-radius: 6px; font-size: 14px; text-align: center; margin-bottom: 16px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <div class="logo">HelderLabs ERP</div>
+    
+    <div id="error-msg" class="error"></div>
+    <div id="success-msg" class="success-banner"></div>
+
+    <!-- Step 1: Email -->
+    <div id="step-email" class="step active">
+        <div class="input-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="Insira o seu email" autofocus>
+        </div>
+        <button class="btn" onclick="checkEmail()">Continuar</button>
+    </div>
+
+    <!-- Step 2: Password -->
+    <div id="step-password" class="step">
+        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;" id="pwd-email-display"></p>
+        <div class="input-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="Insira a sua password">
+        </div>
+        <button class="btn" onclick="loginWithPassword()">Entrar</button>
+        <button class="btn-link" onclick="sendOtp()">Esqueci-me da password (Entrar com código)</button>
+    </div>
+
+    <!-- Step 3: OTP -->
+    <div id="step-otp" class="step">
+        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">Insira o código enviado para o seu email</p>
+        <div class="otp-inputs" id="otp-container">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+            <input type="text" maxlength="1">
+        </div>
+        <button class="btn" onclick="verifyOtp()">Verificar Código</button>
+        <button class="btn-link" onclick="showStep('step-email')">Voltar</button>
+    </div>
+
+    <!-- Step 4: Set Password (After OTP) -->
+    <div id="step-set-password" class="step">
+        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">Defina uma password para os próximos acessos</p>
+        <div class="input-group">
+            <label for="new-password">Nova Password</label>
+            <input type="password" id="new-password" placeholder="No mínimo 4 caracteres">
+        </div>
+        <button class="btn" onclick="setPassword()">Guardar e Entrar</button>
+        <button class="btn-link" onclick="skipPassword()">Ignorar por agora</button>
+    </div>
+</div>
+
+<script>
+    let currentEmail = '';
+    let sessionToken = '';
+    let sessionData = null;
+
+    function showStep(id) {
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.getElementById('error-msg').style.display = 'none';
+        document.getElementById('success-msg').style.display = 'none';
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('error-msg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    function showSuccess(msg) {
+        const el = document.getElementById('success-msg');
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+
+    async function apiCall(path, body = null, token = null) {
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+        
+        const res = await fetch('/api/auth' + path, {
+            method: body ? 'POST' : 'GET',
+            headers,
+            body: body ? JSON.stringify(body) : undefined
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Erro no servidor');
+        return data;
+    }
+
+    async function checkEmail() {
+        const email = document.getElementById('email').value;
+        if (!email) return showError('Insira um email.');
+        currentEmail = email;
+        
+        try {
+            const data = await apiCall('/check-email', { email });
+            if (data.hasPassword) {
+                document.getElementById('pwd-email-display').textContent = email;
+                showStep('step-password');
+                document.getElementById('password').focus();
+            } else {
+                await sendOtp();
+            }
+        } catch (e) {
+            showError(e.message);
+        }
+    }
+
+    async function sendOtp() {
+        try {
+            await apiCall('/send-otp', { email: currentEmail });
+            showStep('step-otp');
+            document.querySelector('#otp-container input').focus();
+        } catch (e) {
+            showError(e.message);
+        }
+    }
+
+    async function loginWithPassword() {
+        const password = document.getElementById('password').value;
+        if (!password) return showError('Insira a password.');
+        
+        try {
+            const data = await apiCall('/login', { email: currentEmail, password });
+            handleAuthSuccess(data);
+        } catch (e) {
+            showError(e.message);
+        }
+    }
+
+    async function verifyOtp() {
+        const inputs = document.querySelectorAll('#otp-container input');
+        const code = Array.from(inputs).map(i => i.value).join('');
+        if (code.length !== 6) return showError('Insira o código completo.');
+        
+        try {
+            const data = await apiCall('/verify-otp', { email: currentEmail, code });
+            
+            if (data.status === 'PENDING_APPROVAL') {
+                showSuccess('A sua conta está a aguardar aprovação de um administrador.');
+                document.getElementById('step-otp').classList.remove('active');
+                return;
+            }
+            
+            // Sucesso com OTP - Guardar info e pedir para definir password
+            sessionToken = data.token;
+            sessionData = data;
+            
+            // Check Se já tem password, ignoramos este passo. (Mas nós sabemos q entrou por OTP)
+            showStep('step-set-password');
+            document.getElementById('new-password').focus();
+            
+        } catch (e) {
+            showError(e.message);
+        }
+    }
+
+    async function setPassword() {
+        const password = document.getElementById('new-password').value;
+        if (password.length < 4) return showError('A password deve ter pelo menos 4 caracteres.');
+        
+        try {
+            await apiCall('/set-password', { password }, sessionToken);
+            finalizeLogin();
+        } catch (e) {
+            showError(e.message);
+        }
+    }
+
+    function skipPassword() {
+        finalizeLogin();
+    }
+
+    function finalizeLogin() {
+        localStorage.setItem('erp_session', JSON.stringify(sessionData));
+        if (sessionData.user.role === 'SUPER_ADMIN' || sessionData.user.role === 'PLATFORM_ADMIN') {
+            window.location.href = '/super-admin.html';
+        } else {
+            window.location.href = '/app.html';
+        }
+    }
+
+    // OTP Auto-advance
+    document.querySelectorAll('#otp-container input').forEach((input, index, array) => {
+        input.addEventListener('input', (e) => {
+            if (e.target.value && index < array.length - 1) array[index + 1].focus();
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' && !e.target.value && index > 0) array[index - 1].focus();
+            if (e.key === 'Enter') verifyOtp();
+        });
+    });
+    
+    document.getElementById('email').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkEmail(); });
+    document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') loginWithPassword(); });
+    document.getElementById('new-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') setPassword(); });
+</script>
+</body>
+</html>

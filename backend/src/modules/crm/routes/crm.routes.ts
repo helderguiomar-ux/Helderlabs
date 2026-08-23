@@ -36,7 +36,7 @@ export async function crmRoutes(app: FastifyInstance) {
 
   app.post('/leads', async (request, reply) => {
     const data = createLeadSchema.parse(request.body);
-    const lead = await controller.createLead(contextFrom(request), data);
+    const lead = await controller.createLead(contextFrom(request), data as any);
     return reply.status(201).send(lead);
   });
 

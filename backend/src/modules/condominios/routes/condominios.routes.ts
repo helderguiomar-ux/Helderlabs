@@ -33,7 +33,7 @@ export async function condominiosRoutes(app: FastifyInstance) {
 
   app.post('/buildings', async (request, reply) => {
     const data = createBuildingSchema.parse(request.body);
-    const building = await controller.createBuilding(contextFrom(request), data);
+    const building = await controller.createBuilding(contextFrom(request), data as any);
     return reply.status(201).send(building);
   });
 
@@ -49,7 +49,7 @@ export async function condominiosRoutes(app: FastifyInstance) {
       const data = createUnitSchema.parse(request.body);
 
       try {
-        const unit = await controller.createUnit(contextFrom(request), buildingId, data);
+        const unit = await controller.createUnit(contextFrom(request), buildingId, data as any);
         return reply.status(201).send(unit);
       } catch (error) {
         if (error instanceof BuildingNotFoundError) {

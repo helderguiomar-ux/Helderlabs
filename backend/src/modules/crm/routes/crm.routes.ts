@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { CRMController, type CRMRequestContext } from '../controllers/CRMController';
+import { EnterpriseCRMService } from '../services/EnterpriseCRMService';
 
 const controller = new CRMController();
 
@@ -30,20 +31,43 @@ function contextFrom(request: { user?: { tenantId: string }; db?: unknown }): CR
   return { tenantId: request.user.tenantId, db: request.db as CRMRequestContext['db'] };
 }
 
+const publicLeadSchema = z.object({
+  name: z.string().min(1),
+  company: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  sector: z.string().optional(),
+  message: z.string().optional()
+});
+
 export async function crmRoutes(app: FastifyInstance) {
-  // Todas as rotas deste módulo exigem um JWT válido.
-  app.addHook('preHandler', app.authenticate);
-
+  // Rota pública / autenticada para submissão de Leads (Landing Page + CRM)
   app.post('/leads', async (request, reply) => {
-    const data = createLeadSchema.parse(request.body);
-    const lead = await controller.createLead(contextFrom(request), data as any);
-    return reply.status(201).send(lead);
+    try {
+      if (request.headers.authorization) {
+        await app.authenticate(request, reply);
+      }
+    } catch (e) {}
+
+    if (request.user) {
+      const data = createLeadSchema.parse(request.body);
+      const lead = await controller.createLead(contextFrom(request), data as any);
+      return reply.status(201).send({ success: true, lead, message: 'Lead gravada com sucesso!' });
+    } else {
+      const data = publicLeadSchema.parse(request.body);
+      const lead = await EnterpriseCRMService.createPublicLead(request.db as any, data);
+      return reply.status(201).send({ success: true, lead, message: 'Diagnóstico solicitado com sucesso! Entraremos em contacto brevemente.' });
+    }
   });
 
-  app.get('/leads', async (request, reply) => {
-    const leads = await controller.listLeads(contextFrom(request));
-    return reply.status(200).send(leads);
-  });
+  // Rotas protegidas (exigem JWT autenticado)
+  app.register(async (protectedApp) => {
+    protectedApp.addHook('preHandler', app.authenticate);
+
+    protectedApp.get('/leads', async (request, reply) => {
+      const leads = await controller.listLeads(contextFrom(request));
+      return reply.status(200).send(leads);
+    });
 
   app.put<{ Params: { id: string } }>('/leads/:id', async (request, reply) => {
     const { id } = request.params;
@@ -100,5 +124,6 @@ export async function crmRoutes(app: FastifyInstance) {
   app.get('/dashboard', async (request, reply) => {
     const metrics = await controller.dashboardMetrics(contextFrom(request));
     return reply.status(200).send(metrics);
+  });
   });
 }

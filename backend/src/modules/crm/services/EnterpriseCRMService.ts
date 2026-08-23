@@ -122,6 +122,35 @@ export class EnterpriseCRMService {
     });
   }
 
+  public static async createPublicLead(db: PrismaClient, data: {
+    company: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    sector?: string;
+    message?: string;
+  }) {
+    let platformTenant = await db.tenant.findFirst({
+      where: { slug: 'helderlabs-platform' }
+    });
+    if (!platformTenant) {
+      platformTenant = await db.tenant.findFirst();
+    }
+    const tenantId = platformTenant ? platformTenant.id : 'helderlabs-platform';
+
+    return db.lead.create({
+      data: {
+        tenantId,
+        company: data.company || 'Pessoa Singular',
+        name: data.name,
+        email: data.email || null,
+        phone: data.phone || null,
+        source: data.sector ? `landing_diagnostico_${data.sector}` : 'landing_diagnostico',
+        status: 'NEW'
+      }
+    });
+  }
+
   public async listLeads() {
     return this.db.lead.findMany({ where: { tenantId: this.tenantId }, orderBy: { createdAt: 'desc' } });
   }

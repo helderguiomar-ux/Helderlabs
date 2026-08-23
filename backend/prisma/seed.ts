@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Seed de desenvolvimento — cria dados fictícios para testar todos os módulos.
  * USO: npm run seed
  * NUNCA executar em producao.
@@ -124,25 +124,83 @@ async function main() {
   await prisma.applicationAssignment.create({ data: { userId: trialAdmin.id, applicationId: trialCrmApp.id, roleInApp: "ADMIN", status: "ACTIVE" } });
   console.log("StartUp Inovacao criada: 1 user, CRM TRIAL.\n");
 
-  // Platform Settings
-  await prisma.platformSetting.createMany({ data: [
-    { key: "platform.name", value: "HelderLabs ERP", category: "General" },
-    { key: "platform.version", value: "1.0.0-consolidada", category: "General" },
-    { key: "platform.supportEmail", value: "support@helderlabs.eu", category: "Support" },
-  ]});
+  // Tenant 0: HelderLabs Platform System (SUPER ADMIN TENANT — ALL MODULES ACTIVE ALWAYS)
+  console.log("A criar Tenant System: HelderLabs Platform System...");
+  const tenantPlatform = await prisma.tenant.create({
+    data: {
+      name: "HelderLabs Platform System",
+      slug: "helderlabs-platform",
+      email: "helderguiomar@gmail.com",
+      phone: "+351 910 000 000",
+      address: "HelderLabs HQ",
+      city: "Lisboa",
+      country: "Portugal",
+      status: "ACTIVE"
+    }
+  });
+
+  const superAdminUser = await prisma.user.create({
+    data: {
+      tenantId: tenantPlatform.id,
+      name: "Helder Guiomar (Super Admin)",
+      email: "helderguiomar@gmail.com",
+      passwordHash: pwHash,
+      role: "SUPER_ADMIN",
+      status: "ACTIVE",
+      active: true,
+      authProvider: "EMAIL"
+    }
+  });
+
+  // Ativar TODOS os 6 módulos para o HelderLabs Platform System
+  const allModules = [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks];
+  for (const m of allModules) {
+    const appInst = await prisma.applicationInstance.create({
+      data: {
+        moduleId: m.id,
+        tenantId: tenantPlatform.id,
+        status: "ACTIVE",
+        config: { unlimited: true, fullAccess: true },
+        createdBy: superAdminUser.id
+      }
+    });
+    await prisma.applicationAssignment.create({
+      data: {
+        userId: superAdminUser.id,
+        applicationId: appInst.id,
+        roleInApp: "ADMIN",
+        status: "ACTIVE"
+      }
+    });
+  }
+
+  // Criar leads de teste para HelderLabs Platform System
+  await prisma.lead.createMany({
+    data: [
+      { tenantId: tenantPlatform.id, company: "Cliente Diagnostico Web", name: "Dr. Joao Silva", email: "joao.silva@empresa.pt", source: "landing_diagnostico_Advocacia", status: "NEW" },
+      { tenantId: tenantPlatform.id, company: "Empresa Logistica Lda", name: "Manuel Santos", email: "manuel@logistica.pt", source: "landing_diagnostico_Distribuição", status: "CONTACTED" },
+    ]
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorId: superAdminUser.id,
+      actorEmail: superAdminUser.email,
+      actorType: "USER",
+      tenantId: tenantPlatform.id,
+      action: "SEED_PLATFORM",
+      resource: "Platform",
+      result: "SUCCESS",
+      timestamp: new Date()
+    }
+  });
+  console.log("HelderLabs Platform System criado com 6 modulos ACTIVE.\n");
 
   console.log("===========================================");
   console.log("SEED CONCLUIDO:");
-  console.log("  3 tenants, 7 utilizadores, 4 aplicativos");
-  console.log("  Tenant 1 (Alfa): CRM ACTIVE + Finance TRIAL + 5 leads");
-  console.log("  Tenant 2 (Condo): Condominios ACTIVE + 1 edificio");
-  console.log("  Tenant 3 (Trial): CRM TRIAL");
+  console.log("  4 tenants (incluindo HelderLabs Platform System com 6 modulos ACTIVE)");
   console.log("===========================================");
-  console.log("CREDENCIAIS (password: admin1234):");
-  console.log("  TENANT_ADMIN  -> ana@consultoria-alfa.pt");
-  console.log("  SALES         -> carlos@consultoria-alfa.pt");
-  console.log("  TENANT_ADMIN  -> luisa@administracondo.pt");
-  console.log("  TENANT_OWNER  -> bea@startupino.pt");
+  console.log("SUPER ADMIN: helderguiomar@gmail.com (password: admin1234)");
   console.log("===========================================\n");
 }
 

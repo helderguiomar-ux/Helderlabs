@@ -1,4 +1,4 @@
-﻿import { FastifyInstance } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuthService } from '../services/AuthService';
 
@@ -22,6 +22,17 @@ const setPasswordSchema = z.object({
 
 export async function authRoutes(app: FastifyInstance) {
   const authService = new AuthService();
+
+  // Demo Login (Instantâneo sem OTP)
+  app.post('/demo-login', async (request, reply) => {
+    const result = await authService.demoLogin();
+    return reply.status(200).send(result);
+  });
+
+  app.get('/demo-status', async (request, reply) => {
+    const result = await authService.demoStatus();
+    return reply.status(200).send(result);
+  });
 
   // Passo 1: Verificar se utilizador tem password
   app.post('/check-email', async (request, reply) => {

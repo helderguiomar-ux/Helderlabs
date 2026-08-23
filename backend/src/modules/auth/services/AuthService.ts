@@ -1,4 +1,4 @@
-﻿import { PrismaClient, UserRole } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 import { AppError } from '../../../utils/errors';
 import bcrypt from 'bcrypt';
 import { signAuthToken } from '../../../plugins/authenticate';
@@ -232,5 +232,41 @@ export class AuthService {
       data: { passwordHash }
     });
     console.log(`[AUTH] Password definida com sucesso para o utilizador ${userId}`);
+  }
+
+  async demoLogin() {
+    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
+    await this.ensureSuperAdminUser(superAdminEmail);
+    const user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
+    if (!user) throw AppError.unauthorized('Demo user not found');
+
+    const token = signAuthToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      tenantId: user.tenantId
+    });
+
+    return {
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name || 'Super Admin',
+        role: user.role,
+        tenantId: user.tenantId
+      }
+    };
+  }
+
+  async demoStatus() {
+    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
+    return {
+      demoAvailable: true,
+      message: 'Demo do Super Admin pronta a utilizar',
+      user: user ? user.email : superAdminEmail
+    };
   }
 }

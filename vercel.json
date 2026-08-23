@@ -5,15 +5,15 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/backend/api/index.ts"
+      "destination": "/api/index"
     },
     {
       "source": "/health",
-      "destination": "/backend/api/index.ts"
+      "destination": "/api/index"
     },
     {
       "source": "/(.*)",
-      "destination": "/backend/public/$1"
+      "destination": "/$1"
     }
   ]
 }

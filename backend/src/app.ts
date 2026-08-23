@@ -110,8 +110,9 @@ export function buildApp() {
   // Frontend estático: servido a partir de /public
   // Em produção o mesmo processo serve HTML + API (sem separação de deploy).
   // ---------------------------------------------------------------------------
+  const staticRoot = path.join(__dirname, '../public');
   app.register(fastifyStatic, {
-    root: path.join(__dirname, '../public'),
+    root: staticRoot,
     prefix: '/',
     index: 'index.html'
   });

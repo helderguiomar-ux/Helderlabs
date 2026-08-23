@@ -122,7 +122,7 @@ export class EnterpriseCRMService {
     });
   }
 
-  public static async createPublicLead(db: any, data: {
+  public static async createPublicLead(data: {
     company?: string;
     name: string;
     email?: string;
@@ -130,16 +130,15 @@ export class EnterpriseCRMService {
     sector?: string;
     message?: string;
   }) {
-    const prismaClient = (db && typeof db.tenant !== 'undefined') ? db : defaultPrismaClient;
-    let platformTenant = await prismaClient.tenant.findFirst({
+    let platformTenant = await defaultPrismaClient.tenant.findFirst({
       where: { slug: 'helderlabs-platform' }
     });
     if (!platformTenant) {
-      platformTenant = await prismaClient.tenant.findFirst();
+      platformTenant = await defaultPrismaClient.tenant.findFirst();
     }
     const tenantId = platformTenant ? platformTenant.id : 'helderlabs-platform';
 
-    return prismaClient.lead.create({
+    return defaultPrismaClient.lead.create({
       data: {
         tenantId,
         company: data.company || 'Pessoa Singular',

@@ -15,25 +15,29 @@ export class AuthService {
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     if (email.toLowerCase() !== superAdminEmail) return null;
 
-    let user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
-    if (!user) {
-      let systemTenant = await prisma.tenant.findFirst({ where: { slug: 'helderlabs-platform' } });
-      if (!systemTenant) {
-        systemTenant = await prisma.tenant.create({
-          data: {
-            name: 'HelderLabs Platform System',
-            slug: 'helderlabs-platform',
-            email: superAdminEmail,
-            status: 'ACTIVE'
-          }
-        });
-      }
+    const defaultPasswordHash = await bcrypt.hash('admin1234', 10);
 
+    let user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
+    let systemTenant = await prisma.tenant.findFirst({ where: { slug: 'helderlabs-platform' } });
+    
+    if (!systemTenant) {
+      systemTenant = await prisma.tenant.create({
+        data: {
+          name: 'HelderLabs Platform System',
+          slug: 'helderlabs-platform',
+          email: superAdminEmail,
+          status: 'ACTIVE'
+        }
+      });
+    }
+
+    if (!user) {
       user = await prisma.user.create({
         data: {
           tenantId: systemTenant.id,
           name: 'Helder Guiomar (Super Admin)',
           email: superAdminEmail,
+          passwordHash: defaultPasswordHash,
           role: 'SUPER_ADMIN',
           status: 'ACTIVE',
           active: true,
@@ -41,9 +45,47 @@ export class AuthService {
         }
       });
       console.log(`[SUPER ADMIN] Utilizador Super Admin ${superAdminEmail} criado com sucesso.`);
+    } else {
+      const updates: any = {};
+      if (!user.passwordHash) updates.passwordHash = defaultPasswordHash;
+      if (user.role !== 'SUPER_ADMIN') updates.role = 'SUPER_ADMIN';
+      if (user.status !== 'ACTIVE') updates.status = 'ACTIVE';
+      if (user.tenantId !== systemTenant.id) updates.tenantId = systemTenant.id;
+      if (Object.keys(updates).length > 0) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: updates
+        });
+      }
     }
 
-    // Se existia um AccountRequest para o SuperAdmin, podemos limpá-lo
+    // Ativar todos os 6 módulos da plataforma para a HelderLabs se não existirem
+    const modules = await prisma.module.findMany();
+    for (const m of modules) {
+      const existingApp = await prisma.applicationInstance.findFirst({
+        where: { tenantId: systemTenant.id, moduleId: m.id }
+      });
+      if (!existingApp) {
+        const appInst = await prisma.applicationInstance.create({
+          data: {
+            moduleId: m.id,
+            tenantId: systemTenant.id,
+            status: 'ACTIVE',
+            config: { unlimited: true, fullAccess: true },
+            createdBy: user.id
+          }
+        });
+        await prisma.applicationAssignment.create({
+          data: {
+            userId: user.id,
+            applicationId: appInst.id,
+            roleInApp: 'ADMIN',
+            status: 'ACTIVE'
+          }
+        });
+      }
+    }
+
     await prisma.accountRequest.deleteMany({ where: { email: superAdminEmail } });
 
     return user;

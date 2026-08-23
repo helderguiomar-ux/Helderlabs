@@ -197,6 +197,10 @@
     return res.json();
   }
 
+  function openModuleApp(moduleName) {
+    window.location.href = '/app.html';
+  }
+
   async function loadApplications() {
     try {
       const data = await api('/api/platform/applications');
@@ -206,14 +210,14 @@
         return;
       }
       container.innerHTML = data.applications.map(app => 
-        '<div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px;">' +
+        '<div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; cursor: pointer; transition: transform 0.15s, border-color 0.15s;" onclick="openModuleApp(\'' + app.moduleName + '\')">' +
           '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">' +
             '<h3 style="color: #58a6ff; margin:0;">' + app.moduleName + '</h3>' +
             '<span style="background: ' + (app.status === 'ACTIVE' ? '#238636' : app.status === 'TRIAL' ? '#9e6a03' : '#30363d') + '; color:white; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">' + app.status + '</span>' +
           '</div>' +
           '<p style="color: #8b949e; font-size:13px; margin:0 0 10px 0;">🏢 ' + app.tenantName + '</p>' +
           '<p style="color: #8b949e; font-size:12px; margin:0 0 15px 0;">👥 ' + app.usersCount + ' utilizador(es) atribuído(s)</p>' +
-          '<div style="border-top: 1px solid #30363d; padding-top: 10px;">' +
+          '<div style="border-top: 1px solid #30363d; padding-top: 10px; margin-bottom: 12px;">' +
             '<p style="font-size: 12px; color: #c9d1d9; margin:0 0 8px 0;"><strong>Utilizadores com acesso:</strong></p>' +
             (app.assignments.length === 0 ? '<p style="color:#8b949e; font-size:12px;">Sem utilizadores</p>' :
               app.assignments.map(a => 
@@ -224,6 +228,9 @@
               ).join('')
             ) +
           '</div>' +
+          '<button onclick="event.stopPropagation(); openModuleApp(\'' + app.moduleName + '\')" style="width: 100%; padding: 8px 12px; background: #238636; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">' +
+            '🚀 Entrar no Módulo (' + app.moduleName + ')' +
+          '</button>' +
         '</div>'
       ).join('');
     } catch(e) {

@@ -1,14 +1,14 @@
-import { FastifyInstance } from 'fastify';
+ï»¿import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuthService } from '../services/AuthService';
 
 const emailSchema = z.object({
-  email: z.string().email('Email inválido')
+  email: z.string().email('Email invÃ¡lido')
 });
 
 const verifyOtpSchema = z.object({
   email: z.string().email(),
-  code: z.string().length(6, 'O código deve ter 6 dígitos')
+  code: z.string().length(6, 'O cÃ³digo deve ter 6 dÃ­gitos')
 });
 
 const loginPasswordSchema = z.object({
@@ -17,7 +17,7 @@ const loginPasswordSchema = z.object({
 });
 
 const setPasswordSchema = z.object({
-  password: z.string().min(4, 'Password deve ter no mínimo 4 caracteres')
+  password: z.string().min(4, 'A password deve ter pelo menos 4 caracteres')
 });
 
 export async function authRoutes(app: FastifyInstance) {
@@ -30,14 +30,14 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send({ hasPassword });
   });
 
-  // Passo 2a: Enviar OTP (se não tiver password ou esquecer)
+  // Passo 2a: Enviar OTP (se nÃ£o tiver password ou se pedir por cÃ³digo)
   app.post('/send-otp', async (request, reply) => {
     const { email } = emailSchema.parse(request.body);
     await authService.sendOtp(email);
-    return reply.status(200).send({ message: 'Código enviado com sucesso' });
+    return reply.status(200).send({ message: 'CÃ³digo enviado com sucesso' });
   });
 
-  // Passo 3a: Validar OTP (devole token ou status de PENDING)
+  // Passo 3a: Validar OTP (devolve token ou status de PENDING)
   app.post('/verify-otp', async (request, reply) => {
     const { email, code } = verifyOtpSchema.parse(request.body);
     const result = await authService.verifyOtp(email, code);
@@ -51,17 +51,17 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send(result);
   });
 
-  // Rota Protegida: Definir password (após entrar com OTP a 1ª vez)
+  // Rota Protegida: Definir password na BD (apÃ³s entrar com OTP)
   app.post('/set-password', {
     preHandler: [app.authenticate]
   }, async (request, reply) => {
     const { password } = setPasswordSchema.parse(request.body);
     const userId = request.user!.sub;
     await authService.setPassword(userId, password);
-    return reply.status(200).send({ message: 'Password definida com sucesso' });
+    return reply.status(200).send({ message: 'Password definida e guardada na base de dados com sucesso' });
   });
 
-  // Verifica estado atual
+  // Verificar sessÃ£o atual
   app.get('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
     return reply.status(200).send({ user: request.user });
   });

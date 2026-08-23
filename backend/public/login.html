@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-PT">
 <head>
     <meta charset="UTF-8">
@@ -198,6 +198,12 @@
     }
 
     function skipPassword() {
+        finalizeLogin();
+    }
+
+    function handleAuthSuccess(data) {
+        sessionToken = data.token;
+        sessionData = data;
         finalizeLogin();
     }
 

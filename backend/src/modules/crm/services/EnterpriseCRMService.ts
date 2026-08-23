@@ -126,6 +126,19 @@ export class EnterpriseCRMService {
     return this.db.lead.findMany({ where: { tenantId: this.tenantId }, orderBy: { createdAt: 'desc' } });
   }
 
+  public async updateLead(id: string, data: Partial<{ company: string; name: string; email: string; phone: string; source: string; status: string }>) {
+    return this.db.lead.update({
+      where: { id, tenantId: this.tenantId },
+      data: data as any
+    });
+  }
+
+  public async deleteLead(id: string) {
+    return this.db.lead.delete({
+      where: { id, tenantId: this.tenantId }
+    });
+  }
+
   public async listOpportunities() {
     return this.db.opportunity.findMany({ where: { tenantId: this.tenantId }, orderBy: { createdAt: 'desc' } });
   }

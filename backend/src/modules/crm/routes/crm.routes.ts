@@ -45,6 +45,19 @@ export async function crmRoutes(app: FastifyInstance) {
     return reply.status(200).send(leads);
   });
 
+  app.put<{ Params: { id: string } }>('/leads/:id', async (request, reply) => {
+    const { id } = request.params;
+    const data = createLeadSchema.partial().parse(request.body);
+    const updated = await controller.updateLead(contextFrom(request), id, data);
+    return reply.status(200).send(updated);
+  });
+
+  app.delete<{ Params: { id: string } }>('/leads/:id', async (request, reply) => {
+    const { id } = request.params;
+    await controller.deleteLead(contextFrom(request), id);
+    return reply.status(204).send();
+  });
+
   app.get('/opportunities', async (request, reply) => {
     const opportunities = await controller.listOpportunities(contextFrom(request));
     return reply.status(200).send(opportunities);

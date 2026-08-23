@@ -42,6 +42,33 @@ export async function condominiosRoutes(app: FastifyInstance) {
     return reply.status(200).send(buildings);
   });
 
+  app.put<{ Params: { buildingId: string } }>('/buildings/:buildingId', async (request, reply) => {
+    const { buildingId } = request.params;
+    const data = createBuildingSchema.partial().parse(request.body);
+    try {
+      const updated = await controller.updateBuilding(contextFrom(request), buildingId, data);
+      return reply.status(200).send(updated);
+    } catch (error) {
+      if (error instanceof BuildingNotFoundError) {
+        return reply.status(404).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  app.delete<{ Params: { buildingId: string } }>('/buildings/:buildingId', async (request, reply) => {
+    const { buildingId } = request.params;
+    try {
+      await controller.deleteBuilding(contextFrom(request), buildingId);
+      return reply.status(204).send();
+    } catch (error) {
+      if (error instanceof BuildingNotFoundError) {
+        return reply.status(404).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
   app.post<{ Params: { buildingId: string }; Body: unknown }>(
     '/buildings/:buildingId/units',
     async (request, reply) => {
@@ -66,6 +93,19 @@ export async function condominiosRoutes(app: FastifyInstance) {
     try {
       const units = await controller.listUnits(contextFrom(request), buildingId);
       return reply.status(200).send(units);
+    } catch (error) {
+      if (error instanceof BuildingNotFoundError) {
+        return reply.status(404).send({ message: error.message });
+      }
+      throw error;
+    }
+  });
+
+  app.delete<{ Params: { buildingId: string; unitId: string } }>('/buildings/:buildingId/units/:unitId', async (request, reply) => {
+    const { buildingId, unitId } = request.params;
+    try {
+      await controller.deleteUnit(contextFrom(request), buildingId, unitId);
+      return reply.status(204).send();
     } catch (error) {
       if (error instanceof BuildingNotFoundError) {
         return reply.status(404).send({ message: error.message });

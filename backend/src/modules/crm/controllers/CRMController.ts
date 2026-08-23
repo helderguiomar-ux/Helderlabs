@@ -42,6 +42,14 @@ export class CRMController {
     return serviceFor(context).listLeads();
   }
 
+  async updateLead(context: CRMRequestContext, id: string, data: any) {
+    return serviceFor(context).updateLead(id, data);
+  }
+
+  async deleteLead(context: CRMRequestContext, id: string) {
+    return serviceFor(context).deleteLead(id);
+  }
+
   async listOpportunities(context: CRMRequestContext) {
     return serviceFor(context).listOpportunities();
   }

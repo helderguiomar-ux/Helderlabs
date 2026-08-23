@@ -50,6 +50,21 @@ export class EnterpriseCondominiosService {
     return this.db.building.findMany({ where: { tenantId: this.tenantId }, orderBy: { createdAt: 'desc' } });
   }
 
+  public async updateBuilding(buildingId: string, data: any) {
+    await this.requireOwnedBuilding(buildingId);
+    return this.db.building.update({
+      where: { id: buildingId },
+      data
+    });
+  }
+
+  public async deleteBuilding(buildingId: string) {
+    await this.requireOwnedBuilding(buildingId);
+    return this.db.building.delete({
+      where: { id: buildingId }
+    });
+  }
+
   private async requireOwnedBuilding(buildingId: string) {
     const building = await this.db.building.findUnique({
       where: { id: buildingId, tenantId: this.tenantId } as any
@@ -74,5 +89,12 @@ export class EnterpriseCondominiosService {
   public async listUnits(buildingId: string) {
     await this.requireOwnedBuilding(buildingId);
     return this.db.unit.findMany({ where: { buildingId }, orderBy: { identifier: 'asc' } });
+  }
+
+  public async deleteUnit(buildingId: string, unitId: string) {
+    await this.requireOwnedBuilding(buildingId);
+    return this.db.unit.delete({
+      where: { id: unitId }
+    });
   }
 }

@@ -24,11 +24,23 @@ export class CondominiosController {
     return serviceFor(context).listBuildings();
   }
 
+  async updateBuilding(context: CondominiosRequestContext, buildingId: string, data: any) {
+    return serviceFor(context).updateBuilding(buildingId, data);
+  }
+
+  async deleteBuilding(context: CondominiosRequestContext, buildingId: string) {
+    return serviceFor(context).deleteBuilding(buildingId);
+  }
+
   async createUnit(context: CondominiosRequestContext, buildingId: string, data: { identifier: string; permille: number }) {
     return serviceFor(context).createUnit(buildingId, data);
   }
 
   async listUnits(context: CondominiosRequestContext, buildingId: string) {
     return serviceFor(context).listUnits(buildingId);
+  }
+
+  async deleteUnit(context: CondominiosRequestContext, buildingId: string, unitId: string) {
+    return serviceFor(context).deleteUnit(buildingId, unitId);
   }
 }

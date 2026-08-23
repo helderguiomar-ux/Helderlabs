@@ -1,5 +1,5 @@
 # 🚀 HELDERLABS ERP — Unified Enterprise Repository
-**Version:** 1.0.0-consolidada | **Architecture:** Multi-Tenant Modular B2B SaaS
+**Version:** 0.1.0 | **Architecture:** Multi-Tenant Modular B2B SaaS
 
 Official consolidated repository for **HELDERLABS ERP**. Designed for seamless collaboration between **Claude**, **Antigravity**, **GitHub CI/CD**, and human developers.
 

@@ -4,6 +4,14 @@ Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** sã
 
 ---
 
+## [v0.1.0] - 2026-08-23
+
+### 📌 Versão Canónica Única & Consolidação de Repositório
+- **Versão Canónica Única v0.1.0**: Estabelecida a diretoria `C:\Users\helde\Desktop\Dev\helderlabs-erp` como a única fonte canónica oficial de código para GitHub, Claude, Antigravity e ambiente local.
+- **Base de Dados Online**: Vinculada a base de dados em nuvem Neon Cloud PostgreSQL via `DATABASE_URL` no `.env`.
+- **Eliminação de Duplicados**: Auditados e removidos todos os diretórios obsoletos e cópias duplicadas nas drives C: e G: (`G:\O meu disco\01_HelderLabs\...` e `G:\O meu disco\01_HeldersLabs\...`).
+- **Vinculação Git Remote**: Repositório Git local associado diretamente ao repositório remoto `https://github.com/helderguiomar-ux/Helderlabs.git`.
+
 ## [v1.0.0-consolidada] - 2026-08-23
 
 ### 🚀 Consolidação Unificada & Preparação para Produção

@@ -11,16 +11,16 @@ The system is built on a **Modular Fastify + TypeScript** core with **Prisma ORM
 
 ```
 helderlabs-erp/
+├── api/                       ← Vercel Serverless Function entrypoint (api/index.ts)
 ├── backend/                   ← Fastify / Node.js / Prisma Backend
-│   ├── api/index.ts           ← Vercel Serverless Function entrypoint
 │   ├── src/                   ← Backend source code
-│   │   ├── app.ts             ← Unified Fastify application & error boundary
+│   │   ├── app.ts             ← Fastify application builder & global error boundary
 │   │   ├── server.ts          ← Standalone HTTP server (local/Docker/Render)
 │   │   ├── database/          ← Prisma Client & tenant isolation extension
-│   │   └── modules/           ← CRM, Condomínios, Platform, Finance, etc.
+│   │   └── modules/           ← CRM, Condomínios, Platform, Auth, etc.
 │   ├── public/                ← Integrated static SPA frontend
 │   │   ├── index.html         ← Landing page (conditional dev banner)
-│   │   ├── login.html         ← Auth page (Email + OTP + OAuth)
+│   │   ├── login.html         ← Auth page (Email + OTP + Set Password)
 │   │   ├── app.html           ← Main ERP Dashboard
 │   │   └── super-admin.html   ← Platform Super Admin (Modules & Tenant App Management)
 │   ├── prisma/
@@ -29,6 +29,9 @@ helderlabs-erp/
 │   │   └── migrations/        ← Prisma SQL migrations history
 │   └── tests/                 ← 32 automated unit & integration tests
 ├── docs/                      ← Complete historical & architectural documentation
+│   └── PRODUCTION.md          ← Infrastructure & Disaster Recovery guide
+├── CLAUDE.md                  ← AI Agent instructions & operating rules
+├── CHANGELOG.md               ← Version history & changelog
 ├── vercel.json                ← Vercel Serverless & Static Asset routing configuration
 ├── firebase.json              ← Firebase Hosting & Cloud Functions configuration
 └── package.json               ← Root scripts & project orchestration
@@ -36,19 +39,16 @@ helderlabs-erp/
 
 ---
 
-## 🛠️ Quick Start — Running Locally
-
-### Prerequisites
-- Node.js v18+ or v20+
-- PostgreSQL running locally (port 5432) or remote PostgreSQL connection string
+## 🛠️ Quick Start — Local Development
 
 ### 1. Installation
 ```bash
 cd backend
 npm install
+npx prisma generate
 ```
 
-### 2. Environment Setup
+### 2. Environment Configuration
 Create `backend/.env` (or `.env.local`):
 ```env
 DATABASE_URL="postgresql://postgres:enterprise_password_2026@localhost:5432/helderlabs_erp"
@@ -58,23 +58,23 @@ ENVIRONMENT=DEVELOPMENT
 VERSION=1.0.0-consolidada
 JWT_SECRET="dev_secret_key_change_in_production"
 ALLOWED_ORIGINS="http://localhost:3333,http://localhost:3000,http://127.0.0.1:3333"
+DEFAULT_SUPER_ADMIN_EMAIL="helderguiomar@gmail.com"
 ```
 
-### 3. Database Migration & Seed
+### 3. Database Sync & Seed
 ```bash
 cd backend
-npx prisma generate
-npx prisma db push        # Sync database schema
+npx prisma db push        # Sync schema to local database
 npm run seed              # Seed mock tenants, users, and module applications
 ```
 
-### 4. Start Local Development Server
+### 4. Start Server
 ```bash
 cd backend
 npm run dev
 ```
 
-The server will start listening at **`http://localhost:3333`**:
+Local endpoints:
 - **Landing Page**: [http://localhost:3333](http://localhost:3333)
 - **Login**: [http://localhost:3333/login.html](http://localhost:3333/login.html)
 - **ERP Dashboard**: [http://localhost:3333/app.html](http://localhost:3333/app.html)
@@ -83,62 +83,69 @@ The server will start listening at **`http://localhost:3333`**:
 
 ---
 
-## 🧪 Testing & Validation
+## 🌐 Production Deployment
 
-Run the automated test suite (32 unit tests for multi-tenant isolation, CRM workflow, Condomínios, OAuth PKCE/state):
-```bash
-cd backend
-npm test
+### 1. Architecture
+- **Hosting Platform**: Vercel (`https://helderlabs.eu`)
+- **Database**: PostgreSQL Cloud (Neon / Render Managed DB / Supabase)
+- **ORM**: Prisma 5 with strict multi-tenant client extensions
+- **Email Dispatcher**: Resend API (`https://api.resend.com/emails`)
+
+### 2. Required Environment Variables (Vercel Dashboard)
+In **Vercel Dashboard** ➔ **helderlabs-erp** ➔ **Settings** ➔ **Environment Variables**:
+
+```env
+DATABASE_URL=<POSTGRESQL_CLOUD_CONNECTION_STRING>
+JWT_SECRET=<JWT_PRODUCTION_SECRET_KEY>
+JWT_EXPIRES_IN=8h
+ALLOWED_ORIGINS=https://helderlabs.eu,https://www.helderlabs.eu
+DEFAULT_SUPER_ADMIN_EMAIL=helderguiomar@gmail.com
+RESEND_API_KEY=<RESEND_API_KEY>
+SMTP_FROM=HelderLabs ERP <noreply@helderlabs.eu>
+NODE_ENV=production
+ENVIRONMENT=PRODUCTION
+VERSION=1.0.0-consolidada
 ```
 
-Check TypeScript compilation:
-```bash
-cd backend
-npm run typecheck
-```
+### 3. Migrations & Deployment Procedure
+1. Apply Prisma migrations to the production cloud database:
+   ```bash
+   cd backend
+   npx prisma migrate deploy
+   ```
+2. Trigger Vercel Production deployment:
+   ```bash
+   npx vercel --prod --yes
+   ```
 
-Build production bundle:
+### 4. Authentication & Approval Flow
+- **Super Admin**: `helderguiomar@gmail.com` is auto-provisioned as `SUPER_ADMIN` in the system tenant with full access to `/super-admin.html`.
+- **New Users**: Registrations and OTP verifications place accounts in `PENDING_APPROVAL` status until approved and assigned to a Tenant by `helderguiomar@gmail.com`.
+- **Passwords**: Hashed with `bcrypt` (10 salt rounds) and stored securely in PostgreSQL.
+
+### 5. Troubleshooting & Recovery
+- **`DATABASE_UNAVAILABLE` (503)**: Triggered when `DATABASE_URL` is unconfigured or unreachable. Verify PostgreSQL Cloud string in Vercel settings.
+- **Rollback**: In Vercel Dashboard, select the previous working deployment and click **Instant Rollback**.
+- **Database Backup**: Run `pg_dump "<POSTGRESQL_CLOUD_CONNECTION_STRING>" -F c -b -v -f backup.dump`.
+
+---
+
+## 🧪 Automated Testing
+
 ```bash
 cd backend
-npm run build
+npm run typecheck         # TypeScript strict compilation check
+npm test                  # Run 32 automated unit tests
 ```
 
 ---
 
-## ☁️ Deployment
+## 🔑 Demo Test Credentials (Dev / Local)
 
-### Deployment Option 1: Vercel (Recommended)
-1. Connect the root GitHub repository to **Vercel**.
-2. Vercel automatically reads `vercel.json` and builds `backend/api/index.ts` as a Serverless Function and `backend/public` as static assets.
-3. Configure Environment Variables in Vercel Dashboard:
-   - `DATABASE_URL` (Neon or Render managed PostgreSQL)
-   - `JWT_SECRET` (production random 32-byte secret)
-   - `ALLOWED_ORIGINS` = `https://helderlabs.eu,https://www.helderlabs.eu`
-   - `ENVIRONMENT` = `PRODUCTION`
-
-### Deployment Option 2: Render.com
-Use `backend/render.yaml` for managed Render.com deployment with PostgreSQL database included.
-
-### Deployment Option 3: Firebase Hosting
-Use `firebase.json` for Firebase Hosting deployment with `/api/**` rewrites to Cloud Functions.
-
----
-
-## 🔑 Demo Test Credentials (from Seed)
-
-| Role / Tenant | Email | Password | Active Modules |
+| Role / Tenant | Email | Password / OTP | Access |
 |---|---|---|---|
+| **SUPER_ADMIN** | `helderguiomar@gmail.com` | `123456` (dev code) | Full Platform Admin (`/super-admin.html`) |
 | **TENANT_ADMIN** (Alfa) | `ana@consultoria-alfa.pt` | `admin1234` | CRM (ACTIVE), Finance (TRIAL) |
 | **SALES** (Alfa) | `carlos@consultoria-alfa.pt` | `admin1234` | CRM (ACTIVE) |
 | **TENANT_ADMIN** (Condo) | `luisa@administracondo.pt` | `admin1234` | Condomínios (ACTIVE) |
 | **TENANT_OWNER** (StartUp) | `bea@startupino.pt` | `admin1234` | CRM (TRIAL) |
-| **SUPER_ADMIN** (Global) | `helderguiomar@gmail.com` | *via OTP* | Full Platform Admin |
-
----
-
-## 📄 Documentation Index
-All historical and architectural documentation is consolidated under [`docs/`](./docs/):
-- [`docs/Architecture.md`](./docs/Architecture.md) — Core DI & Multi-Tenant architecture
-- [`docs/Database.md`](./docs/Database.md) — Schema models & tenant isolation extension
-- [`docs/Security.md`](./docs/Security.md) — JWT, RBAC & security audit records
-- [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) — Deployment & SMTP setup guide

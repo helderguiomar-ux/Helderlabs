@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm run build",
+  "buildCommand": "cd backend && npm install && npx prisma generate && npm run build",
   "outputDirectory": "backend/public",
   "rewrites": [
     {

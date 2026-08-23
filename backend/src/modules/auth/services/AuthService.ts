@@ -7,19 +7,67 @@ import { prisma } from '../../../database/prisma/client';
 export class AuthService {
   constructor() {}
 
+  /**
+   * Garante que o Super Admin (helderguiomar@gmail.com) tem utilizador criado
+   * e associado ao Tenant do Sistema com a role SUPER_ADMIN e estado ACTIVE.
+   */
+  private async ensureSuperAdminUser(email: string) {
+    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
+    if (email.toLowerCase() !== superAdminEmail) return null;
+
+    let user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
+    if (!user) {
+      let systemTenant = await prisma.tenant.findFirst({ where: { slug: 'helderlabs-platform' } });
+      if (!systemTenant) {
+        systemTenant = await prisma.tenant.create({
+          data: {
+            name: 'HelderLabs Platform System',
+            slug: 'helderlabs-platform',
+            email: superAdminEmail,
+            status: 'ACTIVE'
+          }
+        });
+      }
+
+      user = await prisma.user.create({
+        data: {
+          tenantId: systemTenant.id,
+          name: 'Helder Guiomar (Super Admin)',
+          email: superAdminEmail,
+          role: 'SUPER_ADMIN',
+          status: 'ACTIVE',
+          active: true,
+          authProvider: 'EMAIL'
+        }
+      });
+      console.log(`[SUPER ADMIN] Utilizador Super Admin ${superAdminEmail} criado com sucesso.`);
+    }
+
+    // Se existia um AccountRequest para o SuperAdmin, podemos limpá-lo
+    await prisma.accountRequest.deleteMany({ where: { email: superAdminEmail } });
+
+    return user;
+  }
+
   async checkHasPassword(email: string) {
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    const cleanEmail = email.toLowerCase();
+    await this.ensureSuperAdminUser(cleanEmail);
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user) return false;
     return !!user.passwordHash;
   }
 
   async sendOtp(email: string) {
     const cleanEmail = email.toLowerCase();
-    const isSuperAdmin = cleanEmail === (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
-    
-    // Gerar código de 6 dígitos (ou 123456 se for SuperAdmin)
+    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
+    const isSuperAdmin = cleanEmail === superAdminEmail;
+
+    if (isSuperAdmin) {
+      await this.ensureSuperAdminUser(cleanEmail);
+    }
+
     const code = isSuperAdmin ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     
@@ -27,7 +75,7 @@ export class AuthService {
       await prisma.accountRequest.upsert({
         where: { email: cleanEmail },
         update: { otpHash: code, otpExpiresAt: expiresAt },
-        create: { email: cleanEmail, otpHash: code, otpExpiresAt: expiresAt }
+        create: { email: cleanEmail, otpHash: code, otpExpiresAt: expiresAt, status: 'PENDING' }
       });
     } else {
       await prisma.user.update({
@@ -38,7 +86,6 @@ export class AuthService {
 
     console.log(`[AUTH OTP] Código para ${cleanEmail}: ${code}`);
 
-    // Integrar envio por Email via Resend API (se RESEND_API_KEY estiver configurado)
     if (process.env.RESEND_API_KEY) {
       try {
         const fromEmail = process.env.SMTP_FROM || 'HelderLabs ERP <noreply@helderlabs.eu>';
@@ -60,7 +107,7 @@ export class AuthService {
                 <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #0d419f; margin: 20px 0;">
                   ${code}
                 </div>
-                <p style="font-size: 12px; color: #6b7280;">Este código é válido por 15 minutos. Se não solicitou este código, pode ignorar este email.</p>
+                <p style="font-size: 12px; color: #6b7280;">Este código é válido por 15 minutos.</p>
               </div>
             `
           })
@@ -70,7 +117,7 @@ export class AuthService {
           const errData = await response.json();
           console.warn('[RESEND EMAIL FAIL]', errData);
         } else {
-          console.log(`[RESEND EMAIL SUCCESS] Email enviado com sucesso para ${cleanEmail}`);
+          console.log(`[RESEND EMAIL SUCCESS] Email enviado para ${cleanEmail}`);
         }
       } catch (err: any) {
         console.error('[RESEND EMAIL ERROR]', err.message || err);
@@ -80,15 +127,25 @@ export class AuthService {
 
   async verifyOtp(email: string, code: string) {
     const cleanEmail = email.toLowerCase();
+    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
+    const isSuperAdmin = cleanEmail === superAdminEmail;
     const isDev = process.env.NODE_ENV !== 'production';
     const isMasterCode = code === '123456';
 
-    const req = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
-    if (req) {
-      const isValidReqCode = isMasterCode || isDev || req.otpHash === code;
-      if (!isValidReqCode) throw AppError.unauthorized('Código inválido');
-      if (req.status === 'PENDING') {
-        return { status: 'PENDING_APPROVAL', request: { email: req.email } };
+    if (isSuperAdmin) {
+      await this.ensureSuperAdminUser(cleanEmail);
+    } else {
+      // Apenas para utilizadores normais sem conta ainda na tabela User
+      const req = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
+      if (req) {
+        const isValidReqCode = isMasterCode || req.otpHash === code || isDev;
+        if (!isValidReqCode) throw AppError.unauthorized('Código inválido');
+        
+        return {
+          status: 'PENDING_APPROVAL',
+          message: 'O seu email foi verificado. A sua conta está a aguardar aprovação e atribuição de empresa pelo Super Administrador (helderguiomar@gmail.com).',
+          request: { email: req.email }
+        };
       }
     }
 
@@ -97,19 +154,23 @@ export class AuthService {
       throw AppError.unauthorized('Conta não encontrada ou código inválido');
     }
 
-    const isValidUserCode = isMasterCode || isDev || user.otpHash === code;
+    const isValidUserCode = isMasterCode || user.otpHash === code || isDev;
     if (!isValidUserCode) {
       throw AppError.unauthorized('Código inválido');
     }
     
-    if (user.status === 'PENDING_APPROVAL') {
-      return { status: 'PENDING_APPROVAL', user: { email: user.email } };
-    }
-    if (user.status === 'SUSPENDED') {
-      throw AppError.unauthorized('A sua conta está suspensa');
+    if (user.status === 'PENDING_APPROVAL' && !isSuperAdmin) {
+      return {
+        status: 'PENDING_APPROVAL',
+        message: 'A sua conta está a aguardar aprovação pelo Super Administrador.',
+        user: { email: user.email }
+      };
     }
 
-    // Limpar OTP após utilização com sucesso
+    if (user.status === 'SUSPENDED') {
+      throw AppError.unauthorized('A sua conta está suspensa pelo Administrador');
+    }
+
     await prisma.user.update({
       where: { id: user.id },
       data: { otpHash: null, otpExpiresAt: null }
@@ -122,11 +183,18 @@ export class AuthService {
       tenantId: user.tenantId
     });
 
-    return { token, user: { id: user.id, email: user.email, role: user.role } };
+    return { token, user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } };
   }
 
   async loginWithPassword(email: string, pass: string) {
     const cleanEmail = email.toLowerCase();
+    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
+    const isSuperAdmin = cleanEmail === superAdminEmail;
+
+    if (isSuperAdmin) {
+      await this.ensureSuperAdminUser(cleanEmail);
+    }
+
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user || !user.passwordHash) {
       throw AppError.unauthorized('Credenciais inválidas');
@@ -135,8 +203,17 @@ export class AuthService {
     const valid = await bcrypt.compare(pass, user.passwordHash);
     if (!valid) throw AppError.unauthorized('Credenciais inválidas');
 
-    if (user.status === 'PENDING_APPROVAL') return { status: 'PENDING_APPROVAL', user: { email: user.email } };
-    if (user.status === 'SUSPENDED') throw AppError.unauthorized('A sua conta está suspensa');
+    if (user.status === 'PENDING_APPROVAL' && !isSuperAdmin) {
+      return {
+        status: 'PENDING_APPROVAL',
+        message: 'A sua conta está a aguardar aprovação pelo Super Administrador.',
+        user: { email: user.email }
+      };
+    }
+
+    if (user.status === 'SUSPENDED') {
+      throw AppError.unauthorized('A sua conta está suspensa pelo Administrador');
+    }
 
     const token = signAuthToken({
       sub: user.id,
@@ -145,7 +222,7 @@ export class AuthService {
       tenantId: user.tenantId
     });
 
-    return { token, user: { id: user.id, email: user.email, role: user.role } };
+    return { token, user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } };
   }
 
   async setPassword(userId: string, pass: string) {
@@ -154,6 +231,6 @@ export class AuthService {
       where: { id: userId },
       data: { passwordHash }
     });
-    console.log(`[AUTH] Password definida com sucesso na base de dados para o utilizador ${userId}`);
+    console.log(`[AUTH] Password definida com sucesso para o utilizador ${userId}`);
   }
 }

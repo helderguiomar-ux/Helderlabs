@@ -21,16 +21,43 @@ export function buildApp() {
   // Dev:  aceita localhost por omissão
   // Prod: lê ALLOWED_ORIGINS (CSV) das env vars — ex: "https://helderlabs.eu"
   // ---------------------------------------------------------------------------
+  const defaultAllowedOrigins = [
+    'https://helderlabs.eu',
+    'https://www.helderlabs.eu',
+    'http://localhost:3333',
+    'http://localhost:3000',
+    'http://127.0.0.1:3333'
+  ];
+
   const rawOrigins = process.env.ALLOWED_ORIGINS;
-  const allowedOrigins: string[] = rawOrigins
+  const customOrigins = rawOrigins
     ? rawOrigins.split(',').map((o) => o.trim()).filter(Boolean)
-    : ['http://localhost:3333', 'http://localhost:3000', 'http://127.0.0.1:3333'];
+    : [];
+
+  const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...customOrigins]));
 
   app.register(cors, {
     origin: (origin, callback) => {
       // Sem Origin (curl, server-to-server, SSR) → sempre ok
       if (!origin) return callback(null, true);
+
+      // Correspondência exata em origens permitidas
       if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // Permitir subdomínios de helderlabs.eu, Vercel Previews e localhost
+      try {
+        const host = new URL(origin).hostname;
+        if (
+          host === 'helderlabs.eu' ||
+          host.endsWith('.helderlabs.eu') ||
+          host.endsWith('.vercel.app') ||
+          host === 'localhost' ||
+          host === '127.0.0.1'
+        ) {
+          return callback(null, true);
+        }
+      } catch (e) {}
+
       callback(new Error(`CORS: origin não permitida: ${origin}`), false);
     },
     credentials: true

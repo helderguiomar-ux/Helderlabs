@@ -55,7 +55,7 @@ export async function crmRoutes(app: FastifyInstance) {
       return reply.status(201).send({ success: true, lead, message: 'Lead gravada com sucesso!' });
     } else {
       const data = publicLeadSchema.parse(request.body);
-      const lead = await EnterpriseCRMService.createPublicLead(request.db as any, data);
+      const lead = await EnterpriseCRMService.createPublicLead(request.db as any, data as any);
       return reply.status(201).send({ success: true, lead, message: 'Diagnóstico solicitado com sucesso! Entraremos em contacto brevemente.' });
     }
   });

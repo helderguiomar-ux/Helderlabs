@@ -122,23 +122,24 @@ export class EnterpriseCRMService {
     });
   }
 
-  public static async createPublicLead(db: PrismaClient, data: {
-    company: string;
+  public static async createPublicLead(db: any, data: {
+    company?: string;
     name: string;
     email?: string;
     phone?: string;
     sector?: string;
     message?: string;
   }) {
-    let platformTenant = await db.tenant.findFirst({
+    const prismaClient = (db && typeof db.tenant !== 'undefined') ? db : defaultPrismaClient;
+    let platformTenant = await prismaClient.tenant.findFirst({
       where: { slug: 'helderlabs-platform' }
     });
     if (!platformTenant) {
-      platformTenant = await db.tenant.findFirst();
+      platformTenant = await prismaClient.tenant.findFirst();
     }
     const tenantId = platformTenant ? platformTenant.id : 'helderlabs-platform';
 
-    return db.lead.create({
+    return prismaClient.lead.create({
       data: {
         tenantId,
         company: data.company || 'Pessoa Singular',

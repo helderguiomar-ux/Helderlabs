@@ -68,12 +68,16 @@
 
     <!-- Step 4: Set Password (After OTP) -->
     <div id="step-set-password" class="step">
-        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">Defina uma password para os próximos acessos</p>
+        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">Defina a sua palavra-passe de acesso</p>
         <div class="input-group">
             <label for="new-password">Nova Password</label>
             <input type="password" id="new-password" placeholder="No mínimo 4 caracteres">
         </div>
-        <button class="btn" onclick="setPassword()">Guardar e Entrar</button>
+        <div class="input-group">
+            <label for="confirm-password">Confirmar Nova Password</label>
+            <input type="password" id="confirm-password" placeholder="Reintroduza a password">
+        </div>
+        <button class="btn" onclick="setPassword()">Confirmar e Definir Password</button>
         <button class="btn-link" onclick="skipPassword()">Ignorar por agora</button>
     </div>
 </div>
@@ -187,7 +191,9 @@
 
     async function setPassword() {
         const password = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
         if (password.length < 4) return showError('A password deve ter pelo menos 4 caracteres.');
+        if (password !== confirmPassword) return showError('As palavras-passe não coincidem. Reintroduza a confirmação.');
         
         try {
             await apiCall('/set-password', { password }, sessionToken);

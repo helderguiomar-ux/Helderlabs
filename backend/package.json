@@ -21,7 +21,7 @@
         "dev": "npm run db:guard && tsx watch src/server.ts",
         "dev:serverless": "npx vercel dev",
         "verify": "npm run typecheck && npm test",
-        "build": "tsc -p tsconfig.json",
+        "build": "prisma generate && tsc -p tsconfig.json",
         "start": "node dist/server.js",
         "typecheck": "tsc --noEmit",
         "test": "node scripts/collect-and-run-tests.mjs",

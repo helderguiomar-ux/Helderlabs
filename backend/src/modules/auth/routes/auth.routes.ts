@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuthService } from '../services/AuthService';
+import { EntitlementService } from '../../platform/services/EntitlementService';
 
 const emailSchema = z.object({
   email: z.string().email('Email inválido')
@@ -22,6 +23,7 @@ const setPasswordSchema = z.object({
 
 export async function authRoutes(app: FastifyInstance) {
   const authService = new AuthService();
+  const entitlementService = new EntitlementService();
 
   // Passo 1: Verificar se utilizador tem password
   app.post('/check-email', async (request, reply) => {
@@ -30,7 +32,7 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send({ hasPassword });
   });
 
-  // Passo 2a: Enviar OTP (se não tiver password ou se pedir por código)
+  // Passo 2a: Enviar OTP
   app.post('/send-otp', {
     config: {
       rateLimit: {
@@ -44,7 +46,7 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send({ message: 'Código enviado com sucesso' });
   });
 
-  // Passo 3a: Validar OTP (devolve token ou status de PENDING)
+  // Passo 3a: Validar OTP
   app.post('/verify-otp', {
     config: {
       rateLimit: {
@@ -72,7 +74,7 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send(result);
   });
 
-  // Rota Protegida: Definir password na BD (após entrar com OTP)
+  // Rota Protegida: Definir password na BD
   app.post('/set-password', {
     preHandler: [app.authenticate]
   }, async (request, reply) => {
@@ -85,5 +87,11 @@ export async function authRoutes(app: FastifyInstance) {
   // Verificar sessão atual
   app.get('/me', { preHandler: [app.authenticate] }, async (request, reply) => {
     return reply.status(200).send({ user: request.user });
+  });
+
+  // Obter manifesto do workspace do utilizador (Fase 2)
+  app.get('/me/workspace', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const manifest = await entitlementService.resolveForUser(request.user!.sub, request.user!.tenantId);
+    return reply.status(200).send(manifest);
   });
 }

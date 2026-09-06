@@ -12,6 +12,7 @@ import { crmRoutes } from './modules/crm/routes/crm.routes';
 import { condominiosRoutes } from './modules/condominios/routes/condominios.routes';
 import { platformRoutes } from './modules/platform/routes/platform.routes';
 import { checkDatabaseReady } from './database/prisma/client';
+import { EntitlementService } from './modules/platform/services/EntitlementService';
 
 export function buildApp() {
   const app = Fastify({
@@ -174,6 +175,14 @@ export function buildApp() {
   app.register(platformRoutes, { prefix: '/api/platform' });
   app.register(crmRoutes, { prefix: '/api/crm' });
   app.register(condominiosRoutes, { prefix: '/api/condominios' });
+
+  const entitlementService = new EntitlementService();
+  app.register(async (instance) => {
+    instance.get('/api/me/workspace', { preHandler: [instance.authenticate] }, async (request, reply) => {
+      const manifest = await entitlementService.resolveForUser(request.user!.sub, request.user!.tenantId);
+      return reply.status(200).send(manifest);
+    });
+  });
 
   setupWebsocket(app);
 

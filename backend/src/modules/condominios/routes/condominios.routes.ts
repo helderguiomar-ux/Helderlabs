@@ -30,6 +30,7 @@ function contextFrom(request: { user?: { tenantId: string }; db?: unknown }): Co
 // (ver README, secção "Gestão de Condomínios").
 export async function condominiosRoutes(app: FastifyInstance) {
   app.addHook('preHandler', app.authenticate);
+  app.addHook('preHandler', app.requireApp('condominios'));
 
   app.post('/buildings', async (request, reply) => {
     const data = createBuildingSchema.parse(request.body);

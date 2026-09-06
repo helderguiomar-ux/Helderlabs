@@ -7,6 +7,7 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import authenticatePlugin from './plugins/authenticate';
+import entitlementsPlugin from './plugins/entitlements';
 import { authRoutes } from './modules/auth/routes/auth.routes';
 import { crmRoutes } from './modules/crm/routes/crm.routes';
 import { condominiosRoutes } from './modules/condominios/routes/condominios.routes';
@@ -123,6 +124,7 @@ export function buildApp() {
     }
 
     const statusCode = (error as any).statusCode ?? 500;
+    const errorCode = (error as any).code ?? (statusCode >= 500 ? 'INTERNAL_ERROR' : 'REQUEST_ERROR');
     if (statusCode >= 500) {
       app.log.error({ err: error, reqId: request.id }, 'Internal server error');
     } else {
@@ -130,12 +132,13 @@ export function buildApp() {
     }
 
     reply.status(statusCode).send({
-      error: statusCode >= 500 ? 'INTERNAL_ERROR' : 'REQUEST_ERROR',
+      error: errorCode,
       message: error.message || 'Ocorreu um erro interno. A nossa equipa já foi notificada.'
     });
   });
 
   app.register(authenticatePlugin);
+  app.register(entitlementsPlugin);
 
   const staticRoot = path.join(__dirname, '../public');
   app.register(fastifyStatic, {

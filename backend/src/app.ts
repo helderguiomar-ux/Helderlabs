@@ -117,7 +117,7 @@ export function buildApp() {
 
     if (
       error.name === 'PrismaClientInitializationError' ||
-      error.name === 'PrismaClientKnownRequestError'
+      (error.name === 'PrismaClientKnownRequestError' && (error as any).code?.startsWith('P1'))
     ) {
       app.log.error({ err: error, reqId: request.id }, 'Prisma error');
       return reply.status(503).send({

@@ -23,17 +23,6 @@ const setPasswordSchema = z.object({
 export async function authRoutes(app: FastifyInstance) {
   const authService = new AuthService();
 
-  // Demo Login (Instantâneo sem OTP)
-  app.post('/demo-login', async (request, reply) => {
-    const result = await authService.demoLogin();
-    return reply.status(200).send(result);
-  });
-
-  app.get('/demo-status', async (request, reply) => {
-    const result = await authService.demoStatus();
-    return reply.status(200).send(result);
-  });
-
   // Passo 1: Verificar se utilizador tem password
   app.post('/check-email', async (request, reply) => {
     const { email } = emailSchema.parse(request.body);
@@ -42,21 +31,42 @@ export async function authRoutes(app: FastifyInstance) {
   });
 
   // Passo 2a: Enviar OTP (se não tiver password ou se pedir por código)
-  app.post('/send-otp', async (request, reply) => {
+  app.post('/send-otp', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '15 minutes'
+      }
+    }
+  }, async (request, reply) => {
     const { email } = emailSchema.parse(request.body);
     await authService.sendOtp(email);
     return reply.status(200).send({ message: 'Código enviado com sucesso' });
   });
 
   // Passo 3a: Validar OTP (devolve token ou status de PENDING)
-  app.post('/verify-otp', async (request, reply) => {
+  app.post('/verify-otp', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '15 minutes'
+      }
+    }
+  }, async (request, reply) => {
     const { email, code } = verifyOtpSchema.parse(request.body);
     const result = await authService.verifyOtp(email, code);
     return reply.status(200).send(result);
   });
 
   // Passo 2b: Login com Password
-  app.post('/login', async (request, reply) => {
+  app.post('/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '15 minutes'
+      }
+    }
+  }, async (request, reply) => {
     const { email, password } = loginPasswordSchema.parse(request.body);
     const result = await authService.loginWithPassword(email, password);
     return reply.status(200).send(result);

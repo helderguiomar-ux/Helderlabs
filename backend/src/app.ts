@@ -3,6 +3,8 @@ import path from 'node:path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import { ZodError } from 'zod';
 import authenticatePlugin from './plugins/authenticate';
 import { authRoutes } from './modules/auth/routes/auth.routes';
@@ -16,11 +18,27 @@ export function buildApp() {
     logger: true
   });
 
-  // ---------------------------------------------------------------------------
+  // Helmet — Cabeçalhos de Segurança & CSP
+  app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", 'https:', 'wss:']
+      }
+    },
+    crossOriginEmbedderPolicy: false
+  });
+
+  // Rate Limiting Global (100 pedidos/min por omissão)
+  app.register(rateLimit, {
+    max: 100,
+    timeWindow: '1 minute'
+  });
+
   // CORS dinâmico por ambiente
-  // Dev:  aceita localhost por omissão
-  // Prod: lê ALLOWED_ORIGINS (CSV) das env vars — ex: "https://helderlabs.eu"
-  // ---------------------------------------------------------------------------
   const defaultAllowedOrigins = [
     'https://helderlabs.eu',
     'https://www.helderlabs.eu',
@@ -38,13 +56,9 @@ export function buildApp() {
 
   app.register(cors, {
     origin: (origin, callback) => {
-      // Sem Origin (curl, server-to-server, SSR) → sempre ok
       if (!origin) return callback(null, true);
-
-      // Correspondência exata em origens permitidas
       if (allowedOrigins.includes(origin)) return callback(null, true);
 
-      // Permitir subdomínios de helderlabs.eu, Vercel Previews e localhost
       try {
         const host = new URL(origin).hostname;
         if (
@@ -63,20 +77,15 @@ export function buildApp() {
     credentials: true
   });
 
-  // ---------------------------------------------------------------------------
   // ÚNICO Error Handler Global
-  //
-  // Ordem de verificação (mais específico → mais genérico):
-  //   1. ZodError          → 400 Pedido inválido
-  //   2. DB recovery/down  → 503 Temporariamente indisponível
-  //   3. Prisma errors     → 503 Temporariamente indisponível
-  //   4. Resto             → 500 Erro interno
-  //
-  // NOTA: Fastify só usa o último setErrorHandler registado. Por isso existe
-  // APENAS UM aqui, antes de qualquer plugin ou rota.
-  // ---------------------------------------------------------------------------
   app.setErrorHandler((error, request, reply) => {
-    // 1. Erros de validação Zod (input inválido do cliente)
+    if (error.statusCode === 429) {
+      return reply.status(429).send({
+        error: 'TOO_MANY_REQUESTS',
+        message: 'Demasiados pedidos num curto período. Por favor, tente novamente mais tarde.'
+      });
+    }
+
     if (error instanceof ZodError) {
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
@@ -88,7 +97,6 @@ export function buildApp() {
       });
     }
 
-    // 2. Base de dados em modo de recuperação / inacessível
     if (
       error.message &&
       (error.message.includes('FATAL: the database system is in recovery mode') ||
@@ -102,7 +110,6 @@ export function buildApp() {
       });
     }
 
-    // 3. Erros de inicialização / query do Prisma
     if (
       error.name === 'PrismaClientInitializationError' ||
       error.name === 'PrismaClientKnownRequestError'
@@ -114,7 +121,6 @@ export function buildApp() {
       });
     }
 
-    // 4. Erro genérico — respeitar statusCode se já vem definido (ex: 401, 403)
     const statusCode = (error as any).statusCode ?? 500;
     if (statusCode >= 500) {
       app.log.error({ err: error, reqId: request.id }, 'Internal server error');
@@ -128,15 +134,8 @@ export function buildApp() {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // Plugins: autenticação JWT (expõe app.authenticate + decora request.user)
-  // ---------------------------------------------------------------------------
   app.register(authenticatePlugin);
 
-  // ---------------------------------------------------------------------------
-  // Frontend estático: servido a partir de /public
-  // Em produção o mesmo processo serve HTML + API (sem separação de deploy).
-  // ---------------------------------------------------------------------------
   const staticRoot = path.join(__dirname, '../public');
   app.register(fastifyStatic, {
     root: staticRoot,
@@ -144,10 +143,6 @@ export function buildApp() {
     index: 'index.html'
   });
 
-  // ---------------------------------------------------------------------------
-  // DB Guard — verifica disponibilidade antes de qualquer rota /api/*
-  // (exceto /api/health que é sempre acessível para health checks)
-  // ---------------------------------------------------------------------------
   app.addHook('onRequest', async (request, reply) => {
     if (request.url.startsWith('/api/') && request.url !== '/api/health') {
       const isDbReady = await checkDatabaseReady();
@@ -160,9 +155,6 @@ export function buildApp() {
     }
   });
 
-  // ---------------------------------------------------------------------------
-  // Health check — sempre disponível, sem autenticação
-  // ---------------------------------------------------------------------------
   app.get('/api/health', async () => {
     const isDbReady = await checkDatabaseReady(true);
     return {
@@ -174,30 +166,15 @@ export function buildApp() {
     };
   });
 
-  // Redirecionar /health → /api/health (retrocompatibilidade)
   app.get('/health', async (request, reply) => {
     reply.redirect('/api/health');
   });
 
-  // ---------------------------------------------------------------------------
-  // Rotas de API
-  // ---------------------------------------------------------------------------
-
-  // Autenticação (sem JWT obrigatório — é aqui que ele começa)
   app.register(authRoutes, { prefix: '/api/auth' });
-
-  // Plataforma / Super Admin (acesso restrito a SUPER_ADMIN e PLATFORM_ADMIN)
   app.register(platformRoutes, { prefix: '/api/platform' });
-
-  // CRM: Leads, Oportunidades, Clientes, Dashboard
-  // (JWT obrigatório — ver crm.routes.ts)
   app.register(crmRoutes, { prefix: '/api/crm' });
-
-  // Gestão de Condomínios
-  // (JWT obrigatório — ver condominios.routes.ts)
   app.register(condominiosRoutes, { prefix: '/api/condominios' });
 
-  // WebSocket (Socket.io) — presença em tempo real
   setupWebsocket(app);
 
   return app;

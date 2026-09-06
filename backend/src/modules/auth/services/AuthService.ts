@@ -15,7 +15,8 @@ export class AuthService {
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     if (email.toLowerCase() !== superAdminEmail) return null;
 
-    const defaultPasswordHash = await bcrypt.hash('admin1234', 10);
+    const bootstrapPassword = process.env.SUPER_ADMIN_BOOTSTRAP_PASSWORD;
+    const defaultPasswordHash = bootstrapPassword ? await bcrypt.hash(bootstrapPassword, 10) : null;
 
     let user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
     let systemTenant = await prisma.tenant.findFirst({ where: { slug: 'helderlabs-platform' } });
@@ -47,7 +48,7 @@ export class AuthService {
       console.log(`[SUPER ADMIN] Utilizador Super Admin ${superAdminEmail} criado com sucesso.`);
     } else {
       const updates: any = {};
-      if (!user.passwordHash) updates.passwordHash = defaultPasswordHash;
+      if (!user.passwordHash && defaultPasswordHash) updates.passwordHash = defaultPasswordHash;
       if (user.role !== 'SUPER_ADMIN') updates.role = 'SUPER_ADMIN';
       if (user.status !== 'ACTIVE') updates.status = 'ACTIVE';
       if (user.tenantId !== systemTenant.id) updates.tenantId = systemTenant.id;
@@ -59,7 +60,7 @@ export class AuthService {
       }
     }
 
-    // Ativar todos os 6 módulos da plataforma para a HelderLabs se não existirem
+    // Ativar todos os módulos da plataforma para a HelderLabs se não existirem
     const modules = await prisma.module.findMany();
     for (const m of modules) {
       const existingApp = await prisma.applicationInstance.findFirst({
@@ -108,7 +109,8 @@ export class AuthService {
       await this.ensureSuperAdminUser(cleanEmail);
     }
 
-    const code = isSuperAdmin ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedOtp = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
@@ -116,13 +118,13 @@ export class AuthService {
     if (!user) {
       await prisma.accountRequest.upsert({
         where: { email: cleanEmail },
-        update: { otpHash: code, otpExpiresAt: expiresAt },
-        create: { email: cleanEmail, otpHash: code, otpExpiresAt: expiresAt, status: 'PENDING' }
+        update: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 },
+        create: { email: cleanEmail, otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0, status: 'PENDING' }
       });
     } else {
       await prisma.user.update({
         where: { id: user.id },
-        data: { otpHash: code, otpExpiresAt: expiresAt }
+        data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
       });
     }
 
@@ -171,17 +173,36 @@ export class AuthService {
     const cleanEmail = email.toLowerCase();
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     const isSuperAdmin = cleanEmail === superAdminEmail;
-    const isDev = process.env.NODE_ENV !== 'production';
-    const isMasterCode = code === '123456';
+    const allowDevOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
+    const isMasterCode = allowDevOtp && code === '123456';
 
     if (isSuperAdmin) {
       await this.ensureSuperAdminUser(cleanEmail);
     } else {
-      // Apenas para utilizadores normais sem conta ainda na tabela User
       const req = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
       if (req) {
-        const isValidReqCode = isMasterCode || req.otpHash === code || isDev;
-        if (!isValidReqCode) throw AppError.unauthorized('Código inválido');
+        if (!req.otpExpiresAt || req.otpExpiresAt < new Date()) {
+          throw AppError.unauthorized('Código expirado ou inválido');
+        }
+
+        if (req.otpAttempts >= 5) {
+          await prisma.accountRequest.update({
+            where: { id: req.id },
+            data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
+          });
+          throw AppError.unauthorized('Número máximo de tentativas excedido. Solicite um novo código.');
+        }
+
+        const isHashValid = req.otpHash ? await bcrypt.compare(code, req.otpHash) : false;
+        const isValid = isMasterCode || isHashValid;
+
+        if (!isValid) {
+          await prisma.accountRequest.update({
+            where: { id: req.id },
+            data: { otpAttempts: { increment: 1 } }
+          });
+          throw AppError.unauthorized('Código inválido');
+        }
         
         return {
           status: 'PENDING_APPROVAL',
@@ -196,8 +217,26 @@ export class AuthService {
       throw AppError.unauthorized('Conta não encontrada ou código inválido');
     }
 
-    const isValidUserCode = isMasterCode || user.otpHash === code || isDev;
+    if (!user.otpHash || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+      throw AppError.unauthorized('Código expirado ou inválido');
+    }
+
+    if (user.otpAttempts >= 5) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
+      });
+      throw AppError.unauthorized('Número máximo de tentativas excedido. Solicite um novo código.');
+    }
+
+    const isHashValid = await bcrypt.compare(code, user.otpHash);
+    const isValidUserCode = isMasterCode || isHashValid;
+
     if (!isValidUserCode) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { otpAttempts: { increment: 1 } }
+      });
       throw AppError.unauthorized('Código inválido');
     }
     
@@ -215,7 +254,7 @@ export class AuthService {
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { otpHash: null, otpExpiresAt: null }
+      data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
     });
 
     const token = signAuthToken({
@@ -274,41 +313,5 @@ export class AuthService {
       data: { passwordHash }
     });
     console.log(`[AUTH] Password definida com sucesso para o utilizador ${userId}`);
-  }
-
-  async demoLogin() {
-    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
-    await this.ensureSuperAdminUser(superAdminEmail);
-    const user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
-    if (!user) throw AppError.unauthorized('Demo user not found');
-
-    const token = signAuthToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId
-    });
-
-    return {
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name || 'Super Admin',
-        role: user.role,
-        tenantId: user.tenantId
-      }
-    };
-  }
-
-  async demoStatus() {
-    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
-    const user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
-    return {
-      demoAvailable: true,
-      message: 'Demo do Super Admin pronta a utilizar',
-      user: user ? user.email : superAdminEmail
-    };
   }
 }

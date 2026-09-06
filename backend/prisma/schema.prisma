@@ -87,6 +87,7 @@ model User {
   // Autenticação Email+OTP
   otpHash      String?
   otpExpiresAt DateTime?
+  otpAttempts  Int          @default(0)
   authProvider AuthProvider @default(EMAIL)
   // "sub" devolvido pelo provider OAuth — junto com authProvider, identifica
   // a conta de forma única nesse provider. Fica null para contas EMAIL.
@@ -481,6 +482,7 @@ model AccountRequest {
   status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
   otpHash      String?
   otpExpiresAt DateTime?
+  otpAttempts  Int       @default(0)
   createdAt    DateTime  @default(now())
   
   @@map("account_requests")

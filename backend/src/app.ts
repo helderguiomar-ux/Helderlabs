@@ -14,6 +14,7 @@ import { condominiosRoutes } from './modules/condominios/routes/condominios.rout
 import { platformRoutes } from './modules/platform/routes/platform.routes';
 import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
+import { AuditService } from './modules/platform/services/AuditService';
 
 export function buildApp() {
   const app = Fastify({
@@ -156,6 +157,24 @@ export function buildApp() {
           message: 'O serviço está temporariamente indisponível. A base de dados está em inicialização ou recuperação.'
         });
       }
+    }
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    if (request.url.startsWith('/api/platform') && request.method !== 'GET') {
+      await AuditService.audit({
+        action: `platform.${request.method.toLowerCase()}`,
+        resource: request.url,
+        result: reply.statusCode < 400 ? 'SUCCESS' : 'FAILURE',
+        tenantId: request.user?.tenantId,
+        actorId: request.user?.sub,
+        actorEmail: request.user?.email,
+        actorType: request.user?.role === 'SUPER_ADMIN' ? 'SUPER_ADMIN' : 'USER',
+        onBehalfOfId: request.user?.onBehalfOfId,
+        impersonationId: request.user?.impersonationId,
+        requestId: request.id,
+        ipAddress: request.ip
+      });
     }
   });
 

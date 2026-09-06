@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import { applicationsRoutes } from './applications.routes';
 import { ApplicationController } from '../controllers/ApplicationController';
+import { AuditService } from '../services/AuditService';
 
 export async function platformRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (request, reply) => {
@@ -69,6 +70,12 @@ export async function platformRoutes(app: FastifyInstance) {
   app.post('/impersonate', ApplicationController.startImpersonation);
   app.post('/impersonate/end', ApplicationController.endImpersonation);
   app.post('/account-requests/:id/approve', ApplicationController.approveAccountRequest);
+
+  app.get('/audit-chain/verify', async (request, reply) => {
+    const { tenantId } = request.query as { tenantId?: string };
+    const result = await AuditService.verifyAuditChain(tenantId);
+    return reply.status(200).send(result);
+  });
 
   // Módulos como Aplicativos — gestão por tenant
   app.register(applicationsRoutes, { prefix: '/applications' });

@@ -50,8 +50,9 @@ model Tenant {
   buildings     Building[]
   
   settings      TenantSetting[]
-  tenantModules TenantModule[]
   applications  ApplicationInstance[]
+  branding      TenantBranding?
+  entitlementsVersion Int @default(1)
 
   @@map("tenants")
 }
@@ -386,26 +387,18 @@ model Expense {
 // Modules
 model Module {
   id          String   @id @default(cuid())
-  name        String   @unique
+  key         String   @unique // "crm", "condominios", "rentacar" — identidade técnica, imutável
+  name        String   // rótulo de UI, editável
   description String?
-  isActive    Boolean  @default(true) // Global switch
+  icon        String?  // nome do ícone para o launcher
+  color       String?  // cor do cartão
+  category    String   @default("Geral")
+  sortOrder   Int      @default(100)
+  isActive    Boolean  @default(true) // Switch global da plataforma
   
-  tenantModules TenantModule[]
-  instances     ApplicationInstance[]
+  instances   ApplicationInstance[]
   
   @@map("modules")
-}
-
-model TenantModule {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  moduleId  String
-  module    Module   @relation(fields: [moduleId], references: [id])
-  isActive  Boolean  @default(true) // Tenant level switch
-
-  @@unique([tenantId, moduleId])
-  @@map("tenant_modules")
 }
 
 // Permissions
@@ -451,24 +444,93 @@ model TenantSetting {
   @@map("tenant_settings")
 }
 
-// Audit Log
+model TenantBranding {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Identidade visual
+  logoUrl         String?
+  logoDarkUrl     String?
+  faviconUrl      String?
+  primaryColor    String   @default("#0d419f")
+  accentColor     String   @default("#0d419f")
+  theme           String   @default("system")
+
+  // Identidade comercial
+  displayName     String?
+  legalName       String?
+  taxNumber       String?
+  addressLine     String?
+  postalCode      String?
+  city            String?
+  country         String   @default("PT")
+
+  // Parâmetros operacionais
+  locale          String   @default("pt-PT")
+  timezone        String   @default("Atlantic/Madeira")
+  currency        String   @default("EUR")
+  dateFormat      String   @default("dd/MM/yyyy")
+  vatRate         Float    @default(23)
+  fiscalYearStart Int      @default(1)
+
+  // Comunicação
+  emailFromName   String?
+  emailFromAddress String?
+  emailFooter     String?
+  supportEmail    String?
+  supportPhone    String?
+
+  showUpsell      Boolean  @default(true)
+
+  updatedAt       DateTime @updatedAt
+  updatedBy       String?
+
+  @@map("tenant_branding")
+}
+
+model ImpersonationSession {
+  id              String    @id @default(cuid())
+  actorUserId     String
+  actorEmail      String
+  targetTenantId  String
+  targetUserId    String?
+  reason          String
+  writeEnabled    Boolean   @default(false)
+  startedAt       DateTime  @default(now())
+  expiresAt       DateTime
+  endedAt         DateTime?
+  ipAddress       String?
+
+  @@index([actorUserId])
+  @@index([targetTenantId])
+  @@map("impersonation_sessions")
+}
+
+// Audit Log encadeado com hash SHA-256
 model AuditLog {
-  id           String   @id @default(cuid())
-  actorId      String?
-  actorEmail   String?
-  actorType    String?
-  tenantId     String?
-  action       String
-  resource     String?
-  resourceId   String?
-  timestamp    DateTime @default(now())
-  ipAddress    String?
-  userAgent    String?
-  result       String?
-  oldValue     String?
-  newValue     String?
-  
-  @@index([tenantId])
+  id              String   @id @default(cuid())
+  seq             BigInt   @default(autoincrement())
+  actorId         String?
+  actorEmail      String?
+  actorType       String?  // USER | SUPER_ADMIN | SYSTEM
+  onBehalfOfId    String?
+  impersonationId String?
+  tenantId        String?
+  action          String   // ex: "application.status.changed"
+  resource        String?
+  resourceId      String?
+  oldValue        Json?
+  newValue        Json?
+  requestId       String?
+  ipAddress       String?
+  userAgent       String?
+  result          String?
+  timestamp       DateTime @default(now())
+  prevHash        String?
+  hash            String?  // SHA-256 do payload + prevHash
+
+  @@index([tenantId, timestamp])
   @@index([actorId])
   @@map("audit_logs")
 }
@@ -479,7 +541,7 @@ model AccountRequest {
   companyName  String?
   contactName  String?
   email        String    @unique
-  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  status       String    @default("PENDING")
   otpHash      String?
   otpExpiresAt DateTime?
   otpAttempts  Int       @default(0)
@@ -487,6 +549,7 @@ model AccountRequest {
   
   @@map("account_requests")
 }
+
 enum UserStatus {
   ACTIVE
   PENDING_APPROVAL
@@ -515,25 +578,12 @@ model UserActivity {
   @@map("user_activities")
 }
 
-// ---------------------------------------------------------------------------
-// Sistema de Módulos como Aplicativos
-//
-// Cada Tenant pode activar módulos (CRM, Finance, Condomínios, etc.) como
-// instâncias independentes com configuração própria. Os utilizadores são
-// depois atribuídos a cada aplicativo com um role específico dentro desse
-// aplicativo (diferente do role global do utilizador).
-//
-// Status do aplicativo:
-//   DISABLED  — módulo desligado para este tenant
-//   TRIAL     — módulo activo em modo de teste (dados fictícios OK)
-//   ACTIVE    — módulo em produção total
-//   ARCHIVED  — módulo desactivado permanentemente
-// ---------------------------------------------------------------------------
-
 enum ApplicationStatus {
   DISABLED
   TRIAL
   ACTIVE
+  GRACE
+  SUSPENDED
   ARCHIVED
 }
 
@@ -545,32 +595,28 @@ enum ApplicationAssignmentStatus {
 }
 
 model ApplicationInstance {
-  id        String            @id @default(cuid())
+  id              String            @id @default(cuid())
+  moduleId        String
+  module          Module            @relation(fields: [moduleId], references: [id])
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  status          ApplicationStatus @default(TRIAL)
+  config          Json              @default("{}")
 
-  // Qual módulo (CRM, Finance, Condomínios, etc.)
-  moduleId  String
-  module    Module            @relation(fields: [moduleId], references: [id])
+  plan            String?           // "base" | "pro" | "enterprise"
+  features        String[]          @default([])
+  limits          Json              @default("{}")
+  validFrom       DateTime?
+  validUntil      DateTime?
+  graceDays       Int               @default(7)
+  suspendedAt     DateTime?
+  suspendedReason String?
 
-  // Qual tenant usa este módulo
-  tenantId  String
-  tenant    Tenant            @relation(fields: [tenantId], references: [id])
+  assignments     ApplicationAssignment[]
 
-  // Estado do aplicativo para este tenant
-  status    ApplicationStatus @default(TRIAL)
-
-  // Configuração flexível por módulo (JSON)
-  // Ex CRM:          { "leadSources": ["web","phone"], "currency": "EUR" }
-  // Ex Finance:      { "taxRegime": "PT", "fiscalYear": "calendar" }
-  // Ex Condomínios:  { "defaultPermille": 1000 }
-  config    Json              @default("{}")
-
-  // Utilizadores atribuídos a este aplicativo
-  assignments ApplicationAssignment[]
-
-  // Auditoria
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  createdBy String?           // userId do criador
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  createdBy       String?
 
   @@unique([tenantId, moduleId])
   @@index([tenantId])
@@ -580,20 +626,11 @@ model ApplicationInstance {
 
 model ApplicationAssignment {
   id            String                    @id @default(cuid())
-
-  // Utilizador atribuído
   userId        String
   user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Aplicativo a que é atribuído
   applicationId String
   application   ApplicationInstance       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-
-  // Role dentro deste aplicativo (independente do role global)
-  // Ex: "ADMIN", "MANAGER", "USER", "VIEWER", "AUDITOR"
   roleInApp     String                    @default("USER")
-
-  // Estado da atribuição
   status        ApplicationAssignmentStatus @default(ACTIVE)
 
   createdAt     DateTime                  @default(now())

@@ -33,25 +33,92 @@ async function main() {
   await prisma.customer.deleteMany({});
   await prisma.accountRequest.deleteMany({});
   await prisma.auditLog.deleteMany({});
+  await prisma.impersonationSession.deleteMany({});
   await prisma.rolePermission.deleteMany({});
   await prisma.permission.deleteMany({});
-  await prisma.tenantModule.deleteMany({});
   await prisma.tenantSetting.deleteMany({});
+  await prisma.tenantBranding.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.tenant.deleteMany({});
   await prisma.module.deleteMany({});
   await prisma.platformSetting.deleteMany({});
   console.log("Dados limpos.\n");
 
-  // Modulos disponiveis na plataforma
+  // Módulos disponíveis na plataforma com chave técnica (key) e metadados de UI
   console.log("A criar modulos da plataforma...");
   const [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks] = await Promise.all([
-    prisma.module.create({ data: { name: "CRM", description: "Gestao de Leads, Oportunidades e Clientes", isActive: true } }),
-    prisma.module.create({ data: { name: "Condominios", description: "Gestao de condominios, fracoes e assembleias", isActive: true } }),
-    prisma.module.create({ data: { name: "Finance", description: "Contas a pagar/receber e tesouraria (em desenvolvimento)", isActive: true } }),
-    prisma.module.create({ data: { name: "Invoicing", description: "Faturacao e documentos fiscais (em desenvolvimento)", isActive: false } }),
-    prisma.module.create({ data: { name: "Sales", description: "Pipeline de vendas avancado (em desenvolvimento)", isActive: false } }),
-    prisma.module.create({ data: { name: "Tasks", description: "Gestao de tarefas e projetos (em desenvolvimento)", isActive: false } }),
+    prisma.module.create({
+      data: {
+        key: "crm",
+        name: "CRM",
+        description: "Gestao de Leads, Oportunidades e Clientes",
+        icon: "users",
+        color: "#0d419f",
+        category: "Comercial",
+        sortOrder: 10,
+        isActive: true
+      }
+    }),
+    prisma.module.create({
+      data: {
+        key: "condominios",
+        name: "Condominios",
+        description: "Gestao de condominios, fracoes e assembleias",
+        icon: "building",
+        color: "#2563eb",
+        category: "Operações",
+        sortOrder: 20,
+        isActive: true
+      }
+    }),
+    prisma.module.create({
+      data: {
+        key: "finance",
+        name: "Finance",
+        description: "Contas a pagar/receber e tesouraria",
+        icon: "wallet",
+        color: "#059669",
+        category: "Financeiro",
+        sortOrder: 30,
+        isActive: true
+      }
+    }),
+    prisma.module.create({
+      data: {
+        key: "invoicing",
+        name: "Invoicing",
+        description: "Faturacao e documentos fiscais",
+        icon: "receipt",
+        color: "#d97706",
+        category: "Financeiro",
+        sortOrder: 40,
+        isActive: false
+      }
+    }),
+    prisma.module.create({
+      data: {
+        key: "sales",
+        name: "Sales",
+        description: "Pipeline de vendas avancado",
+        icon: "trending-up",
+        color: "#7c3aed",
+        category: "Comercial",
+        sortOrder: 50,
+        isActive: false
+      }
+    }),
+    prisma.module.create({
+      data: {
+        key: "tasks",
+        name: "Tasks",
+        description: "Gestao de tarefas e projetos",
+        icon: "check-square",
+        color: "#4b5563",
+        category: "Operações",
+        sortOrder: 60,
+        isActive: false
+      }
+    }),
   ]);
   console.log("6 modulos criados.\n");
 
@@ -61,12 +128,31 @@ async function main() {
   console.log("A criar Tenant 1: Consultoria Alfa...");
   const tenantAlfa = await prisma.tenant.create({
     data: {
-      name: "Consultoria Alfa, Lda.", slug: "consultoria-alfa",
-      email: "geral@consultoria-alfa.pt", phone: "+351 210 000 001",
-      address: "Av. da Liberdade, 100", city: "Lisboa",
-      postalCode: "1250-096", country: "Portugal", status: "ACTIVE"
+      name: "Consultoria Alfa, Lda.",
+      slug: "consultoria-alfa",
+      email: "geral@consultoria-alfa.pt",
+      phone: "+351 210 000 001",
+      address: "Av. da Liberdade, 100",
+      city: "Lisboa",
+      postalCode: "1250-096",
+      country: "Portugal",
+      status: "ACTIVE"
     }
   });
+
+  await prisma.tenantBranding.create({
+    data: {
+      tenantId: tenantAlfa.id,
+      displayName: "Consultoria Alfa",
+      legalName: "Consultoria Alfa, Lda.",
+      primaryColor: "#0d419f",
+      accentColor: "#1f6feb",
+      theme: "system",
+      currency: "EUR",
+      country: "PT"
+    }
+  });
+
   const [alfaAdmin, alfaSales1, alfaSales2, alfaViewer] = await Promise.all([
     prisma.user.create({ data: { tenantId: tenantAlfa.id, name: "Ana Silva (Admin)", email: "ana@consultoria-alfa.pt", passwordHash: pwHash, role: "TENANT_ADMIN", status: "ACTIVE", active: true, authProvider: "EMAIL" } }),
     prisma.user.create({ data: { tenantId: tenantAlfa.id, name: "Carlos Rodrigues", email: "carlos@consultoria-alfa.pt", passwordHash: pwHash, role: "SALES", status: "ACTIVE", active: true, authProvider: "EMAIL" } }),
@@ -98,6 +184,19 @@ async function main() {
   const tenantCondo = await prisma.tenant.create({
     data: { name: "Administra Condo, Lda.", slug: "administra-condo", email: "info@administracondo.pt", phone: "+351 291 100 200", address: "Rua Dr. Fernao Ornelas, 50", city: "Funchal", postalCode: "9050-021", country: "Portugal", status: "ACTIVE" }
   });
+  await prisma.tenantBranding.create({
+    data: {
+      tenantId: tenantCondo.id,
+      displayName: "Administra Condo",
+      legalName: "Administra Condo, Lda.",
+      primaryColor: "#2563eb",
+      accentColor: "#3b82f6",
+      theme: "system",
+      currency: "EUR",
+      country: "PT"
+    }
+  });
+
   const [condoAdmin, condoGestor] = await Promise.all([
     prisma.user.create({ data: { tenantId: tenantCondo.id, name: "Luisa Freitas (Admin)", email: "luisa@administracondo.pt", passwordHash: pwHash, role: "TENANT_ADMIN", status: "ACTIVE", active: true, authProvider: "EMAIL" } }),
     prisma.user.create({ data: { tenantId: tenantCondo.id, name: "Paulo Jardim", email: "paulo@administracondo.pt", passwordHash: pwHash, role: "MANAGER", status: "ACTIVE", active: true, authProvider: "EMAIL" } }),
@@ -119,6 +218,19 @@ async function main() {
   // Tenant 3: StartUp em TRIAL
   console.log("A criar Tenant 3: StartUp Inovacao...");
   const tenantTrial = await prisma.tenant.create({ data: { name: "StartUp Inovacao, Unip.", slug: "startup-inovacao", email: "hello@startupino.pt", city: "Porto", country: "Portugal", status: "TRIAL" } });
+  await prisma.tenantBranding.create({
+    data: {
+      tenantId: tenantTrial.id,
+      displayName: "StartUp Inovação",
+      legalName: "StartUp Inovacao, Unip.",
+      primaryColor: "#7c3aed",
+      accentColor: "#8b5cf6",
+      theme: "system",
+      currency: "EUR",
+      country: "PT"
+    }
+  });
+
   const trialAdmin = await prisma.user.create({ data: { tenantId: tenantTrial.id, name: "Beatriz Santos", email: "bea@startupino.pt", passwordHash: pwHash, role: "TENANT_OWNER", status: "ACTIVE", active: true, authProvider: "EMAIL" } });
   const trialCrmApp = await prisma.applicationInstance.create({ data: { moduleId: modCrm.id, tenantId: tenantTrial.id, status: "TRIAL", config: { currency: "EUR" }, createdBy: trialAdmin.id } });
   await prisma.applicationAssignment.create({ data: { userId: trialAdmin.id, applicationId: trialCrmApp.id, roleInApp: "ADMIN", status: "ACTIVE" } });
@@ -136,6 +248,19 @@ async function main() {
       city: "Lisboa",
       country: "Portugal",
       status: "ACTIVE"
+    }
+  });
+
+  await prisma.tenantBranding.create({
+    data: {
+      tenantId: tenantPlatform.id,
+      displayName: "HelderLabs Platform",
+      legalName: "HelderLabs Systems",
+      primaryColor: "#0d419f",
+      accentColor: "#1f6feb",
+      theme: "system",
+      currency: "EUR",
+      country: "PT"
     }
   });
 
@@ -200,8 +325,6 @@ async function main() {
   console.log("SEED CONCLUIDO:");
   console.log("  4 tenants (incluindo HelderLabs Platform System com 6 modulos ACTIVE)");
   console.log("===========================================");
-  console.log("SUPER ADMIN: helderguiomar@gmail.com (password: admin1234)");
-  console.log("===========================================\n");
 }
 
 main()

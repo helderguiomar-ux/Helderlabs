@@ -722,6 +722,7 @@
   function openModuleAppByKey(key) {
     if (key.includes('crm')) window.location.href = '/app.html#/crm';
     else if (key.includes('condo')) window.location.href = '/app.html#/condominios';
+    else if (key.includes('finance') || key.includes('financa')) window.location.href = '/app.html#/financas';
     else window.location.href = `/app.html#/${key}`;
   }
 

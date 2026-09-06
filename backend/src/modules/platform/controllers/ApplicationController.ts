@@ -3,6 +3,8 @@ import { prisma } from '../../../database/prisma/client';
 import { z } from 'zod';
 import { signAuthToken } from '../../../plugins/authenticate';
 import { EntitlementService } from '../services/EntitlementService';
+import { AuditService } from '../services/AuditService';
+import { seedFinancas } from '../../financas/services/seedFinancas';
 
 // ---------------------------------------------------------------------------
 // Schemas de validação
@@ -365,7 +367,7 @@ export class ApplicationController {
 
   /**
    * POST /api/platform/account-requests/:id/approve
-   * Aprovação de conta em 1 clique
+   * Aprovação de conta em 1 clique numa única transação atómica
    */
   static async approveAccountRequest(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
@@ -375,8 +377,195 @@ export class ApplicationController {
 
     const { id } = req.params as { id: string };
     const body = z.object({
-      tenantId: z.string().min(1),
-      role: z.string().default('USER')
+      tenantId: z.string().optional(),
+      role: z.string().default('TENANT_ADMIN'),
+      modules: z.array(z.string()).optional()
+    }).parse(req.body || {});
+
+    const accountReq = await prisma.accountRequest.findUnique({ where: { id } });
+    if (!accountReq) {
+      return reply.status(404).send({ error: 'REQUEST_NOT_FOUND', message: 'Pedido de conta não encontrado.' });
+    }
+
+    const companyName = accountReq.companyName || accountReq.name || accountReq.contactName || accountReq.email.split('@')[0];
+
+    const result = await prisma.$transaction(async (tx) => {
+      let targetTenantId = body.tenantId;
+
+      // Se não for fornecido tenantId, criar novo Tenant
+      if (!targetTenantId) {
+        let baseSlug = companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        if (!baseSlug) baseSlug = 'tenant';
+        
+        let slug = baseSlug;
+        let count = 0;
+        while (await tx.tenant.findUnique({ where: { slug } })) {
+          count++;
+          slug = `${baseSlug}-${count}`;
+        }
+
+        const newTenant = await tx.tenant.create({
+          data: {
+            name: companyName,
+            slug,
+            email: accountReq.email,
+            phone: accountReq.phone,
+            status: 'ACTIVE'
+          }
+        });
+
+        await tx.tenantBranding.create({
+          data: {
+            tenantId: newTenant.id,
+            displayName: companyName,
+            legalName: companyName,
+            primaryColor: '#0d419f',
+            accentColor: '#1f6feb',
+            theme: 'system',
+            currency: 'EUR',
+            country: 'PT',
+            timezone: 'Atlantic/Madeira'
+          }
+        });
+
+        targetTenantId = newTenant.id;
+      }
+
+      // Criar ou atualizar utilizador
+      let targetUser = await tx.user.findUnique({ where: { email: accountReq.email } });
+      const contactName = accountReq.contactName || accountReq.name || accountReq.email.split('@')[0];
+
+      if (!targetUser) {
+        targetUser = await tx.user.create({
+          data: {
+            tenantId: targetTenantId,
+            name: contactName,
+            email: accountReq.email,
+            role: body.role as any,
+            status: 'ACTIVE',
+            active: true,
+            authProvider: 'EMAIL'
+          }
+        });
+      } else {
+        targetUser = await tx.user.update({
+          where: { id: targetUser.id },
+          data: {
+            tenantId: targetTenantId,
+            role: body.role as any,
+            status: 'ACTIVE',
+            active: true
+          }
+        });
+      }
+
+      // Módulos a ativar
+      let modulesToActivate = body.modules;
+      if (!modulesToActivate || modulesToActivate.length === 0) {
+        const intended = accountReq.intendedModule?.toLowerCase();
+        if (intended && intended !== 'all') {
+          modulesToActivate = [intended];
+        } else {
+          modulesToActivate = ['crm', 'condominios', 'financas'];
+        }
+      }
+
+      for (const modKey of modulesToActivate) {
+        const normalizedKey = modKey === 'financas' ? 'finance' : modKey;
+        let mod = await tx.module.findFirst({ where: { key: normalizedKey } });
+        if (!mod) {
+          mod = await tx.module.create({
+            data: {
+              key: normalizedKey,
+              name: normalizedKey.toUpperCase(),
+              isActive: true
+            }
+          });
+        }
+
+        const appInstance = await tx.applicationInstance.upsert({
+          where: { tenantId_moduleId: { tenantId: targetTenantId, moduleId: mod.id } },
+          create: {
+            tenantId: targetTenantId,
+            moduleId: mod.id,
+            status: 'ACTIVE',
+            createdBy: user.sub
+          },
+          update: { status: 'ACTIVE' }
+        });
+
+        await tx.applicationAssignment.upsert({
+          where: { userId_applicationId: { userId: targetUser.id, applicationId: appInstance.id } },
+          create: {
+            userId: targetUser.id,
+            applicationId: appInstance.id,
+            roleInApp: 'ADMIN',
+            status: 'ACTIVE'
+          },
+          update: { status: 'ACTIVE', roleInApp: 'ADMIN' }
+        });
+
+        // Executar seed do módulo
+        if (normalizedKey === 'finance' || modKey === 'financas') {
+          await seedFinancas(targetTenantId, tx);
+        }
+      }
+
+      // Atualizar pedido de conta
+      await tx.accountRequest.update({
+        where: { id: accountReq.id },
+        data: {
+          status: 'APPROVED',
+          approvedBy: user.sub,
+          approvedAt: new Date()
+        }
+      });
+
+      // Incrementar entitlementsVersion do Tenant
+      await tx.tenant.update({
+        where: { id: targetTenantId },
+        data: { entitlementsVersion: { increment: 1 } }
+      });
+
+      return { tenantId: targetTenantId, user: targetUser };
+    });
+
+    // Invalidação de cache fora da transação
+    EntitlementService.invalidateCache(result.tenantId);
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      tenantId: result.tenantId,
+      action: 'account_request.approved',
+      resource: 'AccountRequest',
+      resourceId: id,
+      newValue: { tenantId: result.tenantId, userId: result.user.id },
+      result: 'SUCCESS'
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Pedido de conta aprovado com sucesso.',
+      tenantId: result.tenantId,
+      user: result.user
+    });
+  }
+
+  /**
+   * POST /api/platform/account-requests/:id/reject
+   * Rejeição de pedido de conta
+   */
+  static async rejectAccountRequest(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const { id } = req.params as { id: string };
+    const body = z.object({
+      reason: z.string().min(3, 'Motivo de rejeição é obrigatório (mínimo 3 caracteres)')
     }).parse(req.body);
 
     const accountReq = await prisma.accountRequest.findUnique({ where: { id } });
@@ -384,38 +573,28 @@ export class ApplicationController {
       return reply.status(404).send({ error: 'REQUEST_NOT_FOUND', message: 'Pedido de conta não encontrado.' });
     }
 
-    let newUser = await prisma.user.findUnique({ where: { email: accountReq.email } });
-    if (!newUser) {
-      newUser = await prisma.user.create({
-        data: {
-          tenantId: body.tenantId,
-          name: accountReq.contactName || accountReq.email.split('@')[0],
-          email: accountReq.email,
-          role: body.role as any,
-          status: 'ACTIVE',
-          active: true,
-          authProvider: 'EMAIL'
-        }
-      });
-    } else {
-      newUser = await prisma.user.update({
-        where: { id: newUser.id },
-        data: {
-          tenantId: body.tenantId,
-          role: body.role as any,
-          status: 'ACTIVE',
-          active: true
-        }
-      });
-    }
-
-    await prisma.accountRequest.update({
-      where: { id: accountReq.id },
-      data: { status: 'APPROVED' }
+    const updated = await prisma.accountRequest.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectedBy: user.sub,
+        rejectedAt: new Date(),
+        rejectionReason: body.reason
+      }
     });
 
-    EntitlementService.invalidateCache(body.tenantId);
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      action: 'account_request.rejected',
+      resource: 'AccountRequest',
+      resourceId: id,
+      newValue: { reason: body.reason },
+      result: 'SUCCESS'
+    });
 
-    return reply.send({ success: true, user: newUser });
+    return reply.send({ success: true, message: 'Pedido de conta rejeitado.', accountRequest: updated });
   }
 }
+

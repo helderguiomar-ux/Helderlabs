@@ -256,7 +256,7 @@
     <div class="module-tabs">
       <a href="#/crm" class="tab-btn" id="tab-crm">💼 CRM</a>
       <a href="#/condominios" class="tab-btn" id="tab-condominios">🏢 Condomínios</a>
-      <a href="#/finance" class="tab-btn" id="tab-finance">💳 Finanças</a>
+      <a href="#/financas" class="tab-btn" id="tab-finance">💳 Finanças</a>
     </div>
   </div>
 
@@ -407,14 +407,167 @@
   <!-- VISTA FINANÇAS -->
   <div id="view-finance" class="module-view" style="display:none;">
     <section>
-      <h2>Módulo Financeiro & Tesouraria</h2>
-      <div class="card" style="padding:40px; text-align:center;">
-        <div style="font-size:48px; margin-bottom:12px;">💳</div>
-        <h3 style="margin:0 0 8px 0; color:var(--accent);">Módulo Financeiro Ativo (Modo Trial)</h3>
-        <p style="color:var(--text-secondary); max-width:500px; margin:0 auto 20px auto;">
-          Contas a pagar, contas a receber, gestão de tesouraria e conciliação bancária integradas com o módulo de CRM e Condomínios.
-        </p>
-        <button class="primary" onclick="alert('Em breve disponível para licenciamento completo.')">Explorar Funcionalidades Financeiras</button>
+      <h2>Módulo Financeiro & Tesouraria — Resumo</h2>
+      <div class="stat-grid" id="financas-stat-grid"></div>
+    </section>
+
+    <section>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2>Movimentos & Transações</h2>
+        <div style="display:flex; gap:8px;">
+          <button class="ghost" onclick="exportFinancas('csv')">📥 Exportar CSV</button>
+          <button class="ghost" onclick="materializeRecurringNow()">⚡ Materializar Recorrências</button>
+        </div>
+      </div>
+      <div class="card">
+        <form class="inline-form" id="financas-tx-form">
+          <div class="field">
+            <label for="fin-tx-title">Descrição / Título</label>
+            <input id="fin-tx-title" required placeholder="Ex: Pagamento Fornecedor X" />
+          </div>
+          <div class="field">
+            <label for="fin-tx-amount">Valor (€ EUR)</label>
+            <input id="fin-tx-amount" type="number" step="0.01" min="0.01" required placeholder="150.00" />
+          </div>
+          <div class="field">
+            <label for="fin-tx-kind">Tipo</label>
+            <select id="fin-tx-kind">
+              <option value="EXPENSE">Despesa (Saída)</option>
+              <option value="INCOME">Receita (Entrada)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fin-tx-date">Data Vencimento</label>
+            <input id="fin-tx-date" type="date" required />
+          </div>
+          <div class="field">
+            <label for="fin-tx-category">Categoria</label>
+            <select id="fin-tx-category"></select>
+          </div>
+          <div class="field" style="flex-direction:row; align-items:center; gap:6px; padding-bottom:6px;">
+            <input id="fin-tx-paid" type="checkbox" style="width:auto;" />
+            <label for="fin-tx-paid" style="margin:0; cursor:pointer;">Já Pago?</label>
+          </div>
+          <button class="primary" type="submit">+ Nova Transação</button>
+        </form>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Valor (€)</th>
+                <th>Vencimento</th>
+                <th>Estado</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="financas-transactions-body">
+              <tr class="empty-row"><td colspan="7">A carregar transações…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-top:32px;">
+      <h2>Regras de Recorrência (Despesas / Receitas Periódicas)</h2>
+      <div class="card">
+        <form class="inline-form" id="financas-rule-form">
+          <div class="field">
+            <label for="fin-rule-title">Título da Regra</label>
+            <input id="fin-rule-title" required placeholder="Ex: Renda Mensal do Escritório" />
+          </div>
+          <div class="field">
+            <label for="fin-rule-amount">Valor (€ EUR)</label>
+            <input id="fin-rule-amount" type="number" step="0.01" min="0.01" required placeholder="500.00" />
+          </div>
+          <div class="field">
+            <label for="fin-rule-kind">Tipo</label>
+            <select id="fin-rule-kind">
+              <option value="EXPENSE">Despesa Recorrente</option>
+              <option value="INCOME">Receita Recorrente</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fin-rule-freq">Frequência</label>
+            <select id="fin-rule-freq">
+              <option value="MONTHLY">Mensal</option>
+              <option value="WEEKLY">Semanal</option>
+              <option value="QUARTERLY">Trimestral</option>
+              <option value="YEARLY">Anual</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fin-rule-start">Data de Início</label>
+            <input id="fin-rule-start" type="date" required />
+          </div>
+          <button class="primary" type="submit">+ Criar Recorrência</button>
+        </form>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Tipo</th>
+                <th>Frequência</th>
+                <th>Valor (€)</th>
+                <th>Início</th>
+              </tr>
+            </thead>
+            <tbody id="financas-rules-body">
+              <tr class="empty-row"><td colspan="5">A carregar recorrências…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section style="margin-top:32px;">
+      <h2>Gestão de Empréstimos & Dívidas</h2>
+      <div class="card">
+        <form class="inline-form" id="financas-loan-form">
+          <div class="field">
+            <label for="fin-loan-party">Contraparte (Entidade/Pessoa)</label>
+            <input id="fin-loan-party" required placeholder="Ex: Banco / Sócio X" />
+          </div>
+          <div class="field">
+            <label for="fin-loan-direction">Direção</label>
+            <select id="fin-loan-direction">
+              <option value="BORROWED">Obtido (Dívida a Pagar)</option>
+              <option value="LENT">Concedido (Crédito a Receber)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fin-loan-amount">Valor Principal (€ EUR)</label>
+            <input id="fin-loan-amount" type="number" step="0.01" min="0.01" required placeholder="1000.00" />
+          </div>
+          <div class="field">
+            <label for="fin-loan-date">Data Empréstimo</label>
+            <input id="fin-loan-date" type="date" required />
+          </div>
+          <button class="primary" type="submit">+ Registar Empréstimo</button>
+        </form>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Contraparte</th>
+                <th>Tipo</th>
+                <th>Principal (€)</th>
+                <th>Pago (€)</th>
+                <th>Em Dívida (€)</th>
+                <th>Estado</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="financas-loans-body">
+              <tr class="empty-row"><td colspan="7">A carregar empréstimos…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   </div>
@@ -495,10 +648,11 @@
       document.getElementById('tab-condominios').classList.add('active');
       document.getElementById('app-title').textContent = 'HelderLabs ERP — Condomínios';
       loadCondominios();
-    } else if (hash.includes('finance')) {
+    } else if (hash.includes('finance') || hash.includes('financas')) {
       document.getElementById('view-finance').style.display = 'block';
       document.getElementById('tab-finance').classList.add('active');
       document.getElementById('app-title').textContent = 'HelderLabs ERP — Finanças';
+      loadFinancas();
     } else {
       document.getElementById('view-crm').style.display = 'block';
       document.getElementById('tab-crm').classList.add('active');
@@ -719,6 +873,249 @@
       showToast('Fração adicionada.', 'ok');
       e.target.reset();
       selectBuilding(currentBuildingId);
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  });
+
+  // Módulos de Finanças JS
+  function loadFinancas() {
+    Promise.all([
+      api('/api/financas/dashboard'),
+      api('/api/financas/categories'),
+      api('/api/financas/transactions'),
+      api('/api/financas/recurring'),
+      api('/api/financas/loans')
+    ]).then(function (results) {
+      renderFinancasDashboard(results[0].summary);
+      renderFinancasCategoryOptions(results[1].categories);
+      renderFinancasTransactions(results[2].transactions);
+      renderFinancasRules(results[3].rules);
+      renderFinancasLoans(results[4].loans);
+    }).catch(function (err) {
+      showToast(err.message || 'Erro ao carregar módulo de Finanças.', 'error');
+    });
+  }
+
+  function renderFinancasDashboard(s) {
+    var grid = document.getElementById('financas-stat-grid');
+    if (!s) return;
+    grid.innerHTML = `
+      <div class="stat-tile">
+        <div class="label">Entradas (Pagas)</div>
+        <div class="value" style="color:var(--good);">${currencyFormatter.format(s.totalIncomeCents / 100)}</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Saídas (Pagas)</div>
+        <div class="value" style="color:var(--critical);">${currencyFormatter.format(s.totalExpenseCents / 100)}</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Saldo Líquido</div>
+        <div class="value" style="color:${s.netBalanceCents >= 0 ? 'var(--good)' : 'var(--critical)'}">${currencyFormatter.format(s.netBalanceCents / 100)}</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Pendente a Receber</div>
+        <div class="value" style="color:var(--accent);">${currencyFormatter.format(s.pendingReceivablesCents / 100)}</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Pendente a Pagar</div>
+        <div class="value" style="color:var(--warning);">${currencyFormatter.format(s.pendingPayablesCents / 100)}</div>
+      </div>
+    `;
+  }
+
+  function renderFinancasCategoryOptions(categories) {
+    var select = document.getElementById('fin-tx-category');
+    if (!categories || categories.length === 0) {
+      select.innerHTML = '<option value="">Sem categorias</option>';
+      return;
+    }
+    select.innerHTML = categories.map(c => `<option value="${c.id}">${c.kind === 'INCOME' ? '🟢' : '🔴'} ${c.name}</option>`).join('');
+  }
+
+  function renderFinancasTransactions(list) {
+    var tbody = document.getElementById('financas-transactions-body');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhuma transação registada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function (t) {
+      var isIncome = t.kind === 'INCOME';
+      var isPaid = t.status === 'PAID';
+      var statusBadge = isPaid ? 'var(--good)' : 'var(--warning)';
+      return `
+        <tr>
+          <td><strong>${t.description}</strong></td>
+          <td><span style="font-weight:600; color:${isIncome ? 'var(--good)' : 'var(--critical)'}">${isIncome ? 'Receita' : 'Despesa'}</span></td>
+          <td>${t.category ? t.category.name : '—'}</td>
+          <td><strong>${currencyFormatter.format(t.amountCents / 100)}</strong></td>
+          <td>${new Date(t.dueDate).toLocaleDateString('pt-PT')}</td>
+          <td><span style="font-weight:700; color:${statusBadge}; text-transform:uppercase; font-size:11px;">${t.status}</span></td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              ${!isPaid ? `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="payFinancasTx('${t.id}', true)">✅ Pagar</button>` : `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="payFinancasTx('${t.id}', false)">↩️ Pendente</button>`}
+              <button class="ghost" style="padding:2px 6px; font-size:11px; color:var(--critical);" onclick="deleteFinancasTx('${t.id}')">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderFinancasRules(list) {
+    var tbody = document.getElementById('financas-rules-body');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma regra de recorrência configurada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function (r) {
+      return `
+        <tr>
+          <td><strong>${r.description}</strong></td>
+          <td>${r.kind === 'INCOME' ? 'Receita' : 'Despesa'}</td>
+          <td>${r.freq}</td>
+          <td><strong>${currencyFormatter.format(r.amountCents / 100)}</strong></td>
+          <td>${new Date(r.startDate).toLocaleDateString('pt-PT')}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderFinancasLoans(list) {
+    var tbody = document.getElementById('financas-loans-body');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhum empréstimo registado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function (l) {
+      return `
+        <tr>
+          <td><strong>${l.counterparty}</strong></td>
+          <td>${l.direction === 'BORROWED' ? 'Obtido (A Pagar)' : 'Concedido (A Receber)'}</td>
+          <td>${currencyFormatter.format(l.principalCents / 100)}</td>
+          <td>${currencyFormatter.format((l.paidCents || 0) / 100)}</td>
+          <td><strong style="color:var(--critical);">${currencyFormatter.format((l.remainingCents || 0) / 100)}</strong></td>
+          <td><span style="font-weight:700; text-transform:uppercase; font-size:11px;">${l.status}</span></td>
+          <td>
+            ${l.status !== 'SETTLED' ? `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="promptLoanPayment('${l.id}')">💶 Abater / Pagar</button>` : 'Liquidado'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.payFinancasTx = function(id, isPaid) {
+    api(`/api/financas/transactions/${id}/pay`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isPaid })
+    }).then(function () {
+      showToast(isPaid ? 'Transação paga.' : 'Transação marcada como pendente.', 'ok');
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  };
+
+  window.deleteFinancasTx = function(id) {
+    if (!confirm('Eliminar esta transação?')) return;
+    api(`/api/financas/transactions/${id}`, { method: 'DELETE' }).then(function () {
+      showToast('Transação eliminada.', 'ok');
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  };
+
+  window.materializeRecurringNow = function() {
+    api('/api/financas/recurring/materialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    }).then(function (res) {
+      showToast(`Materialização concluída: ${res.materializedCount} novas transações.`, 'ok');
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  };
+
+  window.exportFinancas = function(format) {
+    window.open(`/api/financas/export?format=${format}`, '_blank');
+  };
+
+  window.promptLoanPayment = function(loanId) {
+    var amountStr = prompt('Introduza o valor a abater em EUR (ex: 100.00):');
+    if (!amountStr) return;
+    var amountFloat = parseFloat(amountStr.replace(',', '.'));
+    if (isNaN(amountFloat) || amountFloat <= 0) return alert('Valor inválido.');
+
+    api(`/api/financas/loans/${loanId}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amountCents: Math.round(amountFloat * 100),
+        date: new Date().toISOString()
+      })
+    }).then(function () {
+      showToast('Pagamento do empréstimo registado.', 'ok');
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  };
+
+  document.getElementById('financas-tx-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var amount = parseFloat(document.getElementById('fin-tx-amount').value);
+    var isPaid = document.getElementById('fin-tx-paid').checked;
+    var payload = {
+      description: document.getElementById('fin-tx-title').value.trim(),
+      amountCents: Math.round(amount * 100),
+      kind: document.getElementById('fin-tx-kind').value,
+      dueDate: document.getElementById('fin-tx-date').value,
+      categoryId: document.getElementById('fin-tx-category').value || null,
+      status: isPaid ? 'PAID' : 'PLANNED'
+    };
+    api('/api/financas/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function () {
+      showToast('Transação criada.', 'ok');
+      e.target.reset();
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  });
+
+  document.getElementById('financas-rule-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var amount = parseFloat(document.getElementById('fin-rule-amount').value);
+    var payload = {
+      description: document.getElementById('fin-rule-title').value.trim(),
+      amountCents: Math.round(amount * 100),
+      kind: document.getElementById('fin-rule-kind').value,
+      freq: document.getElementById('fin-rule-freq').value,
+      startDate: document.getElementById('fin-rule-start').value
+    };
+    api('/api/financas/recurring', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function () {
+      showToast('Regra de recorrência criada.', 'ok');
+      e.target.reset();
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  });
+
+  document.getElementById('financas-loan-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var amount = parseFloat(document.getElementById('fin-loan-amount').value);
+    var payload = {
+      counterparty: document.getElementById('fin-loan-party').value.trim(),
+      direction: document.getElementById('fin-loan-direction').value,
+      principalCents: Math.round(amount * 100),
+      loanDate: document.getElementById('fin-loan-date').value
+    };
+    api('/api/financas/loans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function () {
+      showToast('Empréstimo registado.', 'ok');
+      e.target.reset();
+      loadFinancas();
     }).catch(function (err) { showToast(err.message, 'error'); });
   });
 

@@ -9,8 +9,10 @@ import { ZodError } from 'zod';
 import authenticatePlugin from './plugins/authenticate';
 import entitlementsPlugin from './plugins/entitlements';
 import { authRoutes } from './modules/auth/routes/auth.routes';
+import { publicRoutes } from './routes/public.routes';
 import { crmRoutes } from './modules/crm/routes/crm.routes';
 import { condominiosRoutes } from './modules/condominios/routes/condominios.routes';
+import { financasRoutes } from './modules/financas/routes/financas.routes';
 import { platformRoutes } from './modules/platform/routes/platform.routes';
 import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
@@ -194,9 +196,11 @@ export function buildApp() {
   });
 
   app.register(authRoutes, { prefix: '/api/auth' });
+  app.register(publicRoutes, { prefix: '/api/public' });
   app.register(platformRoutes, { prefix: '/api/platform' });
   app.register(crmRoutes, { prefix: '/api/crm' });
   app.register(condominiosRoutes, { prefix: '/api/condominios' });
+  app.register(financasRoutes, { prefix: '/api/financas' });
 
   const entitlementService = new EntitlementService();
   app.register(async (instance) => {

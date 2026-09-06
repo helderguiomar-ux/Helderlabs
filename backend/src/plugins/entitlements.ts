@@ -23,7 +23,8 @@ export default fp(async (app: FastifyInstance) => {
       }
 
       const manifest = await entitlementService.resolveForUser(request.user.sub, request.user.tenantId);
-      const appEnt = manifest.apps.find((a) => a.key === moduleKey);
+      const targetKey = moduleKey === 'financas' ? 'finance' : (moduleKey === 'finance' ? 'financas' : moduleKey);
+      const appEnt = manifest.apps.find((a) => a.key === moduleKey || a.key === targetKey);
 
       if (!appEnt || appEnt.state === 'NONE' || appEnt.state === 'DISABLED') {
         throw new AppError('APP_NOT_LICENSED', `O módulo '${moduleKey}' não está licenciado para a sua empresa.`, 403);
@@ -58,10 +59,15 @@ export default fp(async (app: FastifyInstance) => {
         throw AppError.unauthorized('Autenticação necessária.');
       }
 
-      if (request.user.role === 'SUPER_ADMIN') return;
+      if (request.user.role === 'SUPER_ADMIN' || request.user.role === 'TENANT_OWNER') return;
 
       const manifest = await entitlementService.resolveForUser(request.user.sub, request.user.tenantId);
-      const hasPermission = manifest.apps.some((a) => a.permissions.includes(permission));
+      
+      const hasPermission = manifest.apps.some((a) => {
+        if (a.state === 'NONE' || a.state === 'DISABLED' || a.state === 'SUSPENDED') return false;
+        if (!a.roleInApp && request.user?.role !== 'TENANT_ADMIN') return false;
+        return a.permissions.includes(permission);
+      });
 
       if (!hasPermission) {
         throw new AppError('PERMISSION_DENIED', `Permissão necessária em falta: ${permission}`, 403);
@@ -69,3 +75,4 @@ export default fp(async (app: FastifyInstance) => {
     };
   });
 });
+

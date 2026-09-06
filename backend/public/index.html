@@ -336,6 +336,15 @@
               <label for="lead-message">Qual é o principal desafio ou processo a otimizar? *</label>
               <textarea id="lead-message" class="lead-textarea" rows="4" placeholder="Descreva sucintamente as dificuldades atuais (ex: informação dispersa em Excel, falta de automação, etc.)." required></textarea>
             </div>
+
+            <div class="lead-form-group full-width" style="margin-top: 0.5rem;">
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; font-size: 0.85rem; cursor: pointer;">
+                <input type="checkbox" id="lead-terms" required checked> Aceito os <a href="#" onclick="alert('Termos e Condições HelderLabs v1.0'); return false;" style="color: var(--color-accent-indigo);">Termos e Condições</a> de Serviço (v1.0) *
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; font-size: 0.85rem; cursor: pointer; margin-top: 4px;">
+                <input type="checkbox" id="lead-privacy" required checked> Aceito a <a href="#" onclick="alert('Política de Privacidade HelderLabs v1.0'); return false;" style="color: var(--color-accent-indigo);">Política de Privacidade</a> e Tratamento de Dados (v1.0) *
+              </label>
+            </div>
           </div>
 
           <button type="submit" id="lead-submit-btn" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.95rem; font-size: 1rem; margin-top: 0.5rem;">
@@ -438,10 +447,13 @@
       const sector = document.getElementById('lead-sector').value;
       const message = document.getElementById('lead-message').value.trim();
 
+      const acceptedTerms = document.getElementById('lead-terms').checked;
+      const acceptedPrivacy = document.getElementById('lead-privacy').checked;
+
       // Validação básica client-side
-      if (!name || !company || !email || !sector || !message) {
+      if (!name || !company || !email || !sector || !message || !acceptedTerms || !acceptedPrivacy) {
         leadFeedback.className = 'lead-feedback error';
-        leadFeedback.textContent = 'Por favor preencha todos os campos obrigatórios (*).';
+        leadFeedback.textContent = 'Por favor preencha todos os campos obrigatórios (*) e aceite os consentimentos RGPD.';
         leadFeedback.style.display = 'block';
         return;
       }
@@ -451,10 +463,10 @@
       leadFeedback.style.display = 'none';
 
       try {
-        const response = await fetch('/api/crm/leads', {
+        const response = await fetch('/api/public/leads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, company, email, phone, sector, message })
+          body: JSON.stringify({ name, company, email, phone, sector, message, acceptedTerms, acceptedPrivacy })
         });
 
         const data = await response.json();

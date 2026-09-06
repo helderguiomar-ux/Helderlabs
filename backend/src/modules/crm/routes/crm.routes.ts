@@ -34,7 +34,7 @@ const publicLeadSchema = z.object({
 });
 
 export async function crmRoutes(app: FastifyInstance) {
-  // Rota pública de submissão da Landing Page (Sem autenticação / entitlement guard)
+  // Rota pública de submissão da Landing Page
   app.post('/public/leads', {
     config: {
       rateLimit: {
@@ -52,36 +52,23 @@ export async function crmRoutes(app: FastifyInstance) {
     });
   });
 
-  // Rota /leads flexível (se chamada sem auth, trata como submissão pública; se com auth, exige requireApp)
-  app.post('/leads', async (request, reply) => {
-    if (request.headers.authorization) {
-      await app.authenticate(request, reply);
-      await app.requireApp('crm')(request, reply);
-      if (reply.sent) return;
-
-      const data = createLeadSchema.parse(request.body);
-      const lead = await controller.createLead(contextFrom(request), data as any);
-      return reply.status(201).send({ success: true, lead, message: 'Lead gravada com sucesso!' });
-    } else {
-      const data = publicLeadSchema.parse(request.body);
-      const lead = await EnterpriseCRMService.createPublicLead(data as any);
-      return reply.status(201).send({
-        success: true,
-        lead,
-        message: 'Diagnóstico solicitado com sucesso! Entraremos em contacto brevemente.'
-      });
-    }
-  });
-
   // Sub-bloco para endpoints estritamente protegidos do CRM
   app.register(async (protectedApp) => {
     protectedApp.addHook('preHandler', app.authenticate);
     protectedApp.addHook('preHandler', app.requireApp('crm'));
 
+
+    protectedApp.post('/leads', async (request, reply) => {
+      const data = createLeadSchema.parse(request.body);
+      const lead = await controller.createLead(contextFrom(request), data as any);
+      return reply.status(201).send({ success: true, lead, message: 'Lead gravada com sucesso!' });
+    });
+
     protectedApp.get('/leads', async (request, reply) => {
       const leads = await controller.listLeads(contextFrom(request));
       return reply.status(200).send(leads);
     });
+
 
     protectedApp.put<{ Params: { id: string } }>('/leads/:id', async (request, reply) => {
       const { id } = request.params;

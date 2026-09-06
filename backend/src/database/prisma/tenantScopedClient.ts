@@ -41,7 +41,13 @@ const TENANT_SCOPED_MODELS = new Set([
   'Opportunity',
   'Customer',
   'Communication',
-  'Building'
+  'Building',
+  'FinanceCategory',
+  'FinanceTransaction',
+  'RecurringRule',
+  'Loan',
+  'LoanPayment',
+  'Budget'
 ]);
 
 const READ_OPERATIONS = new Set([

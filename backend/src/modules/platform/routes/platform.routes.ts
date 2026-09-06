@@ -183,6 +183,7 @@ export async function platformRoutes(app: FastifyInstance) {
   app.post('/impersonate', ApplicationController.startImpersonation);
   app.post('/impersonate/end', ApplicationController.endImpersonation);
   app.post('/account-requests/:id/approve', ApplicationController.approveAccountRequest);
+  app.post('/account-requests/:id/reject', ApplicationController.rejectAccountRequest);
 
   app.get('/audit-chain/verify', async (request, reply) => {
     const { tenantId } = request.query as { tenantId?: string };

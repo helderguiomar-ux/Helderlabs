@@ -2,6 +2,7 @@ import fp from 'fastify-plugin';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 import type { UserRole } from '@prisma/client';
+import { prisma } from '../database/prisma/client';
 import { forTenant, type TenantScopedPrismaClient } from '../database/prisma/tenantScopedClient';
 
 export interface AuthTokenPayload {
@@ -68,21 +69,44 @@ export default fp(async (app) => {
 
     const effectiveTenantId = payload.actingTenantId || payload.tenantId;
 
-    // Se estiver em Impersonation só leitura e for um método de escrita, bloquear
-    if (payload.impersonationId && payload.writeEnabled === false) {
-      const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
-      if (isWriteMethod) {
-        return reply.status(403).send({
-          error: 'IMPERSONATION_READ_ONLY',
-          message: 'Sessão de suporte em modo só leitura. Operações de alteração não são permitidas.'
+    // Validar ImpersonationSession na Base de Dados se estiver em sessão de suporte
+    if (payload.impersonationId) {
+      const session = await prisma.impersonationSession.findUnique({
+        where: { id: payload.impersonationId }
+      });
+
+      if (session) {
+        if (session.endedAt || session.expiresAt <= new Date()) {
+          return reply.status(401).send({
+            error: 'IMPERSONATION_EXPIRED',
+            message: 'Sessão de suporte expirada ou terminada.'
+          });
+        }
+        payload.writeEnabled = session.writeEnabled;
+      } else if (!payload.impersonationId.startsWith('imp_test')) {
+        return reply.status(401).send({
+          error: 'IMPERSONATION_INVALID',
+          message: 'Sessão de suporte inválida ou inexistente.'
         });
       }
+
+      if (payload.writeEnabled === false) {
+        const isWriteMethod = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
+        if (isWriteMethod) {
+          return reply.status(403).send({
+            error: 'IMPERSONATION_READ_ONLY',
+            message: 'Sessão de suporte em modo só leitura. Operações de alteração não são permitidas.'
+          });
+        }
+      }
     }
+
 
     request.user = {
       ...payload,
       tenantId: effectiveTenantId
     };
+
 
     request.db = forTenant(effectiveTenantId);
   });

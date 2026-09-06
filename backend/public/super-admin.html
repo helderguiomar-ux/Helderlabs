@@ -98,6 +98,7 @@
     </div>
     <div class="nav">
       <a href="#" class="nav-item active" onclick="switchTab('tenants', this); return false;">🏢 Gestão de Empresas</a>
+      <a href="#" class="nav-item" onclick="switchTab('approvals', this); return false;">📋 Aprovações de Contas <span id="pending-badge" style="background:#da3633; color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:4px; display:none;">0</span></a>
       <a href="#" class="nav-item" onclick="switchTab('applications', this); return false;">📦 Aplicativos & Módulos</a>
       <a href="#" class="nav-item" onclick="switchTab('users', this); return false;">👥 Utilizadores Online</a>
       <a href="#" class="nav-item" onclick="switchTab('monitoring', this); return false;">🔍 Monitorização</a>
@@ -144,6 +145,36 @@
             </thead>
             <tbody id="tenants-list">
               <tr><td colspan="7" style="color:#8b949e;">A carregar empresas...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 1.B. Aprovações de Contas -->
+      <section id="approvals-section" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin:0; color:#58a6ff;">Aprovações de Contas & Registo</h2>
+            <p style="margin:4px 0 0 0; color:#8b949e; font-size:13px;">Analise e aprove pedidos de novas contas e empresas com transação atómica em 1-clique.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAccountRequests()">🔄 Atualizar Lista</button>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Contacto / Empresa</th>
+                <th>Email</th>
+                <th>Módulo Pretendido</th>
+                <th>Consentimento RGPD</th>
+                <th>Estado</th>
+                <th>Data do Pedido</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="account-requests-list">
+              <tr><td colspan="7" style="color:#8b949e;">A carregar pedidos de conta...</td></tr>
             </tbody>
           </table>
         </div>
@@ -307,6 +338,81 @@
         </div>
       </form>
     </div>
+  <!-- Modal: Aprovar Pedido de Conta -->
+  <div id="approve-account-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✅ Aprovar Pedido de Conta</h3>
+        <button class="btn btn-secondary" onclick="closeModal('approve-account-modal')">✕</button>
+      </div>
+      <form onsubmit="submitApproveAccount(event)">
+        <input type="hidden" id="approve-req-id">
+        <div class="form-group">
+          <label>Email do Utilizador</label>
+          <input type="text" id="approve-req-email" readonly style="opacity:0.7;">
+        </div>
+        <div class="form-group">
+          <label>Nome / Empresa Solicitada</label>
+          <input type="text" id="approve-req-name" readonly style="opacity:0.7;">
+        </div>
+        <div class="form-group">
+          <label>Destino da Conta *</label>
+          <select id="approve-tenant-option" onchange="toggleTenantSelectOption()">
+            <option value="NEW">⚡ Criar Nova Empresa (Tenant Automático)</option>
+            <option value="EXISTING">🏢 Associar a Empresa Existente</option>
+          </select>
+        </div>
+        <div class="form-group" id="approve-existing-tenant-group" style="display:none;">
+          <label>Selecionar Empresa Existente</label>
+          <select id="approve-existing-tenant-id"></select>
+        </div>
+        <div class="form-group">
+          <label>Perfil na Plataforma (Role)</label>
+          <select id="approve-user-role">
+            <option value="TENANT_ADMIN">TENANT_ADMIN (Administrador de Empresa)</option>
+            <option value="USER">USER (Utilizador Base)</option>
+            <option value="MANAGER">MANAGER (Gestor)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Módulos a Licenciar</label>
+          <div style="display:flex; gap:12px; margin-top:6px;">
+            <label><input type="checkbox" id="mod-crm" checked> CRM</label>
+            <label><input type="checkbox" id="mod-condominios" checked> Condomínios</label>
+            <label><input type="checkbox" id="mod-financas" checked> Finanças</label>
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('approve-account-modal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">✅ Aprovar Conta Agora</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Rejeitar Pedido de Conta -->
+  <div id="reject-account-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>❌ Rejeitar Pedido de Conta</h3>
+        <button class="btn btn-secondary" onclick="closeModal('reject-account-modal')">✕</button>
+      </div>
+      <form onsubmit="submitRejectAccount(event)">
+        <input type="hidden" id="reject-req-id">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="text" id="reject-req-email" readonly style="opacity:0.7;">
+        </div>
+        <div class="form-group">
+          <label>Motivo da Rejeição *</label>
+          <textarea id="reject-reason" required rows="3" style="width:100%; padding:9px; border-radius:6px; background:#0d1117; color:white; border:1px solid #30363d;" placeholder="Ex: Dados incompletos / pedido não elegível"></textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('reject-account-modal')">Cancelar</button>
+          <button type="submit" class="btn btn-danger">❌ Confirmar Rejeição</button>
+        </div>
+      </form>
+    </div>
   </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -344,8 +450,145 @@
     }
     
     if (tab === 'tenants') loadTenants();
+    if (tab === 'approvals') loadAccountRequests();
     if (tab === 'applications') loadApplications();
     if (tab === 'users') loadOnlineUsers();
+  }
+
+  let globalAccountRequests = [];
+
+  async function loadAccountRequests() {
+    try {
+      const data = await api('/api/platform/account-requests');
+      globalAccountRequests = data.requests || [];
+      renderAccountRequests(globalAccountRequests);
+    } catch(e) {
+      console.error(e);
+    }
+  }
+
+  function renderAccountRequests(list) {
+    const tbody = document.getElementById('account-requests-list');
+    const badge = document.getElementById('pending-badge');
+    
+    const pendingCount = list.filter(r => r.status === 'PENDING').length;
+    if (badge) {
+      if (pendingCount > 0) {
+        badge.textContent = pendingCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#8b949e;">Nenhum pedido de conta registado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(r => `
+      <tr>
+        <td><strong>${r.companyName || r.name || r.contactName || 'Sem nome'}</strong><br><span style="font-size:11px; color:#8b949e;">tel: ${r.phone || 'n/a'}</span></td>
+        <td>${r.email}</td>
+        <td><span style="color:#58a6ff; font-weight:600;">${(r.intendedModule || 'todos').toUpperCase()}</span></td>
+        <td>
+          <span style="font-size:11px; color:${r.acceptedTermsAt ? '#3fb950' : '#8b949e'};">
+            ${r.acceptedTermsAt ? `✅ Aceite v${r.termsVersion || '1.0'} (${new Date(r.acceptedTermsAt).toLocaleDateString('pt-PT')})` : '⚠️ Não registado'}
+          </span>
+        </td>
+        <td><span class="status-badge ${r.status === 'APPROVED' ? 'badge-active' : r.status === 'PENDING' ? 'badge-trial' : 'badge-suspended'}">${r.status}</span></td>
+        <td>${new Date(r.createdAt).toLocaleDateString('pt-PT')}</td>
+        <td>
+          ${r.status === 'PENDING' ? `
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-primary" style="padding:4px 8px; font-size:12px;" onclick="openApproveAccountModal('${r.id}')">✅ Aprovar</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="openRejectAccountModal('${r.id}')">❌ Rejeitar</button>
+            </div>
+          ` : `
+            <span style="font-size:12px; color:#8b949e;">${r.status === 'APPROVED' ? 'Aprovado' : 'Rejeitado'}</span>
+          `}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openApproveAccountModal(id) {
+    const req = globalAccountRequests.find(r => r.id === id);
+    if (!req) return;
+
+    document.getElementById('approve-req-id').value = req.id;
+    document.getElementById('approve-req-email').value = req.email;
+    document.getElementById('approve-req-name').value = req.companyName || req.name || req.contactName || req.email;
+
+    const select = document.getElementById('approve-existing-tenant-id');
+    select.innerHTML = globalTenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    document.getElementById('approve-account-modal').classList.add('active');
+  }
+
+  function toggleTenantSelectOption() {
+    const opt = document.getElementById('approve-tenant-option').value;
+    document.getElementById('approve-existing-tenant-group').style.display = opt === 'EXISTING' ? 'block' : 'none';
+  }
+
+  async function submitApproveAccount(e) {
+    e.preventDefault();
+    const id = document.getElementById('approve-req-id').value;
+    const tenantOpt = document.getElementById('approve-tenant-option').value;
+    const existingTenantId = document.getElementById('approve-existing-tenant-id').value;
+    const role = document.getElementById('approve-user-role').value;
+
+    const modules = [];
+    if (document.getElementById('mod-crm').checked) modules.push('crm');
+    if (document.getElementById('mod-condominios').checked) modules.push('condominios');
+    if (document.getElementById('mod-financas').checked) modules.push('financas');
+
+    const payload = {
+      role,
+      modules,
+      ...(tenantOpt === 'EXISTING' && { tenantId: existingTenantId })
+    };
+
+    try {
+      await api(`/api/platform/account-requests/${id}/approve`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      closeModal('approve-account-modal');
+      loadAccountRequests();
+      loadTenants();
+      alert('Conta aprovada e licenciada com sucesso!');
+    } catch(err) {
+      alert('Erro ao aprovar conta: ' + err.message);
+    }
+  }
+
+  function openRejectAccountModal(id) {
+    const req = globalAccountRequests.find(r => r.id === id);
+    if (!req) return;
+
+    document.getElementById('reject-req-id').value = req.id;
+    document.getElementById('reject-req-email').value = req.email;
+    document.getElementById('reject-reason').value = '';
+    document.getElementById('reject-account-modal').classList.add('active');
+  }
+
+  async function submitRejectAccount(e) {
+    e.preventDefault();
+    const id = document.getElementById('reject-req-id').value;
+    const reason = document.getElementById('reject-reason').value;
+
+    try {
+      await api(`/api/platform/account-requests/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+      closeModal('reject-account-modal');
+      loadAccountRequests();
+      alert('Pedido rejeitado.');
+    } catch(err) {
+      alert('Erro ao rejeitar pedido: ' + err.message);
+    }
   }
 
   async function api(path, options = {}) {
@@ -641,6 +884,7 @@
   }
 
   loadTenants();
+  loadAccountRequests();
 </script>
 </body>
 </html>

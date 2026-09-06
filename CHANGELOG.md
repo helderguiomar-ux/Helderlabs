@@ -2,6 +2,25 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v0.3.0] - 2026-09-06
+
+### 💳 Módulo de Finanças & Pessoais
+- **API Financeira Completa**: Implementadas as rotas `/api/financas/dashboard`, `/categories`, `/transactions`, `/recurring`, `/loans` e `/export` (CSV).
+- **Gestão & Criador de Categorias**: Povoamento automático das 11 categorias padrão (*Vendas*, *Serviços*, *Habitação*, *Alimentação*, etc.) e nova interface para criação de categorias personalizadas (🟢 Receita / 🔴 Despesa).
+- **Materialização de Recorrências**: Engine de cálculo de frequências (*WEEKLY*, *MONTHLY*, *QUARTERLY*, *YEARLY*) com tratamento idempotente.
+- **Empréstimos & Dívidas**: Registo de empréstimos concedidos e obtidos com histórico de amortizações.
+
+### 📋 Aprovações, Leads & RGPD
+- **Consola Super Admin**: Novo separador `📋 Aprovações de Contas` com aprovação transacional em 1-clique (`POST /api/platform/account-requests/:id/approve`).
+- **Registo Público & OTP**: `POST /api/public/register` com consentimento RGPD obrigatório e geração de código OTP cifrado com bcrypt.
+- **Captura de Leads na Landing**: Integrado o formulário institucional (`index.html`) com o módulo CRM da plataforma.
+
+### 🛡️ Resolução de Bugs & Entitlements
+- **Normalização de Chaves (`requireApp`)**: Mapeamento transparente de aliases `'financas'` e `'finance'` nos guards de entitlement (`src/plugins/entitlements.ts`) e no router do frontend (`app.html`, `workspace.html`, `super-admin.html`).
+- **Mensagem "Em Construção"**: Módulos ainda não desenvolvidos exibem o aviso explícito `🚧 Módulo [X] em construção`.
+- **Tratamento de Erros de Conexão**: Restrito o erro 503 `DATABASE_UNAVAILABLE` em `src/app.ts` exclusivamente a erros de conectividade de rede (`P1xxx`).
+- **Migração Neon Cloud DB**: Criada migração `20260906214800_full_schema_update` e ativada sincronização `prisma db push` no pipeline de build da Vercel (`vercel.json`).
+
 ---
 
 ## [v0.2.0] - 2026-09-06

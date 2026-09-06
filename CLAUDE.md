@@ -2,7 +2,7 @@
 
 Este ficheiro contém as regras, arquitetura e instruções completas para qualquer agente IA (Claude, Antigravity, GitHub Copilot) ou desenvolvedor trabalhar com segurança neste projeto.
 
-> **VERSÃO CANÓNICA OFICIAL: v0.2.0 (Com Separação Estrita de Ambientes)**
+> **VERSÃO CANÓNICA OFICIAL: v0.3.0 (Módulo de Finanças, Aprovações & RGPD Completo)**
 > **Diretoria Única Canónica:** `C:\Users\helde\Desktop\Dev\helderlabs-erp`
 > **Base de Dados Local:** PostgreSQL 18 Local (`localhost:5432` / Docker)
 > **Base de Dados Produção:** Neon Cloud PostgreSQL (Vercel Managed)

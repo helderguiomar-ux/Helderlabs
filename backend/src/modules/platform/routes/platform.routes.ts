@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import { applicationsRoutes } from './applications.routes';
+import { ApplicationController } from '../controllers/ApplicationController';
 
 export async function platformRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (request, reply) => {
@@ -14,7 +15,8 @@ export async function platformRoutes(app: FastifyInstance) {
     const tenants = await prisma.tenant.findMany({
       include: {
         _count: { select: { users: true } },
-        users: { where: { isOnline: true } }
+        users: { where: { isOnline: true } },
+        branding: true
       }
     });
     
@@ -27,7 +29,8 @@ export async function platformRoutes(app: FastifyInstance) {
         status: t.status,
         createdAt: t.createdAt,
         userCount: t._count.users,
-        onlineCount: t.users.length
+        onlineCount: t.users.length,
+        branding: t.branding
       }))
     });
   });
@@ -63,8 +66,10 @@ export async function platformRoutes(app: FastifyInstance) {
     return reply.status(200).send({ success: true, user });
   });
 
+  app.post('/impersonate', ApplicationController.startImpersonation);
+  app.post('/impersonate/end', ApplicationController.endImpersonation);
+  app.post('/account-requests/:id/approve', ApplicationController.approveAccountRequest);
+
   // Módulos como Aplicativos — gestão por tenant
-  // Acessível também a TENANT_ADMIN (a autorização granular fica nas rotas de aplicativos)
   app.register(applicationsRoutes, { prefix: '/applications' });
 }
-

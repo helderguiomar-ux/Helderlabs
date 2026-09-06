@@ -1,6 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import { z } from 'zod';
+import { signAuthToken } from '../../../plugins/authenticate';
+import { EntitlementService } from '../services/EntitlementService';
 
 // ---------------------------------------------------------------------------
 // Schemas de validação
@@ -285,5 +287,135 @@ export class ApplicationController {
         isActive:    m.isActive
       }))
     });
+  }
+
+  /**
+   * POST /api/platform/impersonate
+   * Inicia uma sessão de suporte auditada (Impersonation)
+   */
+  static async startImpersonation(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas o Super Admin pode iniciar sessão de suporte.' });
+    }
+
+    const body = z.object({
+      targetTenantId: z.string().min(1),
+      targetUserId: z.string().optional(),
+      reason: z.string().min(5, 'Motivo de suporte obrigatório (mínimo 5 caracteres)'),
+      writeEnabled: z.boolean().default(false)
+    }).parse(req.body);
+
+    const targetTenant = await prisma.tenant.findUnique({ where: { id: body.targetTenantId } });
+    if (!targetTenant) {
+      return reply.status(404).send({ error: 'TENANT_NOT_FOUND', message: 'Tenant alvo não encontrado.' });
+    }
+
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+    const session = await prisma.impersonationSession.create({
+      data: {
+        actorUserId: user.sub,
+        actorEmail: user.email,
+        targetTenantId: body.targetTenantId,
+        targetUserId: body.targetUserId,
+        reason: body.reason,
+        writeEnabled: body.writeEnabled,
+        expiresAt,
+        ipAddress: req.ip
+      }
+    });
+
+    const token = signAuthToken({
+      sub: user.sub,
+      email: user.email,
+      role: user.role,
+      tenantId: body.targetTenantId,
+      aud: 'tenant',
+      impersonationId: session.id,
+      actingTenantId: body.targetTenantId,
+      actingUserId: body.targetUserId || user.sub,
+      onBehalfOfId: body.targetUserId,
+      writeEnabled: body.writeEnabled
+    }, '30m');
+
+    return reply.send({
+      success: true,
+      token,
+      session: {
+        id: session.id,
+        targetTenantName: targetTenant.name,
+        writeEnabled: session.writeEnabled,
+        expiresAt: session.expiresAt
+      }
+    });
+  }
+
+  /**
+   * POST /api/platform/impersonate/end
+   * Encerra uma sessão de suporte
+   */
+  static async endImpersonation(req: FastifyRequest, reply: FastifyReply) {
+    const body = z.object({ sessionId: z.string().min(1) }).parse(req.body);
+    await prisma.impersonationSession.update({
+      where: { id: body.sessionId },
+      data: { endedAt: new Date() }
+    });
+    return reply.send({ success: true, message: 'Sessão de suporte encerrada.' });
+  }
+
+  /**
+   * POST /api/platform/account-requests/:id/approve
+   * Aprovação de conta em 1 clique
+   */
+  static async approveAccountRequest(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const { id } = req.params as { id: string };
+    const body = z.object({
+      tenantId: z.string().min(1),
+      role: z.string().default('USER')
+    }).parse(req.body);
+
+    const accountReq = await prisma.accountRequest.findUnique({ where: { id } });
+    if (!accountReq) {
+      return reply.status(404).send({ error: 'REQUEST_NOT_FOUND', message: 'Pedido de conta não encontrado.' });
+    }
+
+    let newUser = await prisma.user.findUnique({ where: { email: accountReq.email } });
+    if (!newUser) {
+      newUser = await prisma.user.create({
+        data: {
+          tenantId: body.tenantId,
+          name: accountReq.contactName || accountReq.email.split('@')[0],
+          email: accountReq.email,
+          role: body.role as any,
+          status: 'ACTIVE',
+          active: true,
+          authProvider: 'EMAIL'
+        }
+      });
+    } else {
+      newUser = await prisma.user.update({
+        where: { id: newUser.id },
+        data: {
+          tenantId: body.tenantId,
+          role: body.role as any,
+          status: 'ACTIVE',
+          active: true
+        }
+      });
+    }
+
+    await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: { status: 'APPROVED' }
+    });
+
+    EntitlementService.invalidateCache(body.tenantId);
+
+    return reply.send({ success: true, user: newUser });
   }
 }

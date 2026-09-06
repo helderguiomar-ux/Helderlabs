@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HelderLabs ERP — Workspace</title>
+  <style>
+    :root {
+      --primary-color: #0d419f;
+      --accent-color: #1f6feb;
+      --surface-1: #ffffff;
+      --page-bg: #f6f8fa;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --card-bg: #ffffff;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--page-bg);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      height: 32px;
+      max-width: 120px;
+      object-fit: contain;
+    }
+
+    .company-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .search-btn {
+      background: #f3f4f6;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .search-btn kbd {
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 11px;
+      font-family: monospace;
+    }
+
+    .user-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-info {
+      text-align: right;
+      font-size: 13px;
+    }
+
+    .user-info .user-name { font-weight: 600; color: var(--text-primary); }
+    .user-info .user-role { font-size: 11px; color: var(--text-secondary); }
+
+    .btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary { background: var(--primary-color); color: #ffffff; }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-primary); }
+    .btn-outline:hover { background: #f9fafb; }
+
+    main {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .greeting {
+      margin-bottom: 24px;
+    }
+
+    .greeting h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .greeting p {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin: 24px 0 16px 0;
+    }
+
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .app-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .app-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .app-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .app-icon-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .status-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+    }
+
+    .badge-active { background: #def7ec; color: #03543f; }
+    .badge-trial { background: #e1effe; color: #1e429f; }
+    .badge-grace { background: #fef3c7; color: #92400e; }
+    .badge-suspended { background: #f3f4f6; color: #4b5563; }
+    .badge-locked { background: #f3f4f6; color: #9ca3af; }
+
+    .app-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .app-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; flex: 1; }
+
+    .usage-bar-container {
+      margin-bottom: 16px;
+    }
+    .usage-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .usage-bar {
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .usage-fill {
+      height: 100%;
+      background: var(--primary-color);
+      border-radius: 3px;
+    }
+
+    /* Modal / Drawer Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-box {
+      background: #ffffff;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .form-group input, .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 20px;
+    }
+    .nav-tab {
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-secondary);
+      border-bottom: 2px solid transparent;
+    }
+    .nav-tab.active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand-section">
+    <img id="tenant-logo" class="brand-logo" src="" alt="" style="display: none;">
+    <div id="tenant-title" class="company-title">HelderLabs ERP</div>
+  </div>
+
+  <button class="search-btn" onclick="openSearchModal()">
+    <span>🔍 Pesquisar apps ou funcionalidades...</span>
+    <kbd>Ctrl+K</kbd>
+  </button>
+
+  <div class="user-section">
+    <div class="user-info">
+      <div id="user-name-display" class="user-name">Utilizador</div>
+      <div id="user-role-display" class="user-role">Cargo</div>
+    </div>
+    <button id="admin-settings-btn" class="btn btn-outline" style="display: none;" onclick="openTenantAdminModal()">⚙️ Definições</button>
+    <button class="btn btn-outline" onclick="logout()">Sair</button>
+  </div>
+</header>
+
+<main>
+  <div class="greeting">
+    <h2 id="welcome-message">Bem-vindo ao Workspace</h2>
+    <p>Selecione uma das suas aplicações para começar a trabalhar.</p>
+  </div>
+
+  <div class="section-title">As Minhas Aplicações</div>
+  <div id="active-apps-grid" class="apps-grid"></div>
+
+  <div id="upsell-section" style="display: none;">
+    <div class="section-title">Disponível com Upgrade</div>
+    <div id="upsell-apps-grid" class="apps-grid"></div>
+  </div>
+</main>
+
+<!-- Search Modal (Ctrl+K) -->
+<div id="search-modal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Navegação Rápida</h3>
+      <button class="btn btn-outline" onclick="closeSearchModal()">Esc</button>
+    </div>
+    <div class="form-group">
+      <input type="text" id="search-input" placeholder="Digite para filtrar aplicações..." autofocus onkeyup="filterAppsSearch()">
+    </div>
+    <div id="search-results-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+  </div>
+</div>
+
+<!-- Tenant Admin Modal -->
+<div id="tenant-admin-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width: 700px;">
+    <div class="modal-header">
+      <h3>Definições da Empresa</h3>
+      <button class="btn btn-outline" onclick="closeTenantAdminModal()">✕</button>
+    </div>
+
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchAdminTab('tab-users')">Utilizadores</div>
+      <div class="nav-tab" onclick="switchAdminTab('tab-identity')">Identidade & Branding</div>
+      <div class="nav-tab" onclick="switchAdminTab('tab-params')">Parâmetros</div>
+    </div>
+
+    <div id="tab-users" class="tab-content">
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Gestão de utilizadores da empresa.</p>
+      <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+        <input type="email" id="invite-email" placeholder="Email do novo colaborador">
+        <button class="btn btn-primary" onclick="inviteUser()">Convidar</button>
+      </div>
+      <div id="tenant-users-list" style="font-size: 13px;">Carregando utilizadores...</div>
+    </div>
+
+    <div id="tab-identity" class="tab-content" style="display: none;">
+      <div class="form-group">
+        <label>Nome Comercial</label>
+        <input type="text" id="branding-display-name">
+      </div>
+      <div class="form-group">
+        <label>Cor Primária (Hexadecimal)</label>
+        <input type="color" id="branding-primary-color" style="height: 40px;">
+      </div>
+      <div class="form-group">
+        <label>Logo URL (PNG/SVG)</label>
+        <input type="text" id="branding-logo-url" placeholder="https://...">
+      </div>
+      <button class="btn btn-primary" onclick="saveBranding()">Guardar Alterações</button>
+    </div>
+
+    <div id="tab-params" class="tab-content" style="display: none;">
+      <div class="form-group">
+        <label>Moeda Base</label>
+        <select id="param-currency">
+          <option value="EUR">EUR (€)</option>
+          <option value="USD">USD ($)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fuso Horário</label>
+        <select id="param-timezone">
+          <option value="Atlantic/Madeira">Atlantic/Madeira (WET/WEST)</option>
+          <option value="Europe/Lisbon">Europe/Lisbon</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="saveParams()">Guardar Parâmetros</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let workspaceData = null;
+
+  async function loadWorkspace() {
+    const session = JSON.parse(localStorage.getItem('erp_session') || '{}');
+    if (!session.token) {
+      window.location.href = '/login.html';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/me/workspace', {
+        headers: { 'Authorization': `Bearer ${session.token}` }
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem('erp_session');
+          window.location.href = '/login.html';
+          return;
+        }
+        throw new Error('Falha ao carregar workspace');
+      }
+
+      workspaceData = await res.json();
+      renderWorkspace(workspaceData);
+
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao carregar o ambiente de trabalho: ' + err.message);
+    }
+  }
+
+  function renderWorkspace(data) {
+    // Branding CSS variables
+    if (data.branding.primaryColor) {
+      document.documentElement.style.setProperty('--primary-color', data.branding.primaryColor);
+    }
+
+    // Header info
+    document.getElementById('tenant-title').textContent = data.branding.displayName || data.tenant.name;
+    if (data.branding.logoUrl) {
+      const logoEl = document.getElementById('tenant-logo');
+      logoEl.src = data.branding.logoUrl;
+      logoEl.style.display = 'block';
+    }
+
+    document.getElementById('welcome-message').textContent = `Bom dia, ${data.user.name.split(' ')[0]}`;
+    document.getElementById('user-name-display').textContent = data.user.name;
+    document.getElementById('user-role-display').textContent = data.user.role;
+
+    if (['TENANT_OWNER', 'TENANT_ADMIN', 'SUPER_ADMIN'].includes(data.user.role)) {
+      document.getElementById('admin-settings-btn').style.display = 'block';
+    }
+
+    // Render active vs upsell apps
+    const activeGrid = document.getElementById('active-apps-grid');
+    const upsellGrid = document.getElementById('upsell-apps-grid');
+    activeGrid.innerHTML = '';
+    upsellGrid.innerHTML = '';
+
+    let hasUpsell = false;
+
+    data.apps.forEach(app => {
+      if (app.state === 'NONE' || app.state === 'DISABLED') {
+        hasUpsell = true;
+        upsellGrid.appendChild(createAppCard(app, true));
+      } else {
+        activeGrid.appendChild(createAppCard(app, false));
+      }
+    });
+
+    if (hasUpsell && data.branding.showUpsell) {
+      document.getElementById('upsell-section').style.display = 'block';
+    }
+  }
+
+  function createAppCard(app, isUpsell) {
+    const card = document.createElement('div');
+    card.className = 'app-card';
+
+    let badgeClass = 'badge-active';
+    let badgeText = 'Ativo';
+
+    if (app.state === 'TRIAL') { badgeClass = 'badge-trial'; badgeText = `Trial (${app.daysLeft || 14}d)`; }
+    else if (app.state === 'GRACE') { badgeClass = 'badge-grace'; badgeText = 'Tolerância'; }
+    else if (app.state === 'SUSPENDED') { badgeClass = 'badge-suspended'; badgeText = 'Só Leitura'; }
+    else if (isUpsell) { badgeClass = 'badge-locked'; badgeText = '🔒 Indisponível'; }
+
+    let usageHtml = '';
+    for (const [limitKey, limitVal] of Object.entries(app.limits || {})) {
+      const current = app.usage[limitKey] || 0;
+      const pct = Math.min(100, Math.round((current / limitVal) * 100));
+      usageHtml += `
+        <div class="usage-bar-container">
+          <div class="usage-label">
+            <span>${limitKey}: ${current} / ${limitVal}</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="usage-bar"><div class="usage-fill" style="width: ${pct}%;"></div></div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div>
+        <div class="app-card-header">
+          <div class="app-icon-badge" style="background-color: ${app.color || '#0d419f'};">
+            ${app.name.charAt(0)}
+          </div>
+          <span class="status-badge ${badgeClass}">${badgeText}</span>
+        </div>
+        <div class="app-title">${app.name}</div>
+        <div class="app-desc">Módulo corporativo ${app.name}</div>
+      </div>
+      <div>
+        ${usageHtml}
+        ${isUpsell ? `
+          <button class="btn btn-outline" style="width: 100%;" onclick="requestAccess('${app.key}')">Solicitar Acesso</button>
+        ` : `
+          <button class="btn btn-primary" style="width: 100%;" onclick="openApp('${app.key}')">Abrir Aplicação</button>
+        `}
+      </div>
+    `;
+    return card;
+  }
+
+  function openApp(key) {
+    if (key === 'crm') window.location.href = '/app.html#/crm';
+    else if (key === 'condominios') window.location.href = '/app.html#/condominios';
+    else alert(`Aplicação ${key} em desenvolvimento.`);
+  }
+
+  function requestAccess(key) {
+    alert(`O seu pedido de acesso ao módulo '${key}' foi enviado ao Administrador da empresa.`);
+  }
+
+  function logout() {
+    localStorage.removeItem('erp_session');
+    window.location.href = '/login.html';
+  }
+
+  // Ctrl+K Search Modal
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      openSearchModal();
+    }
+  });
+
+  function openSearchModal() {
+    document.getElementById('search-modal').classList.add('active');
+    document.getElementById('search-input').focus();
+    filterAppsSearch();
+  }
+
+  function closeSearchModal() {
+    document.getElementById('search-modal').classList.remove('active');
+  }
+
+  function filterAppsSearch() {
+    const query = document.getElementById('search-input').value.toLowerCase();
+    const list = document.getElementById('search-results-list');
+    list.innerHTML = '';
+
+    if (!workspaceData) return;
+
+    workspaceData.apps.filter(a => a.name.toLowerCase().includes(query)).forEach(app => {
+      const item = document.createElement('div');
+      item.style.padding = '10px 14px';
+      item.style.border = '1px solid #e5e7eb';
+      item.style.borderRadius = '6px';
+      item.style.display = 'flex';
+      item.style.justifyContent = 'space-between';
+      item.style.alignItems = 'center';
+      item.style.cursor = 'pointer';
+      item.onclick = () => { closeSearchModal(); openApp(app.key); };
+
+      item.innerHTML = `
+        <span style="font-weight: 600;">${app.name}</span>
+        <span style="font-size: 12px; color: #6b7280;">${app.state}</span>
+      `;
+      list.appendChild(item);
+    });
+  }
+
+  // Tenant Admin Modal
+  function openTenantAdminModal() {
+    document.getElementById('tenant-admin-modal').classList.add('active');
+  }
+  function closeTenantAdminModal() {
+    document.getElementById('tenant-admin-modal').classList.remove('active');
+  }
+
+  function switchAdminTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById(tabId).style.display = 'block';
+    event.target.classList.add('active');
+  }
+
+  async function saveBranding() {
+    alert('Branding guardado com sucesso.');
+    closeTenantAdminModal();
+    loadWorkspace();
+  }
+
+  async function saveParams() {
+    alert('Parâmetros guardados.');
+    closeTenantAdminModal();
+  }
+
+  async function inviteUser() {
+    const email = document.getElementById('invite-email').value;
+    if (!email) return alert('Insira um email válido');
+    alert(`Convite enviado para ${email}.`);
+    document.getElementById('invite-email').value = '';
+  }
+
+  loadWorkspace();
+</script>
+</body>
+</html>

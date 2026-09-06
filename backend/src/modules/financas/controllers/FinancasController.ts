@@ -65,9 +65,9 @@ export class FinancasController {
     const user = req.user as any;
     const db = forTenant(user.tenantId);
 
-    const count = await db.financeCategory.count();
+    const count = await db.financeCategory.count({ where: { archivedAt: null } });
     if (count === 0) {
-      await seedFinancas(user.tenantId, db);
+      await seedFinancas(user.tenantId);
     }
 
     const categories = await db.financeCategory.findMany({

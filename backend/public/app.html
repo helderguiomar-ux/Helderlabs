@@ -570,6 +570,29 @@
         </div>
       </div>
     </section>
+
+    <section>
+      <h2>Categorias Financeiras & Personalizadas</h2>
+      <div class="card">
+        <form class="inline-form" id="financas-category-form">
+          <div class="field">
+            <label for="fin-cat-name">Nome da Categoria</label>
+            <input id="fin-cat-name" required placeholder="Ex: Telecomunicações, Rendas, Software..." />
+          </div>
+          <div class="field">
+            <label for="fin-cat-kind">Tipo de Categoria</label>
+            <select id="fin-cat-kind">
+              <option value="EXPENSE">Despesa (Saída)</option>
+              <option value="INCOME">Receita (Entrada)</option>
+            </select>
+          </div>
+          <button class="primary" type="submit">+ Nova Categoria</button>
+        </form>
+        <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;" id="financas-categories-list">
+          <span style="color: var(--text-secondary); font-size: 13px;">A carregar categorias...</span>
+        </div>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -924,11 +947,20 @@
 
   function renderFinancasCategoryOptions(categories) {
     var select = document.getElementById('fin-tx-category');
+    var catList = document.getElementById('financas-categories-list');
     if (!categories || categories.length === 0) {
       select.innerHTML = '<option value="">Sem categorias</option>';
+      if (catList) catList.innerHTML = '<span style="color: var(--text-secondary); font-size: 13px;">Nenhuma categoria registada.</span>';
       return;
     }
     select.innerHTML = categories.map(c => `<option value="${c.id}">${c.kind === 'INCOME' ? '🟢' : '🔴'} ${c.name}</option>`).join('');
+    if (catList) {
+      catList.innerHTML = categories.map(c => `
+        <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:12px; background:var(--surface-1); border:1px solid var(--border); font-size:12px; font-weight:600;">
+          ${c.kind === 'INCOME' ? '🟢' : '🔴'} ${c.name}
+        </span>
+      `).join('');
+    }
   }
 
   function renderFinancasTransactions(list) {
@@ -1114,6 +1146,22 @@
       body: JSON.stringify(payload)
     }).then(function () {
       showToast('Empréstimo registado.', 'ok');
+      e.target.reset();
+      loadFinancas();
+    }).catch(function (err) { showToast(err.message, 'error'); });
+  });
+
+  document.getElementById('financas-category-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('fin-cat-name').value.trim();
+    var kind = document.getElementById('fin-cat-kind').value;
+    if (!name) return;
+    api('/api/financas/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name, kind: kind })
+    }).then(function () {
+      showToast('Categoria criada com sucesso.', 'ok');
       e.target.reset();
       loadFinancas();
     }).catch(function (err) { showToast(err.message, 'error'); });

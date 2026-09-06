@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>HelderLabs ERP — CRM</title>
+<title>HelderLabs ERP — Módulos</title>
 <style>
   :root {
     color-scheme: light;
@@ -15,8 +15,8 @@
     --gridline: #e1e0d9;
     --baseline: #c3c2b7;
     --border: rgba(11, 11, 11, 0.10);
-    --accent: #2a78d6;
-    --accent-dark: #184f95;
+    --accent: #0d419f;
+    --accent-dark: #092c6e;
     --good: #0ca30c;
     --warning: #fab219;
     --serious: #ec835a;
@@ -25,20 +25,20 @@
   @media (prefers-color-scheme: dark) {
     :root {
       color-scheme: dark;
-      --surface-1: #1a1a19;
-      --page-plane: #0d0d0d;
+      --surface-1: #161b22;
+      --page-plane: #0d1117;
       --text-primary: #ffffff;
       --text-secondary: #c3c2b7;
       --muted: #898781;
-      --gridline: #2c2c2a;
-      --baseline: #383835;
+      --gridline: #21262d;
+      --baseline: #30363d;
       --border: rgba(255, 255, 255, 0.10);
-      --accent: #3987e5;
-      --accent-dark: #86b6ef;
-      --good: #0ca30c;
-      --warning: #fab219;
-      --serious: #ec835a;
-      --critical: #e66767;
+      --accent: #1f6feb;
+      --accent-dark: #388bfd;
+      --good: #3fb950;
+      --warning: #d29922;
+      --serious: #db6d28;
+      --critical: #f85149;
     }
   }
 
@@ -51,29 +51,79 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 14px;
     line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
+
+  /* Impersonation Banner */
+  #impersonation-banner {
+    display: none;
+    background: #d29922;
+    color: #000000;
+    padding: 8px 24px;
+    font-weight: 700;
+    font-size: 13px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #impersonation-banner.show { display: flex; }
 
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 12px;
-    padding: 20px 28px;
+    gap: 16px;
+    padding: 16px 28px;
     border-bottom: 1px solid var(--border);
     background: var(--surface-1);
   }
 
-  header h1 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
   }
 
-  header .sub {
-    color: var(--text-secondary);
-    font-size: 13px;
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+    color: var(--accent);
   }
+
+  .module-tabs {
+    display: flex;
+    gap: 6px;
+    background: var(--page-plane);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-btn {
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .tab-btn:hover { color: var(--text-primary); background: var(--border); }
+  .tab-btn.active { background: var(--accent); color: #ffffff; }
 
   .session-field {
     display: flex;
@@ -86,15 +136,8 @@
     line-height: 1.3;
   }
 
-  .session-field .who .name {
-    font-weight: 600;
-    font-size: 13px;
-  }
-
-  .session-field .who .tenant {
-    color: var(--text-secondary);
-    font-size: 12px;
-  }
+  .session-field .who .name { font-weight: 600; font-size: 13px; }
+  .session-field .who .tenant { color: var(--text-secondary); font-size: 12px; }
 
   input, select {
     font: inherit;
@@ -114,11 +157,8 @@
     padding: 7px 14px;
   }
 
-  button.primary {
-    background: var(--accent);
-    color: #ffffff;
-  }
-  button.primary:hover { background: var(--accent-dark); }
+  button.primary { background: var(--accent); color: #ffffff; }
+  button.primary:hover { opacity: 0.9; }
 
   button.ghost {
     background: transparent;
@@ -128,214 +168,48 @@
   button.ghost:hover { background: var(--gridline); }
 
   main {
-    max-width: 1120px;
+    flex: 1;
+    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
     padding: 24px 28px 64px;
   }
 
-  section {
-    margin-bottom: 36px;
-  }
+  section { margin-bottom: 36px; }
+  section h2 { font-size: 16px; font-weight: 700; margin: 0 0 12px; color: var(--accent); }
 
-  section h2 {
-    font-size: 15px;
-    font-weight: 600;
-    margin: 0 0 12px;
-  }
-
-  /* --- Login screen --- */
-  #login-screen {
-    display: none;
-    min-height: 100vh;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-  }
-  #login-screen.show { display: flex; }
-
-  .login-card {
-    width: 100%;
-    max-width: 360px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 28px;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.08);
-  }
-
-  .login-card h1 {
-    font-size: 17px;
-    margin: 0 0 4px;
-  }
-
-  .login-card .sub {
-    color: var(--text-secondary);
-    font-size: 13px;
-    margin-bottom: 20px;
-  }
-
-  .login-card .field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 14px;
-  }
-
-  .login-card label {
-    font-size: 12.5px;
-    color: var(--text-secondary);
-  }
-
-  .login-card input {
-    width: 100%;
-  }
-
-  .login-card button {
-    width: 100%;
-    margin-top: 6px;
-  }
-
-  .login-error {
-    display: none;
-    background: rgba(208, 59, 59, 0.12);
-    color: var(--critical);
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 12.5px;
-    margin-bottom: 14px;
-  }
-  .login-error.show { display: block; }
-
-  .oauth-buttons {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-
-  .oauth-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 9px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--baseline);
-    background: var(--surface-1);
-    color: var(--text-primary);
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 13.5px;
-  }
-  .oauth-btn:hover { background: var(--gridline); }
-
-  .oauth-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    font-size: 13px;
-    line-height: 1;
-  }
-
-  .divider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--muted);
-    font-size: 12px;
-    margin: 18px 0 14px;
-  }
-  .divider::before, .divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--gridline);
-  }
-
-  #app { display: block; }
-  #app.show { display: block; }
-
-  /* --- Stat tiles (dashboard) --- */
   .stat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 2px;
-    background: var(--gridline);
-    border: 1px solid var(--gridline);
-    border-radius: 10px;
-    overflow: hidden;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
   }
 
   .stat-tile {
     background: var(--surface-1);
-    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
   }
 
-  .stat-tile .label {
-    color: var(--text-secondary);
-    font-size: 12.5px;
-    margin-bottom: 6px;
-  }
+  .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .stat-tile .value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
 
-  .stat-tile .value {
-    font-size: 26px;
-    font-weight: 600;
-    font-variant-numeric: proportional-nums;
-  }
-
-  /* --- Cards / tables --- */
   .card {
     background: var(--surface-1);
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     overflow: hidden;
   }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
+  .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-  th, td {
-    text-align: left;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--gridline);
-    font-variant-numeric: tabular-nums;
-  }
-
-  th {
-    color: var(--text-secondary);
-    font-weight: 600;
-    font-size: 12.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-  }
-
-  tbody tr:last-child td { border-bottom: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--gridline); font-size: 13.5px; }
+  th { color: var(--text-secondary); font-weight: 600; font-size: 12px; text-transform: uppercase; }
   tbody tr:hover { background: var(--page-plane); }
 
-  .empty-row td {
-    color: var(--muted);
-    text-align: center;
-    padding: 24px;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12.5px;
-    color: var(--text-primary);
-  }
-  .badge .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex: none;
-  }
+  .empty-row td { color: var(--muted); text-align: center; padding: 24px; }
 
   form.inline-form {
     display: flex;
@@ -344,69 +218,54 @@
     align-items: flex-end;
     padding: 16px;
     border-bottom: 1px solid var(--gridline);
+    background: var(--page-plane);
   }
 
-  form.inline-form .field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+  form.inline-form .field { display: flex; flex-direction: column; gap: 4px; }
+  form.inline-form label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+
+  @media (max-width: 768px) {
+    header { padding: 12px 16px; flex-direction: column; align-items: stretch; gap: 12px; }
+    main { padding: 16px 16px 40px; }
+    form.inline-form .field { width: 100%; }
+    .session-field { justify-content: space-between; border-top: 1px solid var(--border); padding-top: 8px; }
+    .session-field .who { text-align: left; }
   }
 
-  form.inline-form label {
-    font-size: 12px;
-    color: var(--text-secondary);
-  }
-
-  form.inline-form input {
-    min-width: 160px;
-  }
-
-  .row-actions button {
-    font-size: 12.5px;
-    padding: 5px 10px;
-  }
 
   #toast {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    max-width: 340px;
-    padding: 12px 16px;
-    border-radius: 8px;
-    font-size: 13px;
-    color: #ffffff;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-    display: none;
-    z-index: 10;
+    position: fixed; bottom: 20px; right: 20px; max-width: 340px; padding: 12px 16px; border-radius: 8px; font-size: 13px; color: #ffffff; box-shadow: 0 4px 16px rgba(0,0,0,0.2); display: none; z-index: 100;
   }
   #toast.show { display: block; }
   #toast.ok { background: var(--good); }
   #toast.error { background: var(--critical); }
-
-  #connection-warning {
-    display: none;
-    background: var(--warning);
-    color: #3a2a00;
-    padding: 10px 28px;
-    font-size: 13px;
-  }
-  #connection-warning.show { display: block; }
 </style>
 </head>
 <body>
 
-
+<div id="impersonation-banner">
+  <span>👁️ Modo de Suporte Auditado (Sessão de Impersonation — Modo Só Leitura Ativo)</span>
+  <button class="ghost" style="background:#000; color:#fff;" onclick="endImpersonation()">🔴 Encerrar Suporte</button>
+</div>
 
 <header>
-  <div>
-    <h1>HelderLabs ERP — CRM</h1>
-    <div class="sub">Ambiente de teste local, antes de deploy</div>
+  <div class="header-brand">
+    <h1 id="app-title">HelderLabs ERP</h1>
+
+    <!-- Module Switcher Tabs -->
+    <div class="module-tabs">
+      <a href="#/crm" class="tab-btn" id="tab-crm">💼 CRM</a>
+      <a href="#/condominios" class="tab-btn" id="tab-condominios">🏢 Condomínios</a>
+      <a href="#/finance" class="tab-btn" id="tab-finance">💳 Finanças</a>
+    </div>
   </div>
+
   <div class="session-field">
     <div class="who">
       <div class="name" id="session-name">—</div>
       <div class="tenant" id="session-tenant">—</div>
     </div>
+    <button class="ghost" id="super-admin-btn" style="display:none;" onclick="window.location.href='/super-admin.html'" type="button">👑 Consola Super Admin</button>
     <button class="ghost" onclick="window.location.href='/workspace.html'" type="button">🏠 Workspace</button>
     <button class="ghost" id="refresh-btn" type="button">Atualizar</button>
     <button class="ghost" id="logout-btn" type="button">Sair</button>
@@ -414,161 +273,152 @@
 </header>
 
 <main>
+  <!-- VISTA CRM -->
+  <div id="view-crm" class="module-view">
+    <section>
+      <h2>Módulo CRM — Métricas Comerciais</h2>
+      <div class="stat-grid" id="dashboard-grid"></div>
+    </section>
 
-  <section>
-    <h2>Dashboard</h2>
-    <div class="stat-grid" id="dashboard-grid">
-      <!-- stat tiles injetados via JS -->
-    </div>
-  </section>
+    <section>
+      <h2>Leads</h2>
+      <div class="card">
+        <form class="inline-form" id="lead-form">
+          <div class="field">
+            <label for="lead-company">Empresa</label>
+            <input id="lead-company" required placeholder="Acme Lda" />
+          </div>
+          <div class="field">
+            <label for="lead-name">Contacto</label>
+            <input id="lead-name" required placeholder="Maria Silva" />
+          </div>
+          <div class="field">
+            <label for="lead-email">Email</label>
+            <input id="lead-email" type="email" placeholder="maria@acme.pt" />
+          </div>
+          <div class="field">
+            <label for="lead-phone">Telefone</label>
+            <input id="lead-phone" placeholder="910 000 000" />
+          </div>
+          <div class="field">
+            <label for="lead-source">Origem</label>
+            <input id="lead-source" required placeholder="Website" />
+          </div>
+          <button class="primary" type="submit">+ Nova Lead</button>
+        </form>
+        <table>
+          <thead>
+            <tr><th>Empresa</th><th>Contacto</th><th>Origem</th><th>Estado</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="leads-body">
+            <tr class="empty-row"><td colspan="5">A carregar…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-  <section>
-    <h2>Leads</h2>
-    <div class="card">
-      <form class="inline-form" id="lead-form">
-        <div class="field">
-          <label for="lead-company">Empresa</label>
-          <input id="lead-company" required placeholder="Acme Lda" />
-        </div>
-        <div class="field">
-          <label for="lead-name">Contacto</label>
-          <input id="lead-name" required placeholder="Maria Silva" />
-        </div>
-        <div class="field">
-          <label for="lead-email">Email</label>
-          <input id="lead-email" type="email" placeholder="maria@acme.pt" />
-        </div>
-        <div class="field">
-          <label for="lead-phone">Telefone</label>
-          <input id="lead-phone" placeholder="910 000 000" />
-        </div>
-        <div class="field">
-          <label for="lead-source">Origem</label>
-          <input id="lead-source" required placeholder="Website" />
-        </div>
-        <button class="primary" type="submit">+ Nova Lead</button>
-      </form>
-      <table>
-        <thead>
-          <tr>
-            <th>Empresa</th>
-            <th>Contacto</th>
-            <th>Origem</th>
-            <th>Estado</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="leads-body">
-          <tr class="empty-row"><td colspan="5">A carregar…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+    <section>
+      <h2>Oportunidades</h2>
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>Título</th><th>Fase</th><th>Valor Estimado</th><th>Probabilidade</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="opportunities-body">
+            <tr class="empty-row"><td colspan="5">A carregar…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-  <section>
-    <h2>Oportunidades</h2>
-    <div class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>Título</th>
-            <th>Estado</th>
-            <th>Valor estimado</th>
-            <th>Probabilidade</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="opportunities-body">
-          <tr class="empty-row"><td colspan="5">A carregar…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+    <section>
+      <h2>Clientes 360º</h2>
+      <div class="card">
+        <table>
+          <thead>
+            <tr><th>Empresa</th><th>Website</th></tr>
+          </thead>
+          <tbody id="customers-body">
+            <tr class="empty-row"><td colspan="2">A carregar…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
-  <section>
-    <h2>Clientes</h2>
-    <div class="card">
-      <table>
-        <thead>
-          <tr>
-            <th>Empresa</th>
-            <th>Website</th>
-          </tr>
-        </thead>
-        <tbody id="customers-body">
-          <tr class="empty-row"><td colspan="2">A carregar…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+  <!-- VISTA CONDOMÍNIOS -->
+  <div id="view-condominios" class="module-view" style="display:none;">
+    <section>
+      <h2>Módulo Condomínios — Edifícios & Gestão</h2>
+      <div class="card">
+        <form class="inline-form" id="building-form">
+          <div class="field">
+            <label for="building-name">Nome</label>
+            <input id="building-name" required placeholder="Edifício Solar do Atlântico" />
+          </div>
+          <div class="field">
+            <label for="building-address">Morada</label>
+            <input id="building-address" required placeholder="Rua das Palmeiras, 12" />
+          </div>
+          <div class="field">
+            <label for="building-municipality">Concelho</label>
+            <input id="building-municipality" required placeholder="Funchal" />
+          </div>
+          <div class="field">
+            <label for="building-tax-number">NIF (opcional)</label>
+            <input id="building-tax-number" placeholder="500123456" />
+          </div>
+          <button class="primary" type="submit">+ Novo Condomínio</button>
+        </form>
+        <table>
+          <thead>
+            <tr><th>Nome</th><th>Morada</th><th>Concelho</th><th>Permilagem total</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="buildings-body">
+            <tr class="empty-row"><td colspan="5">A carregar…</td></tr>
+          </tbody>
+        </table>
+      </div>
 
-  <section>
-    <h2>Condomínios</h2>
-    <div class="card">
-      <form class="inline-form" id="building-form">
-        <div class="field">
-          <label for="building-name">Nome</label>
-          <input id="building-name" required placeholder="Edifício Central" />
-        </div>
-        <div class="field">
-          <label for="building-address">Morada</label>
-          <input id="building-address" required placeholder="Rua Principal, 10" />
-        </div>
-        <div class="field">
-          <label for="building-municipality">Concelho</label>
-          <input id="building-municipality" required placeholder="Lisboa" />
-        </div>
-        <div class="field">
-          <label for="building-tax-number">NIF (opcional)</label>
-          <input id="building-tax-number" placeholder="500123456" />
-        </div>
-        <button class="primary" type="submit">+ Novo Condomínio</button>
-      </form>
-      <table>
-        <thead>
-          <tr>
-            <th>Nome</th>
-            <th>Morada</th>
-            <th>Concelho</th>
-            <th>Permilagem total</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="buildings-body">
-          <tr class="empty-row"><td colspan="5">A carregar…</td></tr>
-        </tbody>
-      </table>
-    </div>
+      <div class="card" id="units-card" style="margin-top: 20px; display: none;">
+        <form class="inline-form" id="unit-form">
+          <div class="field">
+            <label for="unit-identifier">Fração</label>
+            <input id="unit-identifier" required placeholder="Fração A (RC Dto)" />
+          </div>
+          <div class="field">
+            <label for="unit-permille">Permilagem</label>
+            <input id="unit-permille" type="number" min="1" required placeholder="100" />
+          </div>
+          <button class="primary" type="submit">+ Nova Fração</button>
+        </form>
+        <table>
+          <thead>
+            <tr><th>Fração</th><th>Permilagem</th></tr>
+          </thead>
+          <tbody id="units-body">
+            <tr class="empty-row"><td colspan="2">Selecione um condomínio acima.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
-    <div class="card" id="units-card" style="margin-top: 12px; display: none;">
-      <form class="inline-form" id="unit-form">
-        <div class="field">
-          <label for="unit-identifier">Fração</label>
-          <input id="unit-identifier" required placeholder="Bloco A, 1º Esq" />
-        </div>
-        <div class="field">
-          <label for="unit-permille">Permilagem</label>
-          <input id="unit-permille" type="number" min="1" required placeholder="100" />
-        </div>
-        <button class="primary" type="submit">+ Nova Fração</button>
-      </form>
-      <table>
-        <thead>
-          <tr>
-            <th>Fração</th>
-            <th>Permilagem</th>
-          </tr>
-        </thead>
-        <tbody id="units-body">
-          <tr class="empty-row"><td colspan="2">Seleciona um condomínio acima.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
+  <!-- VISTA FINANÇAS -->
+  <div id="view-finance" class="module-view" style="display:none;">
+    <section>
+      <h2>Módulo Financeiro & Tesouraria</h2>
+      <div class="card" style="padding:40px; text-align:center;">
+        <div style="font-size:48px; margin-bottom:12px;">💳</div>
+        <h3 style="margin:0 0 8px 0; color:var(--accent);">Módulo Financeiro Ativo (Modo Trial)</h3>
+        <p style="color:var(--text-secondary); max-width:500px; margin:0 auto 20px auto;">
+          Contas a pagar, contas a receber, gestão de tesouraria e conciliação bancária integradas com o módulo de CRM e Condomínios.
+        </p>
+        <button class="primary" onclick="alert('Em breve disponível para licenciamento completo.')">Explorar Funcionalidades Financeiras</button>
+      </div>
+    </section>
+  </div>
 </main>
-
-</div><!-- #app -->
 
 <div id="toast"></div>
 
@@ -576,147 +426,115 @@
 (function () {
   'use strict';
 
-  var TOKEN_STORAGE_KEY = 'erp_session';
-  var sessionDataStr = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-  var sessionData = sessionDataStr ? JSON.parse(sessionDataStr) : null;
-  var currentToken = sessionData ? sessionData.token : null;
-  var currentUser = sessionData ? sessionData.user : null;
+  var sessionStr = localStorage.getItem('erp_session');
+  if (!sessionStr) {
+    window.location.href = '/login.html';
+    return;
+  }
 
-  var currencyFormatter = new Intl.NumberFormat('pt-PT', {
-    style: 'currency',
-    currency: 'EUR',
-    notation: 'compact',
-    maximumFractionDigits: 1
-  });
+  var session = JSON.parse(sessionStr);
+  var currentToken = session.token;
+  var currentUser = session.user;
+
+  // Se for Super Admin e não tiver módulo em hash nem impersonation ativo, redireciona para a consola
+  if ((currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'PLATFORM_ADMIN') && !window.location.hash && !session.impersonationId) {
+    window.location.href = '/super-admin.html';
+    return;
+  }
+
+  if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'PLATFORM_ADMIN') {
+    document.getElementById('super-admin-btn').style.display = 'block';
+  }
+
+  if (session.impersonationId) {
+    document.getElementById('impersonation-banner').classList.add('show');
+  }
+
+  document.getElementById('session-name').textContent = currentUser.name || currentUser.email;
+  document.getElementById('session-tenant').textContent = 'Empresa: ' + (currentUser.tenantName || currentUser.tenantId);
+
+  var currencyFormatter = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', notation: 'compact' });
   var numberFormatter = new Intl.NumberFormat('pt-PT');
-
-  var LEAD_STATUS_META = {
-    NEW: { color: 'var(--muted)', label: 'Nova' },
-    CONTACTED: { color: 'var(--muted)', label: 'Contactada' },
-    QUALIFICATION: { color: 'var(--warning)', label: 'Qualificação' },
-    CONVERTED: { color: 'var(--good)', label: 'Convertida' },
-    LOST: { color: 'var(--critical)', label: 'Perdida' }
-  };
-
-  var OPP_STAGE_META = {
-    QUALIFICATION: { color: 'var(--warning)', label: 'Qualificação' },
-    PROPOSAL: { color: 'var(--warning)', label: 'Proposta' },
-    NEGOTIATION: { color: 'var(--serious)', label: 'Negociação' },
-    WON: { color: 'var(--good)', label: 'Ganha' },
-    LOST: { color: 'var(--critical)', label: 'Perdida' }
-  };
 
   function showToast(message, kind) {
     var toast = document.getElementById('toast');
     toast.textContent = message;
     toast.className = 'show ' + (kind || 'ok');
     window.clearTimeout(showToast._t);
-    showToast._t = window.setTimeout(function () {
-      toast.className = '';
-    }, 4000);
-  }
-
-  function setConnectionWarning(visible) {
-    document.getElementById('connection-warning')?.classList.toggle('show', visible);
-  }
-
-  const erpSession = localStorage.getItem('erp_session');
-
-  if (!erpSession) {
-    window.location.href = '/login.html';
-  } else {
-    try {
-      const data = JSON.parse(erpSession);
-      
-      if (data.user.role === 'SUPER_ADMIN' || data.user.role === 'PLATFORM_ADMIN') {
-        window.location.href = '/super-admin.html';
-        return; // impede que continue a executar o script
-      }
-    } catch (e) {
-      console.error('Session inválida', e);
-      localStorage.removeItem('erp_session');
-      window.location.href = '/login.html';
-    }
-  }
-
-  function showLogin(errorMessage) {
-    if (errorMessage) {
-      alert(errorMessage);
-    }
-    window.location.href = '/login.html';
-  }
-
-  function showApp() {
-    if (currentUser) {
-      document.getElementById('session-name').textContent = currentUser.name || currentUser.email;
-      document.getElementById('session-tenant').textContent = 'Tenant: ' + currentUser.tenantId;
-    }
-  }
-
-  function setSession(token, user) {
-    currentToken = token;
-    currentUser = user;
-    window.localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({ token, user }));
-  }
-
-  function clearSession() {
-    currentToken = null;
-    currentUser = null;
-    window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+    showToast._t = window.setTimeout(function () { toast.className = ''; }, 4000);
   }
 
   function api(path, options) {
     var opts = options || {};
     opts.headers = opts.headers || {};
-    if (currentToken) {
-      opts.headers['Authorization'] = 'Bearer ' + currentToken;
+    if (currentToken) opts.headers['Authorization'] = 'Bearer ' + currentToken;
+    return fetch(path, opts).then(function (res) {
+      if (res.status === 401) {
+        localStorage.removeItem('erp_session');
+        window.location.href = '/login.html';
+        throw new Error('Sessão expirada.');
+      }
+      if (!res.ok) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          throw new Error(body.message || ('Pedido falhou (' + res.status + ')'));
+        });
+      }
+      if (res.status === 204) return null;
+      return res.json();
+    });
+  }
+
+  // Hash Router
+  function route() {
+    var hash = window.location.hash || '#/crm';
+    document.querySelectorAll('.module-view').forEach(e => e.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+
+    if (hash.includes('condominios')) {
+      document.getElementById('view-condominios').style.display = 'block';
+      document.getElementById('tab-condominios').classList.add('active');
+      document.getElementById('app-title').textContent = 'HelderLabs ERP — Condomínios';
+      loadCondominios();
+    } else if (hash.includes('finance')) {
+      document.getElementById('view-finance').style.display = 'block';
+      document.getElementById('tab-finance').classList.add('active');
+      document.getElementById('app-title').textContent = 'HelderLabs ERP — Finanças';
+    } else {
+      document.getElementById('view-crm').style.display = 'block';
+      document.getElementById('tab-crm').classList.add('active');
+      document.getElementById('app-title').textContent = 'HelderLabs ERP — CRM';
+      loadCRM();
     }
-    return fetch(path, opts)
-      .then(function (res) {
-        setConnectionWarning(false);
-        if (res.status === 401) {
-          clearSession();
-          showLogin('Sessão expirada — inicia sessão novamente.');
-          throw new Error('Sessão expirada.');
-        }
-        if (!res.ok) {
-          return res.json().catch(function () { return {}; }).then(function (body) {
-            throw new Error(body.message || ('Pedido falhou (' + res.status + ')'));
-          });
-        }
-        if (res.status === 204) return null;
-        return res.json();
-      })
-      .catch(function (err) {
-        if (err instanceof TypeError) {
-          setConnectionWarning(true);
-        }
-        throw err;
-      });
   }
 
-  function badge(meta) {
-    var span = document.createElement('span');
-    span.className = 'badge';
-    var dot = document.createElement('span');
-    dot.className = 'dot';
-    dot.style.background = meta.color;
-    span.appendChild(dot);
-    span.appendChild(document.createTextNode(meta.label));
-    return span;
+  window.addEventListener('hashchange', route);
+
+  function loadCRM() {
+    Promise.all([
+      api('/api/crm/dashboard'),
+      api('/api/crm/leads'),
+      api('/api/crm/opportunities'),
+      api('/api/crm/customers')
+    ]).then(function (results) {
+      renderDashboard(results[0]);
+      renderLeads(results[1]);
+      renderOpportunities(results[2]);
+      renderCustomers(results[3]);
+    }).catch(function (err) {
+      showToast(err.message || 'Erro ao carregar CRM.', 'error');
+    });
   }
 
-  function el(tag, opts) {
-    var node = document.createElement(tag);
-    if (opts && opts.text !== undefined) node.textContent = opts.text;
-    if (opts && opts.className) node.className = opts.className;
-    return node;
+  function loadCondominios() {
+    api('/api/condominios/buildings').then(renderBuildings).catch(function (err) {
+      showToast(err.message || 'Erro ao carregar condomínios.', 'error');
+    });
   }
 
   function statTile(label, value) {
-    var tile = el('div', { className: 'stat-tile' });
-    tile.appendChild(el('div', { className: 'label', text: label }));
-    tile.appendChild(el('div', { className: 'value', text: value }));
+    var tile = document.createElement('div');
+    tile.className = 'stat-tile';
+    tile.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div>`;
     return tile;
   }
 
@@ -733,232 +551,122 @@
 
   function renderLeads(leads) {
     var body = document.getElementById('leads-body');
-    body.innerHTML = '';
     if (!leads.length) {
-      var emptyRow = el('tr', { className: 'empty-row' });
-      var emptyCell = el('td', { text: 'Ainda não há leads — cria a primeira acima.' });
-      emptyCell.colSpan = 5;
-      emptyRow.appendChild(emptyCell);
-      body.appendChild(emptyRow);
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">Ainda não há leads — crie a primeira acima.</td></tr>';
       return;
     }
-    leads.forEach(function (lead) {
-      var tr = el('tr');
-      tr.appendChild(el('td', { text: lead.company }));
-      tr.appendChild(el('td', { text: lead.name }));
-      tr.appendChild(el('td', { text: lead.source }));
-      var statusCell = el('td');
-      statusCell.appendChild(badge(LEAD_STATUS_META[lead.status] || LEAD_STATUS_META.NEW));
-      tr.appendChild(statusCell);
-
-      var actionsCell = el('td', { className: 'row-actions' });
-      if (lead.status !== 'CONVERTED' && lead.status !== 'LOST') {
-        var convertBtn = el('button', { className: 'ghost', text: 'Converter em Oportunidade' });
-        convertBtn.type = 'button';
-        convertBtn.addEventListener('click', function () { convertLead(lead); });
-        actionsCell.appendChild(convertBtn);
-      }
-      tr.appendChild(actionsCell);
-      body.appendChild(tr);
-    });
+    body.innerHTML = leads.map(l => `
+      <tr>
+        <td><strong>${l.company}</strong></td>
+        <td>${l.name}</td>
+        <td>${l.source}</td>
+        <td><span style="font-weight:600; color:${l.status === 'CONVERTED' ? '#3fb950' : '#d29922'};">${l.status}</span></td>
+        <td>
+          ${(l.status !== 'CONVERTED' && l.status !== 'LOST') ? `<button class="ghost" onclick="convertLead('${l.id}', '${l.company}')">Qualificar ➔ Oportunidade</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
   }
 
-  function renderOpportunities(opportunities) {
+  function renderOpportunities(opps) {
     var body = document.getElementById('opportunities-body');
-    body.innerHTML = '';
-    if (!opportunities.length) {
-      var emptyRow = el('tr', { className: 'empty-row' });
-      var emptyCell = el('td', { text: 'Sem oportunidades ainda — converte uma lead.' });
-      emptyCell.colSpan = 5;
-      emptyRow.appendChild(emptyCell);
-      body.appendChild(emptyRow);
+    if (!opps.length) {
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">Sem oportunidades ainda — converta uma lead.</td></tr>';
       return;
     }
-    opportunities.forEach(function (opp) {
-      var tr = el('tr');
-      tr.appendChild(el('td', { text: opp.title }));
-      var stageCell = el('td');
-      stageCell.appendChild(badge(OPP_STAGE_META[opp.stage] || OPP_STAGE_META.QUALIFICATION));
-      tr.appendChild(stageCell);
-      tr.appendChild(el('td', { text: currencyFormatter.format(opp.estimatedValue) }));
-      tr.appendChild(el('td', { text: opp.probability + '%' }));
-
-      var actionsCell = el('td', { className: 'row-actions' });
-      if (opp.stage !== 'WON' && opp.stage !== 'LOST') {
-        var winBtn = el('button', { className: 'ghost', text: 'Ganhar → Criar Cliente' });
-        winBtn.type = 'button';
-        winBtn.addEventListener('click', function () { winOpportunity(opp); });
-        actionsCell.appendChild(winBtn);
-      }
-      tr.appendChild(actionsCell);
-      body.appendChild(tr);
-    });
+    body.innerHTML = opps.map(o => `
+      <tr>
+        <td><strong>${o.title}</strong></td>
+        <td><span style="font-weight:600; color:${o.stage === 'WON' ? '#3fb950' : '#db6d28'};">${o.stage}</span></td>
+        <td>${currencyFormatter.format(o.estimatedValue)}</td>
+        <td>${o.probability}%</td>
+        <td>
+          ${(o.stage !== 'WON' && o.stage !== 'LOST') ? `<button class="ghost" onclick="winOpportunity('${o.id}', '${o.title}')">Ganhar → Criar Cliente</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
   }
 
   function renderCustomers(customers) {
     var body = document.getElementById('customers-body');
-    body.innerHTML = '';
     if (!customers.length) {
-      var emptyRow = el('tr', { className: 'empty-row' });
-      var emptyCell = el('td', { text: 'Ainda sem clientes — ganha uma oportunidade.' });
-      emptyCell.colSpan = 2;
-      emptyRow.appendChild(emptyCell);
-      body.appendChild(emptyRow);
+      body.innerHTML = '<tr class="empty-row"><td colspan="2">Ainda sem clientes — ganhe uma oportunidade.</td></tr>';
       return;
     }
-    customers.forEach(function (customer) {
-      var tr = el('tr');
-      tr.appendChild(el('td', { text: customer.companyName }));
-      tr.appendChild(el('td', { text: customer.website || '—' }));
-      body.appendChild(tr);
-    });
+    body.innerHTML = customers.map(c => `
+      <tr>
+        <td><strong>${c.companyName}</strong></td>
+        <td>${c.website || '—'}</td>
+      </tr>
+    `).join('');
   }
 
   var currentBuildingId = null;
 
   function renderBuildings(buildings) {
     var body = document.getElementById('buildings-body');
-    body.innerHTML = '';
     if (!buildings.length) {
-      var emptyRow = el('tr', { className: 'empty-row' });
-      var emptyCell = el('td', { text: 'Ainda não há condomínios — cria o primeiro acima.' });
-      emptyCell.colSpan = 5;
-      emptyRow.appendChild(emptyCell);
-      body.appendChild(emptyRow);
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">Ainda não há condomínios — crie o primeiro acima.</td></tr>';
       return;
     }
-    buildings.forEach(function (building) {
-      var tr = el('tr');
-      tr.style.cursor = 'pointer';
-      if (building.id === currentBuildingId) tr.style.background = 'var(--page-plane)';
-      tr.appendChild(el('td', { text: building.name }));
-      tr.appendChild(el('td', { text: building.address }));
-      tr.appendChild(el('td', { text: building.municipality }));
-      tr.appendChild(el('td', { text: numberFormatter.format(building.totalPermille) }));
-
-      var actionsCell = el('td', { className: 'row-actions' });
-      var selectBtn = el('button', { className: 'ghost', text: 'Ver frações' });
-      selectBtn.type = 'button';
-      selectBtn.addEventListener('click', function () { selectBuilding(building); });
-      actionsCell.appendChild(selectBtn);
-      tr.appendChild(actionsCell);
-
-      tr.addEventListener('click', function (event) {
-        if (event.target === selectBtn) return;
-        selectBuilding(building);
-      });
-
-      body.appendChild(tr);
-    });
+    body.innerHTML = buildings.map(b => `
+      <tr style="cursor:pointer;" onclick="selectBuilding('${b.id}')">
+        <td><strong>${b.name}</strong></td>
+        <td>${b.address}</td>
+        <td>${b.municipality}</td>
+        <td>${numberFormatter.format(b.totalPermille)}‰</td>
+        <td><button class="ghost" onclick="selectBuilding('${b.id}')">Ver frações</button></td>
+      </tr>
+    `).join('');
   }
 
-  function renderUnits(units) {
-    var body = document.getElementById('units-body');
-    body.innerHTML = '';
-    if (!units.length) {
-      var emptyRow = el('tr', { className: 'empty-row' });
-      var emptyCell = el('td', { text: 'Ainda não há frações — cria a primeira acima.' });
-      emptyCell.colSpan = 2;
-      emptyRow.appendChild(emptyCell);
-      body.appendChild(emptyRow);
-      return;
-    }
-    units.forEach(function (unit) {
-      var tr = el('tr');
-      tr.appendChild(el('td', { text: unit.identifier }));
-      tr.appendChild(el('td', { text: numberFormatter.format(unit.permille) }));
-      body.appendChild(tr);
-    });
-  }
-
-  function selectBuilding(building) {
-    currentBuildingId = building.id;
-    var card = document.getElementById('units-card');
-    card.style.display = '';
-    document.getElementById('units-body').innerHTML =
-      '<tr class="empty-row"><td colspan="2">A carregar…</td></tr>';
-    loadUnits();
-  }
-
-  function loadUnits() {
-    if (!currentBuildingId) return Promise.resolve();
-    return api('/api/condominios/buildings/' + currentBuildingId + '/units')
-      .then(renderUnits)
-      .catch(function (err) {
-        if (err.message !== 'Sessão expirada.') {
-          showToast(err.message || 'Erro ao carregar as frações.', 'error');
-        }
-      });
-  }
-
-  function loadBuildings() {
-    return api('/api/condominios/buildings')
-      .then(function (buildings) {
-        renderBuildings(buildings);
-        if (currentBuildingId && !buildings.some(function (b) { return b.id === currentBuildingId; })) {
-          currentBuildingId = null;
-          document.getElementById('units-card').style.display = 'none';
-        } else if (currentBuildingId) {
-          loadUnits();
-        }
-      });
-  }
-
-  function loadAll() {
-    return Promise.all([
-      api('/api/crm/dashboard'),
-      api('/api/crm/leads'),
-      api('/api/crm/opportunities'),
-      api('/api/crm/customers'),
-      api('/api/condominios/buildings')
-    ]).then(function (results) {
-      renderDashboard(results[0]);
-      renderLeads(results[1]);
-      renderOpportunities(results[2]);
-      renderCustomers(results[3]);
-      renderBuildings(results[4]);
-      if (currentBuildingId) loadUnits();
-    }).catch(function (err) {
-      if (err.message !== 'Sessão expirada.') {
-        showToast(err.message || 'Erro ao carregar dados.', 'error');
+  window.selectBuilding = function(buildingId) {
+    currentBuildingId = buildingId;
+    document.getElementById('units-card').style.display = 'block';
+    api(`/api/condominios/buildings/${buildingId}/units`).then(function (units) {
+      var body = document.getElementById('units-body');
+      if (!units.length) {
+        body.innerHTML = '<tr class="empty-row"><td colspan="2">Sem frações nesta propriedade.</td></tr>';
+        return;
       }
+      body.innerHTML = units.map(u => `
+        <tr><td><strong>${u.identifier}</strong></td><td>${u.permille}‰</td></tr>
+      `).join('');
     });
-  }
+  };
 
-  function convertLead(lead) {
-    var input = window.prompt('Valor estimado da oportunidade (EUR) para "' + lead.company + '":', '10000');
-    if (input === null) return;
-    var value = Number(input);
-    if (!value || value <= 0) {
-      showToast('Valor inválido — a conversão foi cancelada.', 'error');
-      return;
-    }
-    api('/api/crm/leads/' + lead.id + '/convert', {
+  window.convertLead = function(id, company) {
+    var valStr = prompt(`Valor estimado da oportunidade para "${company}":`, '10000');
+    if (!valStr) return;
+    api(`/api/crm/leads/${id}/convert`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ estimatedValue: value })
+      body: JSON.stringify({ estimatedValue: Number(valStr) })
     }).then(function () {
       showToast('Lead convertida em oportunidade.', 'ok');
-      loadAll();
+      loadCRM();
     }).catch(function (err) {
-      showToast(err.message || 'Erro ao converter a lead.', 'error');
+      showToast(err.message, 'error');
     });
-  }
+  };
 
-  function winOpportunity(opportunity) {
-    if (!window.confirm('Marcar "' + opportunity.title + '" como ganha e criar o Cliente?')) return;
-    api('/api/crm/opportunities/' + opportunity.id + '/win', { method: 'POST' })
-      .then(function () {
-        showToast('Oportunidade ganha — Cliente criado.', 'ok');
-        loadAll();
-      })
-      .catch(function (err) {
-        showToast(err.message || 'Erro ao fechar a oportunidade.', 'error');
-      });
-  }
+  window.winOpportunity = function(id, title) {
+    if (!confirm(`Marcar "${title}" como ganha e criar Cliente?`)) return;
+    api(`/api/crm/opportunities/${id}/win`, { method: 'POST' }).then(function () {
+      showToast('Oportunidade ganha! Cliente criado.', 'ok');
+      loadCRM();
+    }).catch(function (err) {
+      showToast(err.message, 'error');
+    });
+  };
 
-  document.getElementById('lead-form').addEventListener('submit', function (event) {
-    event.preventDefault();
+  window.endImpersonation = function() {
+    localStorage.removeItem('erp_session');
+    window.location.href = '/login.html';
+  };
+
+  document.getElementById('lead-form').addEventListener('submit', function (e) {
+    e.preventDefault();
     var payload = {
       company: document.getElementById('lead-company').value.trim(),
       name: document.getElementById('lead-name').value.trim(),
@@ -971,78 +679,56 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).then(function () {
-      showToast('Lead criada.', 'ok');
-      event.target.reset();
-      loadAll();
-    }).catch(function (err) {
-      showToast(err.message || 'Erro ao criar a lead.', 'error');
-    });
+      showToast('Lead criada com sucesso.', 'ok');
+      e.target.reset();
+      loadCRM();
+    }).catch(function (err) { showToast(err.message, 'error'); });
   });
 
-  document.getElementById('building-form').addEventListener('submit', function (event) {
-    event.preventDefault();
-    var taxNumber = document.getElementById('building-tax-number').value.trim();
+  document.getElementById('building-form').addEventListener('submit', function (e) {
+    e.preventDefault();
     var payload = {
       name: document.getElementById('building-name').value.trim(),
       address: document.getElementById('building-address').value.trim(),
-      municipality: document.getElementById('building-municipality').value.trim()
+      municipality: document.getElementById('building-municipality').value.trim(),
+      taxNumber: document.getElementById('building-tax-number').value.trim() || undefined
     };
-    if (taxNumber) payload.taxNumber = taxNumber;
     api('/api/condominios/buildings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).then(function () {
       showToast('Condomínio criado.', 'ok');
-      event.target.reset();
-      loadBuildings();
-    }).catch(function (err) {
-      showToast(err.message || 'Erro ao criar o condomínio.', 'error');
-    });
+      e.target.reset();
+      loadCondominios();
+    }).catch(function (err) { showToast(err.message, 'error'); });
   });
 
-  document.getElementById('unit-form').addEventListener('submit', function (event) {
-    event.preventDefault();
-    if (!currentBuildingId) {
-      showToast('Seleciona primeiro um condomínio.', 'error');
-      return;
-    }
+  document.getElementById('unit-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!currentBuildingId) return showToast('Selecione primeiro um condomínio.', 'error');
     var payload = {
       identifier: document.getElementById('unit-identifier').value.trim(),
       permille: Number(document.getElementById('unit-permille').value)
     };
-    api('/api/condominios/buildings/' + currentBuildingId + '/units', {
+    api(`/api/condominios/buildings/${currentBuildingId}/units`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     }).then(function () {
-      showToast('Fração criada.', 'ok');
-      event.target.reset();
-      loadUnits();
-      loadBuildings();
-    }).catch(function (err) {
-      showToast(err.message || 'Erro ao criar a fração.', 'error');
-    });
+      showToast('Fração adicionada.', 'ok');
+      e.target.reset();
+      selectBuilding(currentBuildingId);
+    }).catch(function (err) { showToast(err.message, 'error'); });
   });
 
-  document.getElementById('refresh-btn').addEventListener('click', loadAll);
-
+  document.getElementById('refresh-btn').addEventListener('click', route);
   document.getElementById('logout-btn').addEventListener('click', function () {
-    clearSession();
-    showLogin();
+    localStorage.removeItem('erp_session');
+    window.location.href = '/login.html';
   });
 
-  if (currentToken) {
-    api('/api/auth/me').then(function (body) {
-      currentUser = body.user;
-      showApp();
-      loadAll();
-    }).catch(function () {
-      // api() já limpa a sessão e mostra o login num 401.
-    });
-  } else {
-    showLogin();
-  }
+  route();
 })();
 </script>
 

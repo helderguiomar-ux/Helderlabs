@@ -2,7 +2,7 @@
 
 **Versão:** `1.0.0-consolidada` | **Data:** 23 de Agosto de 2026  
 **Domínio de Produção:** [https://helderlabs.eu](https://helderlabs.eu)  
-**Base de Dados Cloud:** Neon PostgreSQL (`neondb` em `ep-curly-water-za4assvi.c-2.eu-west-2.aws.neon.tech`)
+**Base de Dados Cloud:** Neon PostgreSQL (`neondb` em `<NEON_HOST_PLACEHOLDER>`)
 
 ---
 

@@ -4,6 +4,58 @@ Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** sã
 
 ---
 
+## [v0.2.0] - 2026-09-06
+
+### 🛡️ Fase 0: Correções Críticas de Segurança
+- **Remoção de Endpoints Inseguros**: Eliminadas rotas `/demo-login` e `/demo-status`.
+- **OTP Hashing & Expiração**: Códigos OTP agora cifrados com `bcrypt`, validade restrita a 15 minutos e máximo de 5 tentativas falhadas (`OtpCode`).
+- **Dev Master OTP**: Código mestre `123456` estritamente restrito a desenvolvimento local (`ALLOW_DEV_MASTER_OTP=true` e `NODE_ENV !== 'production'`).
+- **Segurança HTTP & Rate Limiting**: Adicionados `@fastify/helmet` (v11) para headers HTTP seguros (CSP, HSTS) e `@fastify/rate-limit` (v8) para mitigar força bruta.
+- **Passwords Padrão Removidas**: Eliminadas passwords codificadas no código.
+
+### 🗄️ Fase 1: Modelo de Dados & Schema Consolidados
+- **Schema Prisma Expandido**:
+  - `Module.key` como identificador único.
+  - `ApplicationInstance` com campos `status`, `usageLimits`, `features`, `planKey`, `graceEndsAt`.
+  - `TenantBranding` para personalização de marca por empresa (logotipo, cores primária/secundária).
+  - `ImpersonationSession` para auditoria de sessões de suporte Super Admin.
+  - `AuditLog` com campos `sequenceNum` e `hash` para integridade em cadeia.
+  - `Tenant.entitlementsVersion` para controlo de versão e invalidação de cache.
+  - Removida tabela obsoleta `TenantModule`.
+- **Migração Não-Destrutiva**: Sincronizado com a Neon Cloud DB via `prisma db push` e `seed.ts` atualizado.
+
+### 🔑 Fase 2: Entitlement Engine & Workspace Manifest
+- **`EntitlementService`**: Implementada resolução em cascata (Tenant -> ApplicationInstance -> User Permissions).
+- **Assinatura HMAC-SHA256**: Manifesto assinado com HMAC para validação no cliente.
+- **Cache em Memória**: TTL de 60s com suporte a invalidação instantânea (`invalidateCache`).
+- **Endpoint Manifest**: Criado `GET /api/me/workspace` devolvendo os cartões de apps ativas, permissões do utilizador e dados de branding.
+
+### 🛡️ Fase 3: Backend Enforcement Guards
+- **Guards de Fastify**: Criado `plugins/entitlements.ts` exportando `requireApp(moduleKey)` e `requirePermission(perm)`.
+- **Proteção de Módulos**: Módulos `crm` e `condominios` protegidos com `requireApp`.
+- **Public Lead Form**: Isolada a rota pública `POST /api/crm/public/leads` para recolha de contactos na Landing Page sem necessidade de token JWT.
+
+### 🖥️ Fase 4: User Workspace Launcher & UI Shell
+- **`workspace.html`**: Novo hub central de aplicativos e zona de administração do tenant. Inclui atalho global (`Ctrl+K`), visualização de limites de consumo, badges de estado e personalização visual via CSS Custom Properties.
+- **Contratos de Módulo**: Criados `crm/module.manifest.ts` e `condominios/module.manifest.ts`.
+- **Redirecionamento Pós-Login**: Atualizado `login.html` para redirecionar utilizadores autenticados para `/workspace.html`.
+
+### 👑 Fase 5: Control Plane Super Admin & Impersonation Auditada
+- **Endpoints de Impersonation**: Criados `POST /api/platform/impersonate` e `POST /api/platform/impersonate/end`.
+- **Modo Só Leitura**: Sessões de suporte impõem `IMPERSONATION_READ_ONLY` para bloquear qualquer mutação na BD do cliente durante o suporte.
+- **Aprovação em 1-Clique**: Criado `POST /api/platform/account-requests/:id/approve` para aprovação instantânea de registos pendentes.
+
+### 📜 Fase 6: Audit Logging com Hash Chain (SHA-256)
+- **`AuditService`**: Gravação sequencial de auditoria com cálculo de `hash = SHA256(tenantId + sequenceNum + previousHash + action + payload)`.
+- **Integridade Detetável**: Função `verifyAuditChain(tenantId)` para validação de integridade criptográfica.
+
+### 🧪 Fase 7 & 8: Testes Automatizados & Documentação
+- **100% Testes Aprovados**: 44 testes unitários e de integração verdes (`npm test`).
+- **Zero Erros TypeScript**: `npm run typecheck` estrito aprovado.
+- **Documentação Atualizada**: `CLAUDE.md`, `docs/Architecture.md`, `docs/Security.md`, `docs/PRODUCTION_AUDIT_RECOMMENDATIONS.md` e `CHANGELOG.md` sincronizados.
+
+---
+
 ## [v0.1.0] - 2026-08-23
 
 ### 📌 Versão Canónica Única & Consolidação de Repositório
@@ -25,14 +77,3 @@ Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** sã
 - **Definição de Password**: Implementado o endpoint `/set-password` cifrando a palavra-passe com `bcrypt` (10 rounds) e guardando em `passwordHash` no PostgreSQL.
 - **Auto-provisioning do Super Admin**: Garantido que o email `helderguiomar@gmail.com` é auto-promovido para `SUPER_ADMIN` no Tenant de Sistema `helderlabs-platform` sem bloqueios.
 - **Gate de Aprovação (`PENDING_APPROVAL`)**: Novas contas registadas ficam no estado `PENDING_APPROVAL`, sendo impedidas de aceder a módulos do ERP (`/app.html`) até serem aprovadas e atribuídas a uma empresa (Tenant) pelo Super Admin.
-
-### 📦 Sistema de Módulos como Aplicativos
-- **Schema Prisma Expandido**: Adicionados os modelos `ApplicationInstance` e `ApplicationAssignment` com enums `ApplicationStatus` (`DISABLED`, `TRIAL`, `ACTIVE`, `ARCHIVED`) e `ApplicationAssignmentStatus`.
-- **API Platform Applications**: Criado `ApplicationController.ts` e `applications.routes.ts` com endpoints sob `/api/platform/applications`.
-- **Interface Super Admin**: Nova aba **"📦 Aplicativos & Módulos"** em `super-admin.html` permitindo a gestão em tempo real de instâncias ativas por tenant.
-- **Seed de Demonstração**: Criado `backend/prisma/seed.ts` com 3 empresas fictícias (Consultoria Alfa, Administra Condo, StartUp Inovação), 7 utilizadores e dados de demonstração.
-
-### 📄 Documentação & Suporte a Agentes IA
-- Criado `CLAUDE.md` com instruções detalhadas para o Claude Code / Antigravity.
-- Criado `docs/PRODUCTION.md` com guia de infraestrutura, backup, rollback e disaster recovery.
-- Atualizado `README.md` com a secção completa `Production Deployment`.

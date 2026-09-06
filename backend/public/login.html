@@ -5,22 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - HelderLabs ERP</title>
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f6f8fa; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .login-box { background: #ffffff; border: 1px solid #d0d7de; border-radius: 6px; padding: 32px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2); }
+        body { margin: 0; padding: 1rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f6f8fa; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
+        .login-box { background: #ffffff; border: 1px solid #d0d7de; border-radius: 12px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2); box-sizing: border-box; }
         .logo { text-align: center; font-size: 24px; font-weight: 600; color: #24292f; margin-bottom: 24px; }
         .input-group { margin-bottom: 16px; }
         .input-group label { display: block; font-size: 14px; font-weight: 600; color: #24292f; margin-bottom: 8px; }
-        .input-group input { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #d0d7de; border-radius: 6px; box-sizing: border-box; }
+        .input-group input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #d0d7de; border-radius: 6px; box-sizing: border-box; }
         .input-group input:focus { outline: none; border-color: #0969da; box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3); }
-        .btn { width: 100%; padding: 8px 16px; font-size: 14px; font-weight: 600; text-align: center; border: none; border-radius: 6px; cursor: pointer; background-color: #0d419f; color: #ffffff; margin-top: 10px; }
+        .btn { width: 100%; padding: 10px 16px; font-size: 14px; font-weight: 600; text-align: center; border: none; border-radius: 6px; cursor: pointer; background-color: #0d419f; color: #ffffff; margin-top: 10px; }
         .btn:hover { background-color: #1f6feb; }
         .btn-link { background: none; color: #0969da; padding: 0; margin-top: 15px; border: none; cursor: pointer; text-decoration: underline; font-size: 14px; width: 100%; text-align: center; }
         .error { color: #cf222e; font-size: 13px; margin-bottom: 16px; display: none; text-align: center; padding: 10px; background: #ffebe9; border: 1px solid #ff8182; border-radius: 6px; }
         .step { display: none; }
         .step.active { display: block; }
-        .otp-inputs { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; }
-        .otp-inputs input { width: 40px; height: 48px; text-align: center; font-size: 20px; font-weight: 600; border: 1px solid #d0d7de; border-radius: 6px; }
+        .otp-inputs { display: flex; gap: 6px; justify-content: center; margin-bottom: 16px; flex-wrap: nowrap; }
+        .otp-inputs input { width: clamp(32px, 11vw, 42px); height: 48px; text-align: center; font-size: 18px; font-weight: 600; border: 1px solid #d0d7de; border-radius: 6px; }
         .success-banner { background: #dafbe1; color: #1a7f37; border: 1px solid #4ac26b; padding: 10px; border-radius: 6px; font-size: 14px; text-align: center; margin-bottom: 16px; display: none; }
+        
+        @media (max-width: 480px) {
+            .login-box { padding: 18px; border-radius: 8px; }
+            .logo { font-size: 20px; margin-bottom: 18px; }
+        }
+
     </style>
 </head>
 <body>

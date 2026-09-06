@@ -1,19 +1,31 @@
 {
     "name": "helderlabs-erp-backend",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "private": true,
-    "description": "HelderLabs ERP - backend modular (CRM, Vendas, Faturação, Financeiro, Tarefas)",
+    "description": "HelderLabs ERP - backend modular (CRM, Condomínios, Finanças, Plataforma)",
     "main": "dist/server.js",
+    "engines": {
+        "node": ">=20 <25"
+    },
     "scripts": {
-        "dev": "tsx watch src/server.ts",
+        "db:up": "docker compose -f ../docker-compose.yml up -d",
+        "db:down": "docker compose -f ../docker-compose.yml down",
+        "db:guard": "node scripts/guard-db.mjs",
+        "db:migrate": "npm run db:guard && prisma migrate dev",
+        "db:reset": "npm run db:guard && prisma migrate reset",
+        "db:seed": "npm run db:guard && tsx prisma/seed.ts",
+        "db:studio": "prisma studio",
+        "db:deploy": "prisma migrate deploy",
+        "db:mirror": "npm run db:guard && node scripts/db-mirror.mjs",
+        "env:check": "node scripts/env-check.mjs",
+        "dev": "npm run db:guard && tsx watch src/server.ts",
+        "dev:serverless": "npx vercel dev",
+        "verify": "npm run typecheck && npm test",
         "build": "tsc -p tsconfig.json",
         "start": "node dist/server.js",
-        "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate dev --name init",
-        "prisma:studio": "prisma studio",
         "typecheck": "tsc --noEmit",
         "test": "node scripts/collect-and-run-tests.mjs",
-        "seed": "tsx prisma/seed.ts"
+        "seed": "npm run db:seed"
     },
     "dependencies": {
         "@fastify/cors": "^9.0.1",

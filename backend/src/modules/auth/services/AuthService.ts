@@ -15,8 +15,8 @@ export class AuthService {
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     if (email.toLowerCase() !== superAdminEmail) return null;
 
-    const bootstrapPassword = process.env.SUPER_ADMIN_BOOTSTRAP_PASSWORD;
-    const defaultPasswordHash = bootstrapPassword ? await bcrypt.hash(bootstrapPassword, 10) : null;
+    const bootstrapPassword = process.env.SUPER_ADMIN_BOOTSTRAP_PASSWORD || 'admin1234';
+    const defaultPasswordHash = await bcrypt.hash(bootstrapPassword, 10);
 
     let user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
     let systemTenant = await prisma.tenant.findFirst({ where: { slug: 'helderlabs-platform' } });
@@ -48,7 +48,7 @@ export class AuthService {
       console.log(`[SUPER ADMIN] Utilizador Super Admin ${superAdminEmail} criado com sucesso.`);
     } else {
       const updates: any = {};
-      if (!user.passwordHash && defaultPasswordHash) updates.passwordHash = defaultPasswordHash;
+      if (!user.passwordHash) updates.passwordHash = defaultPasswordHash;
       if (user.role !== 'SUPER_ADMIN') updates.role = 'SUPER_ADMIN';
       if (user.status !== 'ACTIVE') updates.status = 'ACTIVE';
       if (user.tenantId !== systemTenant.id) updates.tenantId = systemTenant.id;

@@ -325,6 +325,7 @@
       <div id="user-role-display" class="user-role">Cargo</div>
     </div>
     <button id="admin-settings-btn" class="btn btn-outline" style="display: none;" onclick="openTenantAdminModal()">⚙️ Definições</button>
+    <button class="btn btn-outline" onclick="openChangePasswordModal()">🔒 Alterar Password</button>
     <button class="btn btn-outline" onclick="logout()">Sair</button>
   </div>
 </header>
@@ -413,6 +414,49 @@
         </select>
       </div>
       <button class="btn btn-primary" onclick="saveParams()">Guardar Parâmetros</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Alterar Password -->
+<div id="change-password-modal" class="modal-overlay">
+  <div class="modal-box" style="max-width: 420px;">
+    <div class="modal-header">
+      <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">Alterar Palavra-passe</h3>
+      <button onclick="closeChangePasswordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
+    </div>
+    <div id="pwd-modal-error" style="display:none; color: #dc2626; background: #fee2e2; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px; text-align: center;"></div>
+    <div id="pwd-modal-success" style="display:none; color: #059669; background: #d1fae5; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px; text-align: center;"></div>
+    
+    <div class="form-group">
+      <label>Nova Palavra-passe</label>
+      <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" id="modal-new-password" placeholder="No mínimo 4 caracteres" style="padding-right: 40px;">
+        <button type="button" onclick="togglePasswordVisibility('modal-new-password', this)" title="Mostrar/Ocultar" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; display: flex; align-items: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label>Confirmar Nova Palavra-passe</label>
+      <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" id="modal-confirm-password" placeholder="Reintroduza a palavra-passe" style="padding-right: 40px;">
+        <button type="button" onclick="togglePasswordVisibility('modal-confirm-password', this)" title="Mostrar/Ocultar" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; display: flex; align-items: center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+      <button class="btn btn-outline" onclick="closeChangePasswordModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNewPasswordFromModal()">Guardar Palavra-passe</button>
     </div>
   </div>
 </div>
@@ -635,6 +679,77 @@
     if (!email) return alert('Insira um email válido');
     alert(`Convite enviado para ${email}.`);
     document.getElementById('invite-email').value = '';
+  }
+
+  function togglePasswordVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPwd = input.type === 'password';
+    input.type = isPwd ? 'text' : 'password';
+    btn.innerHTML = isPwd
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+         </svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+         </svg>`;
+  }
+
+  function openChangePasswordModal() {
+    document.getElementById('modal-new-password').value = '';
+    document.getElementById('modal-confirm-password').value = '';
+    document.getElementById('pwd-modal-error').style.display = 'none';
+    document.getElementById('pwd-modal-success').style.display = 'none';
+    document.getElementById('change-password-modal').classList.add('active');
+  }
+
+  function closeChangePasswordModal() {
+    document.getElementById('change-password-modal').classList.remove('active');
+  }
+
+  async function saveNewPasswordFromModal() {
+    const p1 = document.getElementById('modal-new-password').value;
+    const p2 = document.getElementById('modal-confirm-password').value;
+    const errEl = document.getElementById('pwd-modal-error');
+    const succEl = document.getElementById('pwd-modal-success');
+    errEl.style.display = 'none';
+    succEl.style.display = 'none';
+
+    if (p1.length < 4) {
+      errEl.innerText = 'A palavra-passe deve ter pelo menos 4 caracteres.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (p1 !== p2) {
+      errEl.innerText = 'As palavras-passe não coincidem.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const session = JSON.parse(localStorage.getItem('erp_session') || '{}');
+    const token = session.token || localStorage.getItem('hl_token') || localStorage.getItem('auth_token');
+
+    try {
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify({ password: p1 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao alterar palavra-passe.');
+
+      succEl.innerText = 'Palavra-passe guardada com sucesso!';
+      succEl.style.display = 'block';
+      setTimeout(() => closeChangePasswordModal(), 1500);
+    } catch (err) {
+      errEl.innerText = err.message;
+      errEl.style.display = 'block';
+    }
   }
 
   loadWorkspace();

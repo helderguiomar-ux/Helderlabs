@@ -277,7 +277,7 @@
   <div id="view-incomplete" class="module-view" style="display:none;"></div>
 
   <!-- VISTA CRM -->
-  <div id="view-crm" class="module-view">
+  <div id="view-crm" class="module-view" style="display:none;">
     <section>
       <h2>Módulo CRM — Métricas Comerciais</h2>
       <div class="stat-grid" id="dashboard-grid"></div>
@@ -1228,7 +1228,7 @@
   document.getElementById('logout-btn').addEventListener('click', function () {
     localStorage.clear();
     sessionStorage.clear();
-    window.location.href = '/login.html';
+    window.location.href = '/';
   });
 
   route();

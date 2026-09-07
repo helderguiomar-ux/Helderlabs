@@ -218,11 +218,11 @@
           <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
 
-        <!-- Botão Área de Cliente / Sessão (B3) -->
-        <button id="open-auth-modal" class="icon-btn" style="background:var(--pen); color:#fff; border:none;" type="button">
-          <span class="auth-btn-label-desktop" id="auth-btn-text">Área de Cliente</span>
-          <span class="auth-btn-label-mobile">Entrar</span>
-        </button>
+        <!-- Botão "Entrar na minha área" — só aparece quando há sessão activa -->
+        <button id="auth-area-btn" style="display:none; background:var(--pen); color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-size:0.9rem; cursor:pointer; white-space:nowrap;" type="button" onclick="window.location.href='/workspace.html'">Entrar na minha área</button>
+
+        <!-- Botão "Entrar" — só aparece quando não há sessão -->
+        <button id="open-auth-modal" style="background:var(--pen); color:#fff; border:none; padding:0.45rem 1rem; border-radius:6px; font-size:0.9rem; cursor:pointer;" type="button">Entrar</button>
       </div>
     </div>
   </header>
@@ -505,17 +505,19 @@
       `).join('');
     }
 
-    // 2. Verificação de Sessão (hl_token)
+    // 2. Verificação de Sessão
     const token = localStorage.getItem('hl_token') || localStorage.getItem('erp_session');
-    const authBtnText = document.getElementById('auth-btn-text');
+    const authAreaBtn = document.getElementById('auth-area-btn');
     const openAuthBtn = document.getElementById('open-auth-modal');
 
     if (token) {
-      if (authBtnText) authBtnText.textContent = "Entrar na minha área";
-      if (openAuthBtn) {
-        openAuthBtn.onclick = () => window.location.href = '/workspace.html';
-      }
+      // Tem sessão: mostra "Entrar na minha área", esconde "Entrar"
+      if (authAreaBtn) authAreaBtn.style.display = 'inline-block';
+      if (openAuthBtn) openAuthBtn.style.display = 'none';
     } else {
+      // Sem sessão: esconde "Entrar na minha área", mostra "Entrar" → abre modal de login
+      if (authAreaBtn) authAreaBtn.style.display = 'none';
+      if (openAuthBtn) openAuthBtn.style.display = 'inline-block';
       const authModal = document.getElementById('auth-modal');
       const closeAuthBtn = document.getElementById('close-auth-modal');
       if (openAuthBtn && authModal) {

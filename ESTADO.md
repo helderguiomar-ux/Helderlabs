@@ -1,7 +1,8 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-08 · Responsável: `[antigravity]`
+> Última atualização: 2026-09-07 21:42 (WEST) · Responsável: `[antigravity]`
+> Último deploy: `dpl_3wtMNn8iPbNJYGwwWfw61fWhPkzs` · Estado: **READY** · URL: https://helderlabs.eu
 
 ---
 
@@ -33,6 +34,7 @@
 - **Módulo Financeiro & Exportação CSV**: Otimização do carregamento do módulo financeiro (`loadFinancas()`), pré-preenchimento automático de datas nos formulários e exportação autenticada de ficheiros CSV por Blob.
 - **Aviso de Ligação Offline**: Introdução do script global `connection-banner.js` em todos os ecrãs para alerta visual e preservação automática de formulários em `localStorage`.
 - **Governança de Agentes**: Implementação integral da especificação `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `DIARIO.md`, `DECISOES.md` e `DIVIDA_TECNICA.md`.
+- **Correção Router app.html (Finanças vs CRM)**: O router `route()` em `app.html` verificava `MODULES_REGISTRY` antes de `financas`, fazendo com que `#/financas` abrisse o CRM. Corrigido: `financas` e `condominios` são verificados primeiro. Orphaned `loadCRM(); } }` removido. Deploy `dpl_3wtMNn8iPbNJYGwwWfw61fWhPkzs` em produção.
 
 ---
 

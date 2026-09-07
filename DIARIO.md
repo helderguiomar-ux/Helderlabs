@@ -36,3 +36,9 @@ Resolver o bloqueio de login em produção, estabilizar a persistência de sess�
 
 6. **Sistema de Rastreio & Governança**:
    - Criados e atualizados os ficheiros de governança de raiz: `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `DIARIO.md`, `DECISOES.md`, `DIVIDA_TECNICA.md`.
+
+7. **Correção Critical — Router app.html (Finanças abria CRM)**:
+   - Identificado bug no `route()`: a ordem colocava `MODULES_REGISTRY` (em_construcao/planeado) antes do bloco `financas`, fazendo `#/financas` (status `beta`) cair no `else` e abrir o CRM.
+   - Reordenado: `financas` e `condominios` verificados PRIMEIRO, antes do registry.
+   - Removido código orphaned `loadCRM(); } }`.
+   - Build local OK. Deploy `dpl_3wtMNn8iPbNJYGwwWfw61fWhPkzs` → `https://helderlabs.eu` · READY · 21:42 WEST.

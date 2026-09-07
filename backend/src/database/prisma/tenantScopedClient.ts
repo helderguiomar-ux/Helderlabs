@@ -47,7 +47,13 @@ const TENANT_SCOPED_MODELS = new Set([
   'RecurringRule',
   'Loan',
   'LoanPayment',
-  'Budget'
+  'Budget',
+  'FinancialTransaction',
+  'FinancialAttachment',
+  'BudgetItem',
+  'CashFlowProjection',
+  'BankReconciliation',
+  'FinancialReport'
 ]);
 
 const READ_OPERATIONS = new Set([

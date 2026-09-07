@@ -93,6 +93,85 @@ async function main() {
     });
   }
 
+  // ✅ Criar transações de exemplo para o tenant principal
+  await prisma.financialTransaction.createMany({
+    data: [
+      {
+        tenantId: tenantPlatform.id,
+        type: "REVENUE",
+        status: "APPROVED",
+        description: "Faturação Projeto A",
+        amount: 5000,
+        date: new Date("2026-08-01"),
+        customer: "Cliente Corporativo",
+        invoiceNumber: "INV-2026-001",
+        approvedAt: new Date(),
+        createdBy: superAdminUser.id
+      },
+      {
+        tenantId: tenantPlatform.id,
+        type: "REVENUE",
+        status: "APPROVED",
+        description: "Consultoria Técnica",
+        amount: 2500,
+        date: new Date("2026-08-15"),
+        customer: "Tech Startup",
+        invoiceNumber: "INV-2026-002",
+        approvedAt: new Date(),
+        createdBy: superAdminUser.id
+      },
+      {
+        tenantId: tenantPlatform.id,
+        type: "EXPENSE",
+        status: "APPROVED",
+        description: "Salários Agosto",
+        amount: 4000,
+        category: "SALARY",
+        date: new Date("2026-08-01"),
+        supplier: "Empresa",
+        approvedAt: new Date(),
+        createdBy: superAdminUser.id
+      },
+      {
+        tenantId: tenantPlatform.id,
+        type: "EXPENSE",
+        status: "APPROVED",
+        description: "Aluguel do Escritório",
+        amount: 1200,
+        category: "RENT",
+        date: new Date("2026-08-01"),
+        supplier: "Imobiliária",
+        approvedAt: new Date(),
+        createdBy: superAdminUser.id
+      }
+    ]
+  });
+
+  // ✅ Criar orçamento mensal
+  await prisma.budget.create({
+    data: {
+      tenantId: tenantPlatform.id,
+      name: "Orçamento Geral 2026",
+      startDate: new Date("2026-08-01"),
+      endDate: new Date("2026-12-31"),
+      year: 2026,
+      month: 8,
+      status: "ACTIVE",
+      alertThreshold: 90,
+      approvedAt: new Date(),
+      approvedBy: superAdminUser.id,
+      budgetItems: {
+        create: [
+          { category: "SALARY", budgetAmount: 5000 },
+          { category: "RENT", budgetAmount: 1500 },
+          { category: "UTILITIES", budgetAmount: 500 },
+          { category: "OFFICE_SUPPLIES", budgetAmount: 200 },
+          { category: "MARKETING", budgetAmount: 800 }
+        ]
+      }
+    }
+  });
+
   // ------------------------------------------------------------------------
   // Tenant 1: Consultoria Alfa (ACTIVE CRM + Finance TRIAL a expirar em 3 dias + Limite de consumo perto do topo)
   // ------------------------------------------------------------------------

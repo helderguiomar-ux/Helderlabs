@@ -385,8 +385,8 @@ export class FinancasController {
     const currentPeriod = period || new Date().toISOString().substring(0, 7);
 
     const budgets = await db.budget.findMany({
-      where: { period: currentPeriod },
-      include: { category: true }
+      include: { budgetItems: true },
+      orderBy: { createdAt: 'desc' }
     });
 
     return reply.send({ success: true, period: currentPeriod, budgets });
@@ -395,27 +395,32 @@ export class FinancasController {
   /** POST /api/financas/budgets */
   static async upsertBudget(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
-    const body = BudgetSchema.parse(req.body);
+    const body = req.body as any;
     const db = forTenant(user.tenantId);
 
-    const budget = await db.budget.upsert({
-      where: {
-        tenantId_categoryId_period: {
-          tenantId: user.tenantId,
-          categoryId: body.categoryId,
-          period: body.period
+    const year = body.year || new Date().getFullYear();
+    const month = body.month || (body.period ? parseInt(body.period.split('-')[1], 10) : new Date().getMonth() + 1);
+
+    const budget = await db.budget.create({
+      data: {
+        tenantId: user.tenantId,
+        name: body.name || `Orçamento ${year}-${month}`,
+        startDate: body.startDate ? new Date(body.startDate) : new Date(year, month - 1, 1),
+        endDate: body.endDate ? new Date(body.endDate) : new Date(year, month, 0),
+        year,
+        month,
+        status: 'ACTIVE',
+        alertThreshold: body.alertThreshold || 90,
+        budgetItems: {
+          create: (body.budgetItems || [
+            { category: body.category || 'MISCELLANEOUS', budgetAmount: (body.limitCents ? body.limitCents / 100 : body.budgetAmount) || 1000 }
+          ]).map((item: any) => ({
+            category: item.category || 'MISCELLANEOUS',
+            budgetAmount: item.budgetAmount || 1000
+          }))
         }
       },
-      create: {
-        tenantId: user.tenantId,
-        categoryId: body.categoryId,
-        period: body.period,
-        limitCents: body.limitCents
-      },
-      update: {
-        limitCents: body.limitCents
-      },
-      include: { category: true }
+      include: { budgetItems: true }
     });
 
     return reply.send({ success: true, budget });

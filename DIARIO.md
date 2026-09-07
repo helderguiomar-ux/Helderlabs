@@ -60,3 +60,23 @@ Resolver o bloqueio de login em produção, estabilizar a persistência de sess�
     - Login Enter key: corrigido para chamar `loginWithPassword()` directamente.
     - Logout: redireciona para `/` (landing) em vez de `/login.html`.
 
+11. **Implementação do Módulo de Finanças Completo**:
+    - **Base de Dados & Prisma**: Adicionados modelos `FinancialTransaction`, `FinancialAttachment`, `Budget`, `BudgetItem`, `CashFlowProjection`, `BankReconciliation`, `FinancialReport` com enums (`TransactionType`, `TransactionStatus`, `ExpenseCategory`, `BudgetStatus`).
+    - **Multi-Tenant Security**: Modelos integrados na lista restrita `TENANT_SCOPED_MODELS` do `tenantScopedClient.ts`.
+    - **Migração SQL Segura**: Criada migração `20260907233000_add_finance_module` compatível com PostgreSQL/Neon.
+    - **Backend Services & Controllers (`/api/finance/*`)**:
+      - `FinanceController` & `FinanceService`: CRUD completo de transações, filtros, status e aprovações.
+      - `BudgetController` & `BudgetService`: Gestão de orçamentos e monitorização de limites com alerta automático >90%.
+      - `CashFlowController` & `CashFlowService`: Projeções de fluxo de caixa multi-cenário (Base, Otimista, Pessimista).
+      - `ReportsController` & `ReportService`: Demonstração de Resultados (P&L) estruturada e Balanço Patrimonial.
+      - `DashboardController`: KPIs agregados, tendência mensal de 12 meses e distribuição de custos por categoria.
+      - `BankReconciliationController`: Reconciliação bancária de extratos e conciliação de movimentos.
+      - `ExportController`: Geração e download de ficheiro SAF-T (PT) oficial em formato XML e CSV de transações.
+    - **Frontend & Visualização (`app.html`)**:
+      - Nova sub-navegação em tabs no Módulo Financeiro (Dashboard, Transações, Orçamentos, Fluxo de Caixa, Relatórios P&L, Reconciliação Bancária, Categorias).
+      - Gráficos responsivos SVG em tempo real (evolução mensal receitas vs despesas e percentagens por categoria).
+      - Tabela preditiva de fluxo de caixa com filtros de horizonte temporal e cenário.
+      - Gerador interativo de relatórios P&L com exportação/impressão.
+      - Barras de progresso e alertas visuais de teto orçamental.
+
+

@@ -239,6 +239,76 @@
   #toast.show { display: block; }
   #toast.ok { background: var(--good); }
   #toast.error { background: var(--critical); }
+
+  /* Finance Module Specific Enhancements */
+  .finance-subnav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .finance-subnav button {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .finance-subnav button.active {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+  }
+  .finance-charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  .chart-box {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .chart-box h3 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .progress-bar-bg {
+    background: var(--page-plane);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    height: 10px;
+    width: 100%;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+  .badge-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .badge-good { background: rgba(46, 160, 67, 0.15); color: var(--good); }
+  .badge-warn { background: rgba(210, 153, 34, 0.15); color: var(--warning); }
+  .badge-danger { background: rgba(248, 81, 73, 0.15); color: var(--critical); }
+  .badge-neutral { background: var(--page-plane); color: var(--text-secondary); border: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -409,51 +479,60 @@
 
   <!-- VISTA FINANÇAS -->
   <div id="view-finance" class="module-view" style="display:none;">
-    <section>
-      <h2>Módulo Financeiro & Tesouraria — Resumo</h2>
-      <div class="stat-grid" id="financas-stat-grid"></div>
-    </section>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+      <div>
+        <h2 style="margin:0; font-size:20px; color:var(--accent);">💳 Módulo Financeiro & Tesouraria</h2>
+        <span style="font-size:12px; color:var(--text-secondary);">Gestão integral de receitas, despesas, orçamentos, tesouraria, P&L e SAF-T (PT)</span>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="ghost" onclick="exportFinanceSAFT()">🇵🇹 Exportar SAF-T (PT)</button>
+        <button class="ghost" onclick="exportFinanceCSV()">📥 Exportar CSV</button>
+        <button class="ghost" onclick="materializeRecurringNow()">⚡ Recorrências</button>
+      </div>
+    </div>
 
-    <section>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <h2>Movimentos & Transações</h2>
-        <div style="display:flex; gap:8px;">
-          <button class="ghost" onclick="exportFinancas('csv')">📥 Exportar CSV</button>
-          <button class="ghost" onclick="materializeRecurringNow()">⚡ Materializar Recorrências</button>
+    <!-- Sub-Navegação de Finanças -->
+    <div class="finance-subnav" id="finance-subtabs">
+      <button class="active" onclick="switchFinanceTab('dashboard')">📊 Dashboard & Gráficos</button>
+      <button onclick="switchFinanceTab('transactions')">💳 Transações</button>
+      <button onclick="switchFinanceTab('budgets')">🎯 Orçamentos</button>
+      <button onclick="switchFinanceTab('cashflow')">📈 Fluxo de Caixa</button>
+      <button onclick="switchFinanceTab('reports')">📑 Relatórios & P&L</button>
+      <button onclick="switchFinanceTab('reconciliation')">🏦 Reconciliação Bancária</button>
+      <button onclick="switchFinanceTab('tools')">🏷️ Categorias & Outros</button>
+    </div>
+
+    <!-- ABA 1: DASHBOARD & GRÁFICOS -->
+    <div id="fin-tab-dashboard" class="fin-tab-content">
+      <div class="stat-grid" id="financas-stat-grid"></div>
+
+      <div class="finance-charts-grid">
+        <div class="chart-box">
+          <h3>
+            <span>📈 Evolução Mensal (Últimos 12 Meses)</span>
+            <span style="font-size:11px; color:var(--text-secondary);">Receitas vs Despesas</span>
+          </h3>
+          <div id="finance-trend-chart-container" style="min-height:220px; display:flex; align-items:center; justify-content:center;">
+            <span style="color:var(--text-secondary); font-size:12px;">A carregar gráfico...</span>
+          </div>
+        </div>
+
+        <div class="chart-box">
+          <h3>
+            <span>🥧 Despesas por Categoria</span>
+            <span style="font-size:11px; color:var(--text-secondary);">Distribuição Atual</span>
+          </h3>
+          <div id="finance-category-chart-container" style="min-height:220px; display:flex; align-items:center; justify-content:center;">
+            <span style="color:var(--text-secondary); font-size:12px;">A carregar distribuição...</span>
+          </div>
         </div>
       </div>
-      <div class="card">
-        <form class="inline-form" id="financas-tx-form">
-          <div class="field">
-            <label for="fin-tx-title">Descrição / Título</label>
-            <input id="fin-tx-title" required placeholder="Ex: Pagamento Fornecedor X" />
-          </div>
-          <div class="field">
-            <label for="fin-tx-amount">Valor (€ EUR)</label>
-            <input id="fin-tx-amount" type="number" step="0.01" min="0.01" required placeholder="150.00" />
-          </div>
-          <div class="field">
-            <label for="fin-tx-kind">Tipo</label>
-            <select id="fin-tx-kind">
-              <option value="EXPENSE">Despesa (Saída)</option>
-              <option value="INCOME">Receita (Entrada)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="fin-tx-date">Data Vencimento</label>
-            <input id="fin-tx-date" type="date" required />
-          </div>
-          <div class="field">
-            <label for="fin-tx-category">Categoria</label>
-            <select id="fin-tx-category"></select>
-          </div>
-          <div class="field" style="flex-direction:row; align-items:center; gap:6px; padding-bottom:6px;">
-            <input id="fin-tx-paid" type="checkbox" style="width:auto;" />
-            <label for="fin-tx-paid" style="margin:0; cursor:pointer;">Já Pago?</label>
-          </div>
-          <button class="primary" type="submit">+ Nova Transação</button>
-        </form>
 
+      <div class="card" style="margin-top:16px;">
+        <div style="padding:14px 16px; border-bottom:1px solid var(--gridline); display:flex; justify-content:space-between; align-items:center;">
+          <strong style="color:var(--accent);">⚡ Movimentos Recentes</strong>
+          <button class="ghost" style="padding:4px 10px; font-size:12px;" onclick="switchFinanceTab('transactions')">Ver Todas as Transações →</button>
+        </div>
         <div class="table-responsive">
           <table>
             <thead>
@@ -462,140 +541,441 @@
                 <th>Tipo</th>
                 <th>Categoria</th>
                 <th>Valor (€)</th>
-                <th>Vencimento</th>
+                <th>Data</th>
                 <th>Estado</th>
-                <th>Ações</th>
               </tr>
             </thead>
-            <tbody id="financas-transactions-body">
-              <tr class="empty-row"><td colspan="7">A carregar transações…</td></tr>
+            <tbody id="financas-recent-tx-body">
+              <tr class="empty-row"><td colspan="6">A carregar transações recentes…</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-    </section>
+    </div>
 
-    <section style="margin-top:32px;">
-      <h2>Regras de Recorrência (Despesas / Receitas Periódicas)</h2>
-      <div class="card">
-        <form class="inline-form" id="financas-rule-form">
-          <div class="field">
-            <label for="fin-rule-title">Título da Regra</label>
-            <input id="fin-rule-title" required placeholder="Ex: Renda Mensal do Escritório" />
-          </div>
-          <div class="field">
-            <label for="fin-rule-amount">Valor (€ EUR)</label>
-            <input id="fin-rule-amount" type="number" step="0.01" min="0.01" required placeholder="500.00" />
-          </div>
-          <div class="field">
-            <label for="fin-rule-kind">Tipo</label>
-            <select id="fin-rule-kind">
-              <option value="EXPENSE">Despesa Recorrente</option>
-              <option value="INCOME">Receita Recorrente</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="fin-rule-freq">Frequência</label>
-            <select id="fin-rule-freq">
-              <option value="MONTHLY">Mensal</option>
-              <option value="WEEKLY">Semanal</option>
-              <option value="QUARTERLY">Trimestral</option>
-              <option value="YEARLY">Anual</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="fin-rule-start">Data de Início</label>
-            <input id="fin-rule-start" type="date" required />
-          </div>
-          <button class="primary" type="submit">+ Criar Recorrência</button>
-        </form>
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Título</th>
-                <th>Tipo</th>
-                <th>Frequência</th>
-                <th>Valor (€)</th>
-                <th>Início</th>
-              </tr>
-            </thead>
-            <tbody id="financas-rules-body">
-              <tr class="empty-row"><td colspan="5">A carregar recorrências…</td></tr>
-            </tbody>
-          </table>
+    <!-- ABA 2: TRANSAÇÕES (RECEITAS & DESPESAS) -->
+    <div id="fin-tab-transactions" class="fin-tab-content" style="display:none;">
+      <section>
+        <h2>Nova Transação</h2>
+        <div class="card">
+          <form class="inline-form" id="financas-tx-form">
+            <div class="field">
+              <label for="fin-tx-title">Descrição / Título</label>
+              <input id="fin-tx-title" required placeholder="Ex: Fatura Cliente X / Aluguer Escritório" />
+            </div>
+            <div class="field">
+              <label for="fin-tx-amount">Valor (€ EUR)</label>
+              <input id="fin-tx-amount" type="number" step="0.01" min="0.01" required placeholder="150.00" />
+            </div>
+            <div class="field">
+              <label for="fin-tx-kind">Tipo</label>
+              <select id="fin-tx-kind">
+                <option value="EXPENSE">🔴 Despesa (Saída)</option>
+                <option value="REVENUE">🟢 Receita (Entrada)</option>
+                <option value="TRANSFER">🔄 Transferência</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-tx-category">Categoria</label>
+              <select id="fin-tx-category">
+                <option value="OTHER">Outros</option>
+                <option value="SOFTWARE_SUBSCRIPTIONS">Software & Subscrições</option>
+                <option value="HARDWARE">Hardware & Equipamento</option>
+                <option value="OFFICE_RENT">Rendas & Instalações</option>
+                <option value="MARKETING">Marketing & Publicidade</option>
+                <option value="SALARIES">Salários & RH</option>
+                <option value="UTILITIES">Água, Luz & Telecomunicações</option>
+                <option value="TRAVEL">Deslocações & Viagens</option>
+                <option value="CONSULTING">Consultoria & Serviços Externos</option>
+                <option value="TAXES">Impostos & Taxas</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-tx-date">Data</label>
+              <input id="fin-tx-date" type="date" required />
+            </div>
+            <div class="field">
+              <label for="fin-tx-status">Estado</label>
+              <select id="fin-tx-status">
+                <option value="PAID">Pago / Liquidado</option>
+                <option value="PENDING">Pendente</option>
+                <option value="APPROVED">Aprovado</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-tx-notes">Notas / Observações</label>
+              <input id="fin-tx-notes" placeholder="Ref. Fatura / NIF / Anotações" />
+            </div>
+            <button class="primary" type="submit">+ Registar Movimento</button>
+          </form>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section style="margin-top:32px;">
-      <h2>Gestão de Empréstimos & Dívidas</h2>
-      <div class="card">
-        <form class="inline-form" id="financas-loan-form">
-          <div class="field">
-            <label for="fin-loan-party">Contraparte (Entidade/Pessoa)</label>
-            <input id="fin-loan-party" required placeholder="Ex: Banco / Sócio X" />
-          </div>
-          <div class="field">
-            <label for="fin-loan-direction">Direção</label>
-            <select id="fin-loan-direction">
-              <option value="BORROWED">Obtido (Dívida a Pagar)</option>
-              <option value="LENT">Concedido (Crédito a Receber)</option>
+      <section style="margin-top:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+          <h2>Listagem Completa de Transações</h2>
+          <div style="display:flex; gap:8px;">
+            <select id="filter-tx-type" onchange="filterFinanceTransactions()" style="font-size:12px; padding:4px 8px;">
+              <option value="">Todos os Tipos</option>
+              <option value="REVENUE">Receitas</option>
+              <option value="EXPENSE">Despesas</option>
+              <option value="TRANSFER">Transferências</option>
+            </select>
+            <select id="filter-tx-status" onchange="filterFinanceTransactions()" style="font-size:12px; padding:4px 8px;">
+              <option value="">Todos os Estados</option>
+              <option value="PAID">Pago</option>
+              <option value="PENDING">Pendente</option>
+              <option value="APPROVED">Aprovado</option>
+              <option value="RECONCILED">Reconciliado</option>
             </select>
           </div>
-          <div class="field">
-            <label for="fin-loan-amount">Valor Principal (€ EUR)</label>
-            <input id="fin-loan-amount" type="number" step="0.01" min="0.01" required placeholder="1000.00" />
-          </div>
-          <div class="field">
-            <label for="fin-loan-date">Data Empréstimo</label>
-            <input id="fin-loan-date" type="date" required />
-          </div>
-          <button class="primary" type="submit">+ Registar Empréstimo</button>
-        </form>
-        <div class="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Contraparte</th>
-                <th>Tipo</th>
-                <th>Principal (€)</th>
-                <th>Pago (€)</th>
-                <th>Em Dívida (€)</th>
-                <th>Estado</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="financas-loans-body">
-              <tr class="empty-row"><td colspan="7">A carregar empréstimos…</td></tr>
-            </tbody>
-          </table>
         </div>
-      </div>
-    </section>
 
-    <section>
-      <h2>Categorias Financeiras & Personalizadas</h2>
-      <div class="card">
-        <form class="inline-form" id="financas-category-form">
-          <div class="field">
-            <label for="fin-cat-name">Nome da Categoria</label>
-            <input id="fin-cat-name" required placeholder="Ex: Telecomunicações, Rendas, Software..." />
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descrição</th>
+                  <th>Tipo</th>
+                  <th>Categoria</th>
+                  <th>Valor (€)</th>
+                  <th>Data</th>
+                  <th>Estado</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="financas-transactions-body">
+                <tr class="empty-row"><td colspan="7">A carregar transações…</td></tr>
+              </tbody>
+            </table>
           </div>
-          <div class="field">
-            <label for="fin-cat-kind">Tipo de Categoria</label>
-            <select id="fin-cat-kind">
-              <option value="EXPENSE">Despesa (Saída)</option>
-              <option value="INCOME">Receita (Entrada)</option>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 3: ORÇAMENTOS (BUDGETS) -->
+    <div id="fin-tab-budgets" class="fin-tab-content" style="display:none;">
+      <section>
+        <h2>Criar Novo Orçamento</h2>
+        <div class="card">
+          <form class="inline-form" id="financas-budget-form">
+            <div class="field">
+              <label for="fin-bgt-name">Nome do Orçamento</label>
+              <input id="fin-bgt-name" required placeholder="Ex: Orçamento TI 2026 / Marketing Q3" />
+            </div>
+            <div class="field">
+              <label for="fin-bgt-category">Categoria</label>
+              <select id="fin-bgt-category">
+                <option value="SOFTWARE_SUBSCRIPTIONS">Software & Subscrições</option>
+                <option value="HARDWARE">Hardware & Equipamento</option>
+                <option value="OFFICE_RENT">Rendas & Instalações</option>
+                <option value="MARKETING">Marketing & Publicidade</option>
+                <option value="SALARIES">Salários & RH</option>
+                <option value="UTILITIES">Água, Luz & Telecomunicações</option>
+                <option value="TRAVEL">Deslocações & Viagens</option>
+                <option value="CONSULTING">Consultoria & Serviços Externos</option>
+                <option value="TAXES">Impostos & Taxas</option>
+                <option value="OTHER">Outros / Geral</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-bgt-amount">Valor Teto (€ EUR)</label>
+              <input id="fin-bgt-amount" type="number" step="0.01" min="1" required placeholder="5000.00" />
+            </div>
+            <div class="field">
+              <label for="fin-bgt-period">Período</label>
+              <select id="fin-bgt-period">
+                <option value="MONTHLY">Mensal</option>
+                <option value="QUARTERLY">Trimestral</option>
+                <option value="ANNUAL">Anual</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-bgt-threshold">Limiar de Alerta (%)</label>
+              <input id="fin-bgt-threshold" type="number" step="1" min="50" max="100" value="90" required />
+            </div>
+            <div class="field">
+              <label for="fin-bgt-start">Data Início</label>
+              <input id="fin-bgt-start" type="date" required />
+            </div>
+            <div class="field">
+              <label for="fin-bgt-end">Data Fim</label>
+              <input id="fin-bgt-end" type="date" required />
+            </div>
+            <button class="primary" type="submit">+ Criar Orçamento</button>
+          </form>
+        </div>
+      </section>
+
+      <section style="margin-top:24px;">
+        <h2>Monitorização & Alertas de Orçamento</h2>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Orçamento</th>
+                  <th>Categoria</th>
+                  <th>Teto Alocado</th>
+                  <th>Gasto Real</th>
+                  <th>Disponível</th>
+                  <th>Consumo (%)</th>
+                  <th>Estado / Alerta</th>
+                </tr>
+              </thead>
+              <tbody id="financas-budgets-body">
+                <tr class="empty-row"><td colspan="7">A carregar orçamentos…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 4: FLUXO DE CAIXA (PROJEÇÕES) -->
+    <div id="fin-tab-cashflow" class="fin-tab-content" style="display:none;">
+      <section>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="margin:0;">Projeção de Fluxo de Caixa</h2>
+            <span style="font-size:12px; color:var(--text-secondary);">Análise preditiva com modelação de cenários financeiros</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label for="fin-cf-scenario" style="font-size:12px; font-weight:600;">Cenário:</label>
+            <select id="fin-cf-scenario" onchange="loadCashFlowProjections()" style="font-size:13px;">
+              <option value="BASE">Normal / Base (Médias Atuais)</option>
+              <option value="OPTIMISTIC">Otimista (+15% Receitas, -5% Despesas)</option>
+              <option value="PESSIMISTIC">Pessimista (-20% Receitas, +10% Despesas)</option>
+            </select>
+            <select id="fin-cf-months" onchange="loadCashFlowProjections()" style="font-size:13px;">
+              <option value="6">Próximos 6 Meses</option>
+              <option value="12">Próximos 12 Meses</option>
+              <option value="3">Próximos 3 Meses</option>
             </select>
           </div>
-          <button class="primary" type="submit">+ Nova Categoria</button>
-        </form>
-        <div style="margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px;" id="financas-categories-list">
-          <span style="color: var(--text-secondary); font-size: 13px;">A carregar categorias...</span>
         </div>
-      </div>
-    </section>
+
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mês / Período</th>
+                  <th>Saldo Inicial (€)</th>
+                  <th>Entradas Previstas (€)</th>
+                  <th>Saídas Previstas (€)</th>
+                  <th>Fluxo Líquido (€)</th>
+                  <th>Saldo Projetado (€)</th>
+                  <th>Variação</th>
+                </tr>
+              </thead>
+              <tbody id="financas-cashflow-body">
+                <tr class="empty-row"><td colspan="7">A carregar projeção de fluxo de caixa…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 5: RELATÓRIOS (P&L & BALANÇO) -->
+    <div id="fin-tab-reports" class="fin-tab-content" style="display:none;">
+      <section>
+        <h2>Demonstração de Resultados (P&L — Profit & Loss)</h2>
+        <div class="card">
+          <div style="padding:16px; background:var(--page-plane); border-bottom:1px solid var(--gridline); display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+            <div class="field">
+              <label for="pnl-start-date">Data Início</label>
+              <input id="pnl-start-date" type="date" />
+            </div>
+            <div class="field">
+              <label for="pnl-end-date">Data Fim</label>
+              <input id="pnl-end-date" type="date" />
+            </div>
+            <button class="primary" onclick="generatePnLReport()">📊 Gerar Demonstração de Resultados</button>
+          </div>
+
+          <div id="pnl-report-container" style="padding:20px;">
+            <div style="text-align:center; padding:30px; color:var(--text-secondary);">
+              Clique no botão acima para calcular a Demonstração de Resultados do período selecionado.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 6: RECONCILIAÇÃO BANCÁRIA -->
+    <div id="fin-tab-reconciliation" class="fin-tab-content" style="display:none;">
+      <section>
+        <h2>Nova Reconciliação Bancária</h2>
+        <div class="card">
+          <form class="inline-form" id="financas-recon-form">
+            <div class="field">
+              <label for="fin-recon-balance">Saldo do Extrato Bancário (€)</label>
+              <input id="fin-recon-balance" type="number" step="0.01" required placeholder="Ex: 12540.50" />
+            </div>
+            <div class="field">
+              <label for="fin-recon-date">Data de Fecho do Extrato</label>
+              <input id="fin-recon-date" type="date" required />
+            </div>
+            <div class="field">
+              <label for="fin-recon-notes">Notas / Referência do Banco</label>
+              <input id="fin-recon-notes" placeholder="Extrato Millenium BCP / Santander Junho" />
+            </div>
+            <button class="primary" type="submit">🔍 Conciliar Extrato</button>
+          </form>
+        </div>
+      </section>
+
+      <section style="margin-top:24px;">
+        <h2>Histórico de Reconciliações</h2>
+        <div class="card">
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data do Extrato</th>
+                  <th>Saldo Extrato (€)</th>
+                  <th>Diferença Registada (€)</th>
+                  <th>Estado</th>
+                  <th>Notas</th>
+                  <th>Data Execução</th>
+                </tr>
+              </thead>
+              <tbody id="financas-reconciliation-body">
+                <tr class="empty-row"><td colspan="6">Nenhuma reconciliação bancária efetuada.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ABA 7: CATEGORIAS & RECORRÊNCIAS & EMPRÉSTIMOS -->
+    <div id="fin-tab-tools" class="fin-tab-content" style="display:none;">
+      <section>
+        <h2>Regras de Recorrência (Despesas / Receitas Periódicas)</h2>
+        <div class="card">
+          <form class="inline-form" id="financas-rule-form">
+            <div class="field">
+              <label for="fin-rule-title">Título da Regra</label>
+              <input id="fin-rule-title" required placeholder="Ex: Renda Mensal do Escritório" />
+            </div>
+            <div class="field">
+              <label for="fin-rule-amount">Valor (€ EUR)</label>
+              <input id="fin-rule-amount" type="number" step="0.01" min="0.01" required placeholder="500.00" />
+            </div>
+            <div class="field">
+              <label for="fin-rule-kind">Tipo</label>
+              <select id="fin-rule-kind">
+                <option value="EXPENSE">Despesa Recorrente</option>
+                <option value="INCOME">Receita Recorrente</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-rule-freq">Frequência</label>
+              <select id="fin-rule-freq">
+                <option value="MONTHLY">Mensal</option>
+                <option value="WEEKLY">Semanal</option>
+                <option value="QUARTERLY">Trimestral</option>
+                <option value="YEARLY">Anual</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-rule-start">Data de Início</label>
+              <input id="fin-rule-start" type="date" required />
+            </div>
+            <button class="primary" type="submit">+ Criar Recorrência</button>
+          </form>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Título</th>
+                  <th>Tipo</th>
+                  <th>Frequência</th>
+                  <th>Valor (€)</th>
+                  <th>Início</th>
+                </tr>
+              </thead>
+              <tbody id="financas-rules-body">
+                <tr class="empty-row"><td colspan="5">A carregar recorrências…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section style="margin-top:24px;">
+        <h2>Gestão de Empréstimos & Dívidas</h2>
+        <div class="card">
+          <form class="inline-form" id="financas-loan-form">
+            <div class="field">
+              <label for="fin-loan-party">Contraparte (Entidade/Pessoa)</label>
+              <input id="fin-loan-party" required placeholder="Ex: Banco / Sócio X" />
+            </div>
+            <div class="field">
+              <label for="fin-loan-direction">Direção</label>
+              <select id="fin-loan-direction">
+                <option value="BORROWED">Obtido (Dívida a Pagar)</option>
+                <option value="LENT">Concedido (Crédito a Receber)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fin-loan-amount">Valor Principal (€ EUR)</label>
+              <input id="fin-loan-amount" type="number" step="0.01" min="0.01" required placeholder="1000.00" />
+            </div>
+            <div class="field">
+              <label for="fin-loan-date">Data Empréstimo</label>
+              <input id="fin-loan-date" type="date" required />
+            </div>
+            <button class="primary" type="submit">+ Registar Empréstimo</button>
+          </form>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Contraparte</th>
+                  <th>Tipo</th>
+                  <th>Principal (€)</th>
+                  <th>Pago (€)</th>
+                  <th>Em Dívida (€)</th>
+                  <th>Estado</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="financas-loans-body">
+                <tr class="empty-row"><td colspan="7">A carregar empréstimos…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section style="margin-top:24px;">
+        <h2>Categorias Financeiras & Personalizadas</h2>
+        <div class="card">
+          <form class="inline-form" id="financas-category-form">
+            <div class="field">
+              <label for="fin-cat-name">Nome da Categoria</label>
+              <input id="fin-cat-name" required placeholder="Ex: Telecomunicações, Rendas, Software..." />
+            </div>
+            <div class="field">
+              <label for="fin-cat-kind">Tipo de Categoria</label>
+              <select id="fin-cat-kind">
+                <option value="EXPENSE">Despesa (Saída)</option>
+                <option value="INCOME">Receita (Entrada)</option>
+              </select>
+            </div>
+            <button class="primary" type="submit">+ Nova Categoria</button>
+          </form>
+          <div style="padding:16px; display: flex; flex-wrap: wrap; gap: 8px;" id="financas-categories-list">
+            <span style="color: var(--text-secondary); font-size: 13px;">A carregar categorias...</span>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 </main>
 
@@ -934,28 +1314,75 @@
     }).catch(function (err) { showToast(err.message, 'error'); });
   });
 
-  // Módulos de Finanças JS
+  // ==========================================
+  // MÓDULO DE FINANÇAS COMPLETO (JS LOGIC)
+  // ==========================================
+
+  var allFinanceTransactions = [];
+
+  window.switchFinanceTab = function(tabKey) {
+    document.querySelectorAll('.fin-tab-content').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('#finance-subtabs button').forEach(el => el.classList.remove('active'));
+
+    var target = document.getElementById('fin-tab-' + tabKey);
+    if (target) target.style.display = 'block';
+
+    var btn = Array.from(document.querySelectorAll('#finance-subtabs button')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabKey));
+    if (btn) btn.classList.add('active');
+
+    if (tabKey === 'cashflow') loadCashFlowProjections();
+  };
+
   function loadFinancas() {
     var todayStr = new Date().toISOString().substring(0, 10);
     var dateEl = document.getElementById('fin-tx-date');
     if (dateEl && !dateEl.value) dateEl.value = todayStr;
-    var ruleStartEl = document.getElementById('fin-rule-start');
-    if (ruleStartEl && !ruleStartEl.value) ruleStartEl.value = todayStr;
-    var loanDateEl = document.getElementById('fin-loan-date');
-    if (loanDateEl && !loanDateEl.value) loanDateEl.value = todayStr;
+    var bgtStartEl = document.getElementById('fin-bgt-start');
+    if (bgtStartEl && !bgtStartEl.value) bgtStartEl.value = todayStr;
+    var bgtEndEl = document.getElementById('fin-bgt-end');
+    if (bgtEndEl && !bgtEndEl.value) {
+      var d = new Date();
+      d.setMonth(d.getMonth() + 3);
+      bgtEndEl.value = d.toISOString().substring(0, 10);
+    }
+    var reconDateEl = document.getElementById('fin-recon-date');
+    if (reconDateEl && !reconDateEl.value) reconDateEl.value = todayStr;
+    var pnlStart = document.getElementById('pnl-start-date');
+    var pnlEnd = document.getElementById('pnl-end-date');
+    if (pnlStart && !pnlStart.value) {
+      var yr = new Date().getFullYear();
+      pnlStart.value = `${yr}-01-01`;
+      pnlEnd.value = todayStr;
+    }
 
     Promise.all([
-      api('/api/financas/dashboard'),
-      api('/api/financas/categories'),
-      api('/api/financas/transactions'),
-      api('/api/financas/recurring'),
-      api('/api/financas/loans')
+      api('/api/finance/dashboard').catch(() => api('/api/financas/dashboard')),
+      api('/api/finance/transactions').catch(() => api('/api/financas/transactions')),
+      api('/api/finance/budgets').catch(() => ({ success: true, data: [] })),
+      api('/api/finance/reconciliation').catch(() => ({ success: true, data: [] })),
+      api('/api/financas/recurring').catch(() => ({ rules: [] })),
+      api('/api/financas/loans').catch(() => ({ loans: [] })),
+      api('/api/financas/categories').catch(() => ({ categories: [] }))
     ]).then(function (results) {
-      renderFinancasDashboard(results[0].summary);
-      renderFinancasCategoryOptions(results[1].categories);
-      renderFinancasTransactions(results[2].transactions);
-      renderFinancasRules(results[3].rules);
-      renderFinancasLoans(results[4].loans);
+      var dashData = results[0].data || results[0].summary || {};
+      var txData = results[1].data || results[1].transactions || [];
+      var bgtData = results[2].data || [];
+      var reconData = results[3].data || [];
+      var rulesData = results[4].rules || [];
+      var loansData = results[5].loans || [];
+      var catsData = results[6].categories || [];
+
+      allFinanceTransactions = txData;
+
+      renderFinancasDashboard(dashData);
+      renderFinanceCharts(dashData.monthlyTrend, dashData.categoryBreakdown);
+      renderRecentTransactions(dashData.recentTransactions || txData.slice(0, 5));
+      renderFinanceTransactions(txData);
+      renderFinanceBudgets(bgtData);
+      renderFinanceReconciliations(reconData);
+      renderFinancasRules(rulesData);
+      renderFinancasLoans(loansData);
+      renderFinancasCategoryOptions(catsData);
     }).catch(function (err) {
       showToast(err.message || 'Erro ao carregar módulo de Finanças.', 'error');
     });
@@ -963,40 +1390,347 @@
 
   function renderFinancasDashboard(s) {
     var grid = document.getElementById('financas-stat-grid');
-    if (!s) return;
+    if (!s || !grid) return;
+    var kpis = s.kpis || s;
+    var rev = kpis.totalRevenueCents !== undefined ? (kpis.totalRevenueCents / 100) : (kpis.totalRevenue !== undefined ? kpis.totalRevenue : ((kpis.totalIncomeCents || 0) / 100));
+    var exp = kpis.totalExpenseCents !== undefined ? (kpis.totalExpenseCents / 100) : (kpis.totalExpenses !== undefined ? kpis.totalExpenses : ((kpis.totalExpenseCents || 0) / 100));
+    var net = kpis.netIncome !== undefined ? kpis.netIncome : (kpis.netBalanceCents !== undefined ? (kpis.netBalanceCents / 100) : (rev - exp));
+    var margin = kpis.netMarginPercent !== undefined ? kpis.netMarginPercent : (rev > 0 ? ((net / rev) * 100).toFixed(1) : 0);
+    var bal = kpis.availableBalance !== undefined ? kpis.availableBalance : net;
+    var alerts = kpis.budgetAlertsCount || 0;
+
     grid.innerHTML = `
       <div class="stat-tile">
-        <div class="label">Entradas (Pagas)</div>
-        <div class="value" style="color:var(--good);">${currencyFormatter.format(s.totalIncomeCents / 100)}</div>
+        <div class="label">Receita Total</div>
+        <div class="value" style="color:var(--good);">${currencyFormatter.format(rev)}</div>
       </div>
       <div class="stat-tile">
-        <div class="label">Saídas (Pagas)</div>
-        <div class="value" style="color:var(--critical);">${currencyFormatter.format(s.totalExpenseCents / 100)}</div>
+        <div class="label">Despesa Total</div>
+        <div class="value" style="color:var(--critical);">${currencyFormatter.format(exp)}</div>
       </div>
       <div class="stat-tile">
-        <div class="label">Saldo Líquido</div>
-        <div class="value" style="color:${s.netBalanceCents >= 0 ? 'var(--good)' : 'var(--critical)'}">${currencyFormatter.format(s.netBalanceCents / 100)}</div>
+        <div class="label">Lucro Líquido</div>
+        <div class="value" style="color:${net >= 0 ? 'var(--good)' : 'var(--critical)'}">${currencyFormatter.format(net)}</div>
       </div>
       <div class="stat-tile">
-        <div class="label">Pendente a Receber</div>
-        <div class="value" style="color:var(--accent);">${currencyFormatter.format(s.pendingReceivablesCents / 100)}</div>
+        <div class="label">Margem Líquida</div>
+        <div class="value" style="color:${margin >= 0 ? 'var(--good)' : 'var(--critical)'}">${margin}%</div>
       </div>
       <div class="stat-tile">
-        <div class="label">Pendente a Pagar</div>
-        <div class="value" style="color:var(--warning);">${currencyFormatter.format(s.pendingPayablesCents / 100)}</div>
+        <div class="label">Saldo Disponível</div>
+        <div class="value" style="color:var(--accent);">${currencyFormatter.format(bal)}</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Alertas Orçamento</div>
+        <div class="value" style="color:${alerts > 0 ? 'var(--critical)' : 'var(--good)'};">${alerts}</div>
       </div>
     `;
   }
 
+  function renderFinanceCharts(trend, categories) {
+    var trendContainer = document.getElementById('finance-trend-chart-container');
+    if (trendContainer) {
+      if (!trend || trend.length === 0) {
+        trendContainer.innerHTML = '<span style="color:var(--text-secondary); font-size:12px;">Sem dados históricos suficientes para o gráfico.</span>';
+      } else {
+        var maxVal = Math.max(...trend.map(d => Math.max(d.revenue || 0, d.expenses || 0)), 1000);
+        var svgHeight = 160;
+        var svgWidth = 480;
+        var barGroupWidth = svgWidth / trend.length;
+        var barW = Math.max(6, (barGroupWidth - 14) / 2);
+
+        var barsHtml = trend.map(function(item, idx) {
+          var x = idx * barGroupWidth + 8;
+          var revH = Math.max(4, ((item.revenue || 0) / maxVal) * (svgHeight - 40));
+          var expH = Math.max(4, ((item.expenses || 0) / maxVal) * (svgHeight - 40));
+          var yRev = svgHeight - 24 - revH;
+          var yExp = svgHeight - 24 - expH;
+          var label = (item.month || '').substring(5, 7);
+
+          return `
+            <rect x="${x}" y="${yRev}" width="${barW}" height="${revH}" fill="#2ea043" rx="2">
+              <title>${item.month}: Receita €${numberFormatter.format(item.revenue || 0)}</title>
+            </rect>
+            <rect x="${x + barW + 2}" y="${yExp}" width="${barW}" height="${expH}" fill="#f85149" rx="2">
+              <title>${item.month}: Despesa €${numberFormatter.format(item.expenses || 0)}</title>
+            </rect>
+            <text x="${x + barW}" y="${svgHeight - 8}" font-size="10" fill="var(--text-secondary)" text-anchor="middle">${label}</text>
+          `;
+        }).join('');
+
+        trendContainer.innerHTML = `
+          <div style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <svg viewBox="0 0 ${svgWidth} ${svgHeight}" style="width:100%; max-height:180px; overflow:visible;">
+              <line x1="0" y1="${svgHeight - 24}" x2="${svgWidth}" y2="${svgHeight - 24}" stroke="var(--gridline)" stroke-width="1" />
+              ${barsHtml}
+            </svg>
+            <div style="display:flex; gap:16px; font-size:11px; margin-top:8px;">
+              <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; background:#2ea043; border-radius:2px;"></span> Receita</span>
+              <span style="display:flex; align-items:center; gap:4px;"><span style="display:inline-block; width:10px; height:10px; background:#f85149; border-radius:2px;"></span> Despesa</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    var catContainer = document.getElementById('finance-category-chart-container');
+    if (catContainer) {
+      if (!categories || categories.length === 0) {
+        catContainer.innerHTML = '<span style="color:var(--text-secondary); font-size:12px;">Sem despesas registadas por categoria.</span>';
+      } else {
+        var totalCatExp = categories.reduce((sum, c) => sum + (c.amount || 0), 0) || 1;
+        catContainer.innerHTML = `
+          <div style="width:100%; display:flex; flex-direction:column; gap:10px; max-height:220px; overflow-y:auto; padding-right:6px;">
+            ${categories.slice(0, 6).map(function(c) {
+              var pct = Math.min(100, Math.round(((c.amount || 0) / totalCatExp) * 100));
+              return `
+                <div>
+                  <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px;">
+                    <span style="font-weight:600;">${c.category}</span>
+                    <span>${currencyFormatter.format(c.amount || 0)} (${pct}%)</span>
+                  </div>
+                  <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" style="width:${pct}%; background:var(--accent);"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+    }
+  }
+
+  function renderRecentTransactions(list) {
+    var tbody = document.getElementById('financas-recent-tx-body');
+    if (!tbody) return;
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Sem movimentos recentes.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.slice(0, 5).map(function(t) {
+      var isRev = t.type === 'REVENUE' || t.kind === 'INCOME';
+      var val = t.amount !== undefined ? t.amount : ((t.amountCents || 0) / 100);
+      var dt = t.date || t.dueDate || new Date().toISOString();
+      return `
+        <tr>
+          <td><strong>${t.description || '—'}</strong></td>
+          <td><span class="badge-tag ${isRev ? 'badge-good' : 'badge-danger'}">${isRev ? 'Receita' : 'Despesa'}</span></td>
+          <td>${t.category ? (t.category.name || t.category) : '—'}</td>
+          <td><strong style="color:${isRev ? 'var(--good)' : 'var(--critical)'};">${currencyFormatter.format(val)}</strong></td>
+          <td>${new Date(dt).toLocaleDateString('pt-PT')}</td>
+          <td><span class="badge-tag badge-neutral">${t.status || 'PAID'}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderFinanceTransactions(list) {
+    var tbody = document.getElementById('financas-transactions-body');
+    if (!tbody) return;
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhuma transação registada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function (t) {
+      var isIncome = t.type === 'REVENUE' || t.kind === 'INCOME';
+      var isTransfer = t.type === 'TRANSFER';
+      var isPaid = t.status === 'PAID' || t.status === 'RECONCILED';
+      var isPending = t.status === 'PENDING';
+      var val = t.amount !== undefined ? t.amount : ((t.amountCents || 0) / 100);
+      var dt = t.date || t.dueDate || new Date().toISOString();
+      var badgeClass = isPaid ? 'badge-good' : (isPending ? 'badge-warn' : 'badge-neutral');
+      var typeLabel = isIncome ? 'Receita' : (isTransfer ? 'Transferência' : 'Despesa');
+      var typeColor = isIncome ? 'var(--good)' : (isTransfer ? 'var(--accent)' : 'var(--critical)');
+
+      return `
+        <tr>
+          <td><strong>${t.description}</strong></td>
+          <td><span style="font-weight:600; color:${typeColor}">${typeLabel}</span></td>
+          <td>${t.category ? (t.category.name || t.category) : '—'}</td>
+          <td><strong>${currencyFormatter.format(val)}</strong></td>
+          <td>${new Date(dt).toLocaleDateString('pt-PT')}</td>
+          <td><span class="badge-tag ${badgeClass}">${t.status}</span></td>
+          <td>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${isPending ? `<button class="ghost" style="padding:2px 6px; font-size:11px; color:var(--good);" onclick="updateFinanceTxStatus('${t.id}', 'APPROVED')">✅ Aprovar</button>` : ''}
+              ${!isPaid ? `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="updateFinanceTxStatus('${t.id}', 'PAID')">💶 Pagar</button>` : `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="updateFinanceTxStatus('${t.id}', 'PENDING')">↩️ Pendente</button>`}
+              <button class="ghost" style="padding:2px 6px; font-size:11px; color:var(--critical);" onclick="deleteFinanceTx('${t.id}')">🗑️</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function filterFinanceTransactions() {
+    var typeFilter = document.getElementById('filter-tx-type').value;
+    var statusFilter = document.getElementById('filter-tx-status').value;
+    var filtered = allFinanceTransactions.filter(function(t) {
+      var tType = t.type || (t.kind === 'INCOME' ? 'REVENUE' : 'EXPENSE');
+      if (typeFilter && tType !== typeFilter) return false;
+      if (statusFilter && t.status !== statusFilter) return false;
+      return true;
+    });
+    renderFinanceTransactions(filtered);
+  }
+
+  function renderFinanceBudgets(list) {
+    var tbody = document.getElementById('financas-budgets-body');
+    if (!tbody) return;
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhum orçamento ativo configurado.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function(b) {
+      var allocated = b.allocatedAmount || ((b.allocatedAmountCents || 0) / 100);
+      var spent = b.spentAmount || ((b.spentAmountCents || 0) / 100);
+      var remaining = Math.max(0, allocated - spent);
+      var pct = allocated > 0 ? Math.round((spent / allocated) * 100) : 0;
+      var isExceeded = pct > 100;
+      var isWarning = pct >= (b.alertThreshold || 90);
+      var barColor = isExceeded ? 'var(--critical)' : (isWarning ? 'var(--warning)' : 'var(--good)');
+      var statusBadge = isExceeded ? '<span class="badge-tag badge-danger">EXCEDIDO ⚠️</span>' : (isWarning ? '<span class="badge-tag badge-warn">ALERTA >90%</span>' : '<span class="badge-tag badge-good">DENTRO DO LIMITE</span>');
+
+      return `
+        <tr>
+          <td><strong>${b.name}</strong><br><span style="font-size:11px; color:var(--text-secondary);">${b.period || 'MENSAL'}</span></td>
+          <td>${b.category}</td>
+          <td><strong>${currencyFormatter.format(allocated)}</strong></td>
+          <td>${currencyFormatter.format(spent)}</td>
+          <td><strong style="color:${remaining > 0 ? 'var(--good)' : 'var(--critical)'}">${currencyFormatter.format(remaining)}</strong></td>
+          <td style="min-width:140px;">
+            <div style="font-size:11px; font-weight:700; margin-bottom:2px;">${pct}%</div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width:${Math.min(100, pct)}%; background:${barColor};"></div>
+            </div>
+          </td>
+          <td>${statusBadge}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  window.loadCashFlowProjections = function() {
+    var scenario = document.getElementById('fin-cf-scenario').value || 'BASE';
+    var months = document.getElementById('fin-cf-months').value || '6';
+    var tbody = document.getElementById('financas-cashflow-body');
+    if (tbody) tbody.innerHTML = '<tr class="empty-row"><td colspan="7">A calcular projeções financeiras preditivas…</td></tr>';
+
+    api(`/api/finance/cashflow/projections?months=${months}&scenario=${scenario}`).then(function(res) {
+      var data = res.data || [];
+      if (!tbody) return;
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Sem projeções disponíveis.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(function(p) {
+        var isPositive = p.netCashFlow >= 0;
+        return `
+          <tr>
+            <td><strong>${p.month}</strong></td>
+            <td>${currencyFormatter.format(p.startingBalance)}</td>
+            <td style="color:var(--good);">+${currencyFormatter.format(p.projectedInflow)}</td>
+            <td style="color:var(--critical);">${currencyFormatter.format(p.projectedOutflow)}</td>
+            <td><strong style="color:${isPositive ? 'var(--good)' : 'var(--critical)'};">${isPositive ? '+' : ''}${currencyFormatter.format(p.netCashFlow)}</strong></td>
+            <td><strong>${currencyFormatter.format(p.endingBalance)}</strong></td>
+            <td><span class="badge-tag ${isPositive ? 'badge-good' : 'badge-danger'}">${isPositive ? '▲ Superávit' : '▼ Défice'}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }).catch(function(err) {
+      if (tbody) tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--critical);">Erro ao calcular projeções: ${err.message}</td></tr>`;
+    });
+  };
+
+  window.generatePnLReport = function() {
+    var sDate = document.getElementById('pnl-start-date').value;
+    var eDate = document.getElementById('pnl-end-date').value;
+    var container = document.getElementById('pnl-report-container');
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-secondary);">A gerar Demonstração de Resultados (P&L)...</div>';
+
+    api(`/api/finance/reports/pnl?startDate=${sDate}&endDate=${eDate}`).then(function(res) {
+      var d = res.data;
+      if (!d) return;
+      var isProfitable = d.netIncome >= 0;
+
+      container.innerHTML = `
+        <div style="background:var(--page-plane); border:1px solid var(--border); border-radius:8px; padding:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gridline); padding-bottom:12px; margin-bottom:16px;">
+            <h3 style="margin:0; font-size:16px; color:var(--accent);">Relatório de Demonstração de Resultados (P&L)</h3>
+            <span style="font-size:12px; color:var(--text-secondary);">Período: <strong>${d.period.startDate}</strong> até <strong>${d.period.endDate}</strong></span>
+          </div>
+
+          <table style="margin-bottom:20px;">
+            <tbody>
+              <tr style="font-size:14px; background:var(--surface-1);">
+                <td><strong>(+) RECEITA BRUTA OPERACIONAL</strong></td>
+                <td style="text-align:right; font-weight:700; color:var(--good);">${currencyFormatter.format(d.totalRevenue)}</td>
+              </tr>
+              <tr>
+                <td style="padding-left:24px; color:var(--text-secondary);">Despesas Operacionais & Custos</td>
+                <td style="text-align:right; color:var(--critical); font-weight:600;">-${currencyFormatter.format(d.totalExpenses)}</td>
+              </tr>
+              ${(d.expensesByCategory || []).map(c => `
+                <tr>
+                  <td style="padding-left:40px; font-size:12.5px; color:var(--muted);">• ${c.category}</td>
+                  <td style="text-align:right; font-size:12.5px; color:var(--muted);">${currencyFormatter.format(c.amount)} (${c.percent}%)</td>
+                </tr>
+              `).join('')}
+              <tr style="border-top:2px solid var(--border); font-size:14px; background:var(--surface-1);">
+                <td><strong>(=) EBITDA / RESULTADO OPERACIONAL</strong></td>
+                <td style="text-align:right; font-weight:700; color:${d.grossProfit >= 0 ? 'var(--good)' : 'var(--critical)'};">${currencyFormatter.format(d.grossProfit)}</td>
+              </tr>
+              <tr style="background:var(--surface-1); font-size:15px; border-top:1px solid var(--gridline);">
+                <td><strong>(=) LUCRO LÍQUIDO DO PERÍODO</strong></td>
+                <td style="text-align:right; font-weight:800; color:${isProfitable ? 'var(--good)' : 'var(--critical)'};">${currencyFormatter.format(d.netIncome)}</td>
+              </tr>
+              <tr>
+                <td><strong>Margem Líquida (%)</strong></td>
+                <td style="text-align:right; font-weight:700; color:${d.netMarginPercent >= 0 ? 'var(--good)' : 'var(--critical)'};">${d.netMarginPercent}%</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <button class="ghost" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button>
+          </div>
+        </div>
+      `;
+    }).catch(function(err) {
+      container.innerHTML = `<div style="text-align:center; padding:30px; color:var(--critical);">Erro ao gerar P&L: ${err.message}</div>`;
+    });
+  };
+
+  function renderFinanceReconciliations(list) {
+    var tbody = document.getElementById('financas-reconciliation-body');
+    if (!tbody) return;
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhuma reconciliação bancária efetuada.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function(r) {
+      var isZero = Math.abs(r.difference) < 0.01;
+      return `
+        <tr>
+          <td><strong>${new Date(r.statementDate).toLocaleDateString('pt-PT')}</strong></td>
+          <td>${currencyFormatter.format(r.statementBalance)}</td>
+          <td style="color:${isZero ? 'var(--good)' : 'var(--critical)'}; font-weight:700;">${currencyFormatter.format(r.difference)}</td>
+          <td><span class="badge-tag ${isZero ? 'badge-good' : 'badge-warn'}">${r.status || (isZero ? 'MATCHED' : 'DISCREPANCY')}</span></td>
+          <td>${r.notes || '—'}</td>
+          <td>${new Date(r.createdAt).toLocaleDateString('pt-PT')}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   function renderFinancasCategoryOptions(categories) {
-    var select = document.getElementById('fin-tx-category');
     var catList = document.getElementById('financas-categories-list');
     if (!categories || categories.length === 0) {
-      select.innerHTML = '<option value="">Sem categorias</option>';
       if (catList) catList.innerHTML = '<span style="color: var(--text-secondary); font-size: 13px;">Nenhuma categoria registada.</span>';
       return;
     }
-    select.innerHTML = categories.map(c => `<option value="${c.id}">${c.kind === 'INCOME' ? '🟢' : '🔴'} ${c.name}</option>`).join('');
     if (catList) {
       catList.innerHTML = categories.map(c => `
         <span style="display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:12px; background:var(--surface-1); border:1px solid var(--border); font-size:12px; font-weight:600;">
@@ -1006,37 +1740,9 @@
     }
   }
 
-  function renderFinancasTransactions(list) {
-    var tbody = document.getElementById('financas-transactions-body');
-    if (!list || list.length === 0) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhuma transação registada.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = list.map(function (t) {
-      var isIncome = t.kind === 'INCOME';
-      var isPaid = t.status === 'PAID';
-      var statusBadge = isPaid ? 'var(--good)' : 'var(--warning)';
-      return `
-        <tr>
-          <td><strong>${t.description}</strong></td>
-          <td><span style="font-weight:600; color:${isIncome ? 'var(--good)' : 'var(--critical)'}">${isIncome ? 'Receita' : 'Despesa'}</span></td>
-          <td>${t.category ? t.category.name : '—'}</td>
-          <td><strong>${currencyFormatter.format(t.amountCents / 100)}</strong></td>
-          <td>${new Date(t.dueDate).toLocaleDateString('pt-PT')}</td>
-          <td><span style="font-weight:700; color:${statusBadge}; text-transform:uppercase; font-size:11px;">${t.status}</span></td>
-          <td>
-            <div style="display:flex; gap:6px;">
-              ${!isPaid ? `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="payFinancasTx('${t.id}', true)">✅ Pagar</button>` : `<button class="ghost" style="padding:2px 6px; font-size:11px;" onclick="payFinancasTx('${t.id}', false)">↩️ Pendente</button>`}
-              <button class="ghost" style="padding:2px 6px; font-size:11px; color:var(--critical);" onclick="deleteFinancasTx('${t.id}')">🗑️</button>
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-
   function renderFinancasRules(list) {
     var tbody = document.getElementById('financas-rules-body');
+    if (!tbody) return;
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Nenhuma regra de recorrência configurada.</td></tr>';
       return;
@@ -1056,6 +1762,7 @@
 
   function renderFinancasLoans(list) {
     var tbody = document.getElementById('financas-loans-body');
+    if (!tbody) return;
     if (!list || list.length === 0) {
       tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Nenhum empréstimo registado.</td></tr>';
       return;
@@ -1077,20 +1784,28 @@
     }).join('');
   }
 
-  window.payFinancasTx = function(id, isPaid) {
-    api(`/api/financas/transactions/${id}/pay`, {
+  window.updateFinanceTxStatus = function(id, status) {
+    api(`/api/finance/transactions/${id}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isPaid })
+      body: JSON.stringify({ status })
+    }).catch(function() {
+      return api(`/api/financas/transactions/${id}/pay`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPaid: status === 'PAID' })
+      });
     }).then(function () {
-      showToast(isPaid ? 'Transação paga.' : 'Transação marcada como pendente.', 'ok');
+      showToast('Estado da transação atualizado com sucesso.', 'ok');
       loadFinancas();
     }).catch(function (err) { showToast(err.message, 'error'); });
   };
 
-  window.deleteFinancasTx = function(id) {
-    if (!confirm('Eliminar esta transação?')) return;
-    api(`/api/financas/transactions/${id}`, { method: 'DELETE' }).then(function () {
+  window.deleteFinanceTx = function(id) {
+    if (!confirm('Eliminar esta transação financeira?')) return;
+    api(`/api/finance/transactions/${id}`, { method: 'DELETE' }).catch(function() {
+      return api(`/api/financas/transactions/${id}`, { method: 'DELETE' });
+    }).then(function () {
       showToast('Transação eliminada.', 'ok');
       loadFinancas();
     }).catch(function (err) { showToast(err.message, 'error'); });
@@ -1107,22 +1822,36 @@
     }).catch(function (err) { showToast(err.message, 'error'); });
   };
 
-  window.exportFinancas = function(format) {
-    api('/api/financas/export?format=' + (format || 'csv')).then(function (data) {
-      if (typeof data === 'string') {
-        var blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'export_financas.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast('Exportação descarregada com sucesso.', 'ok');
-      } else {
-        showToast('Exportação concluída.', 'ok');
-      }
+  window.exportFinanceSAFT = function() {
+    var year = new Date().getFullYear();
+    api(`/api/finance/export/saft?year=${year}`).then(function(data) {
+      var blob = new Blob([data], { type: 'application/xml;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = `SAFT_PT_${year}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Ficheiro SAF-T (PT) exportado com sucesso.', 'ok');
+    }).catch(function(err) {
+      showToast('Erro ao exportar SAF-T: ' + err.message, 'error');
+    });
+  };
+
+  window.exportFinanceCSV = function() {
+    api('/api/finance/export/csv').catch(() => api('/api/financas/export?format=csv')).then(function (data) {
+      var blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'transacoes_financeiras.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Exportação CSV descarregada com sucesso.', 'ok');
     }).catch(function (err) {
       showToast('Erro ao exportar: ' + err.message, 'error');
     });
@@ -1147,85 +1876,156 @@
     }).catch(function (err) { showToast(err.message, 'error'); });
   };
 
-  document.getElementById('financas-tx-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var amount = parseFloat(document.getElementById('fin-tx-amount').value);
-    var isPaid = document.getElementById('fin-tx-paid').checked;
-    var payload = {
-      description: document.getElementById('fin-tx-title').value.trim(),
-      amountCents: Math.round(amount * 100),
-      kind: document.getElementById('fin-tx-kind').value,
-      dueDate: document.getElementById('fin-tx-date').value,
-      categoryId: document.getElementById('fin-tx-category').value || null,
-      status: isPaid ? 'PAID' : 'PLANNED'
-    };
-    api('/api/financas/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(function () {
-      showToast('Transação criada.', 'ok');
-      e.target.reset();
-      loadFinancas();
-    }).catch(function (err) { showToast(err.message, 'error'); });
-  });
+  // Event Listeners dos Formulários de Finanças
+  var txForm = document.getElementById('financas-tx-form');
+  if (txForm) {
+    txForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var amount = parseFloat(document.getElementById('fin-tx-amount').value);
+      var payload = {
+        description: document.getElementById('fin-tx-title').value.trim(),
+        amount: amount,
+        type: document.getElementById('fin-tx-kind').value,
+        category: document.getElementById('fin-tx-category').value,
+        date: document.getElementById('fin-tx-date').value,
+        status: document.getElementById('fin-tx-status').value,
+        notes: (document.getElementById('fin-tx-notes') ? document.getElementById('fin-tx-notes').value.trim() : '')
+      };
+      api('/api/finance/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(function() {
+        return api('/api/financas/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            description: payload.description,
+            amountCents: Math.round(payload.amount * 100),
+            kind: payload.type === 'REVENUE' ? 'INCOME' : 'EXPENSE',
+            dueDate: payload.date,
+            status: payload.status === 'PAID' ? 'PAID' : 'PLANNED'
+          })
+        });
+      }).then(function () {
+        showToast('Transação financeira registada com sucesso.', 'ok');
+        e.target.reset();
+        loadFinancas();
+      }).catch(function (err) { showToast(err.message, 'error'); });
+    });
+  }
 
-  document.getElementById('financas-rule-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var amount = parseFloat(document.getElementById('fin-rule-amount').value);
-    var payload = {
-      description: document.getElementById('fin-rule-title').value.trim(),
-      amountCents: Math.round(amount * 100),
-      kind: document.getElementById('fin-rule-kind').value,
-      freq: document.getElementById('fin-rule-freq').value,
-      startDate: document.getElementById('fin-rule-start').value
-    };
-    api('/api/financas/recurring', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(function () {
-      showToast('Regra de recorrência criada.', 'ok');
-      e.target.reset();
-      loadFinancas();
-    }).catch(function (err) { showToast(err.message, 'error'); });
-  });
+  var bgtForm = document.getElementById('financas-budget-form');
+  if (bgtForm) {
+    bgtForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        name: document.getElementById('fin-bgt-name').value.trim(),
+        category: document.getElementById('fin-bgt-category').value,
+        allocatedAmount: parseFloat(document.getElementById('fin-bgt-amount').value),
+        period: document.getElementById('fin-bgt-period').value,
+        alertThreshold: parseInt(document.getElementById('fin-bgt-threshold').value, 10),
+        startDate: document.getElementById('fin-bgt-start').value,
+        endDate: document.getElementById('fin-bgt-end').value
+      };
+      api('/api/finance/budgets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function () {
+        showToast('Orçamento criado com sucesso.', 'ok');
+        e.target.reset();
+        loadFinancas();
+      }).catch(function (err) { showToast(err.message, 'error'); });
+    });
+  }
 
-  document.getElementById('financas-loan-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var amount = parseFloat(document.getElementById('fin-loan-amount').value);
-    var payload = {
-      counterparty: document.getElementById('fin-loan-party').value.trim(),
-      direction: document.getElementById('fin-loan-direction').value,
-      principalCents: Math.round(amount * 100),
-      loanDate: document.getElementById('fin-loan-date').value
-    };
-    api('/api/financas/loans', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).then(function () {
-      showToast('Empréstimo registado.', 'ok');
-      e.target.reset();
-      loadFinancas();
-    }).catch(function (err) { showToast(err.message, 'error'); });
-  });
+  var reconForm = document.getElementById('financas-recon-form');
+  if (reconForm) {
+    reconForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var payload = {
+        statementBalance: parseFloat(document.getElementById('fin-recon-balance').value),
+        statementDate: document.getElementById('fin-recon-date').value,
+        notes: document.getElementById('fin-recon-notes').value.trim()
+      };
+      api('/api/finance/reconciliation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function () {
+        showToast('Reconciliação bancária concluída com sucesso.', 'ok');
+        e.target.reset();
+        loadFinancas();
+      }).catch(function (err) { showToast(err.message, 'error'); });
+    });
+  }
 
-  document.getElementById('financas-category-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var name = document.getElementById('fin-cat-name').value.trim();
-    var kind = document.getElementById('fin-cat-kind').value;
-    if (!name) return;
-    api('/api/financas/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name, kind: kind })
-    }).then(function () {
-      showToast('Categoria criada com sucesso.', 'ok');
-      e.target.reset();
-      loadFinancas();
-    }).catch(function (err) { showToast(err.message, 'error'); });
-  });
+  var ruleForm = document.getElementById('financas-rule-form');
+  if (ruleForm) {
+    ruleForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var amount = parseFloat(document.getElementById('fin-rule-amount').value);
+      var payload = {
+        description: document.getElementById('fin-rule-title').value.trim(),
+        amountCents: Math.round(amount * 100),
+        kind: document.getElementById('fin-rule-kind').value,
+        freq: document.getElementById('fin-rule-freq').value,
+        startDate: document.getElementById('fin-rule-start').value
+      };
+      api('/api/financas/recurring', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function () {
+        showToast('Regra de recorrência criada.', 'ok');
+        e.target.reset();
+        loadFinancas();
+      }).catch(function (err) { showToast(err.message, 'error'); });
+    });
+  }
+
+  var loanForm = document.getElementById('financas-loan-form');
+  if (loanForm) {
+    loanForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var amount = parseFloat(document.getElementById('fin-loan-amount').value);
+      var payload = {
+        counterparty: document.getElementById('fin-loan-party').value.trim(),
+        direction: document.getElementById('fin-loan-direction').value,
+        principalCents: Math.round(amount * 100),
+        loanDate: document.getElementById('fin-loan-date').value
+      };
+      api('/api/financas/loans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function () {
+        showToast('Empréstimo registado.', 'ok');
+        e.target.reset();
+        loadFinancas();
+      }).catch(function (err) { showToast(err.message, 'error'); });
+    });
+  }
+
+  var catForm = document.getElementById('financas-category-form');
+  if (catForm) {
+    catForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var name = document.getElementById('fin-cat-name').value.trim();
+      var kind = document.getElementById('fin-cat-kind').value;
+      if (!name) return;
+      api('/api/financas/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, kind: kind })
+      }).then(function () {
+        showToast('Categoria criada com sucesso.', 'ok');
+        e.target.reset();
+        loadFinancas();
+      }).catch(function (err) { showToast(err.message, 'error'); });
+    });
+  }
 
   document.getElementById('refresh-btn').addEventListener('click', route);
   document.getElementById('logout-btn').addEventListener('click', function () {

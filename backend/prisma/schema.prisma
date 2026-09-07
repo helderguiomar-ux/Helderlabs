@@ -58,7 +58,12 @@ model Tenant {
   financeTransactions   FinanceTransaction[]
   financeRecurringRules RecurringRule[]
   financeLoans          Loan[]
-  financeBudgets        Budget[]
+
+  financialTransactions FinancialTransaction[]
+  budgets               Budget[]
+  cashFlowProjections   CashFlowProjection[]
+  bankReconciliations   BankReconciliation[]
+  financialReports      FinancialReport[]
 
   @@map("tenants")
 }
@@ -592,14 +597,16 @@ model FinanceCategory {
 
   transactions FinanceTransaction[]
   rules        RecurringRule[]
-  budgets      Budget[]
-
   @@unique([tenantId, name, kind])
   @@index([tenantId])
   @@map("finance_categories")
 }
 
 enum TransactionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RECONCILED
   PLANNED
   PAID
 }
@@ -715,20 +722,238 @@ model LoanPayment {
   @@map("finance_loan_payments")
 }
 
-model Budget {
-  id         String          @id @default(cuid())
-  tenantId   String
-  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  period     String
-  limitCents Int
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+// =========================================================================
+// FINANÇAS — Receitas, Despesas, Orçamentos, Fluxo de Caixa
+// =========================================================================
 
-  @@unique([tenantId, categoryId, period])
-  @@index([tenantId, period])
-  @@map("finance_budgets")
+enum TransactionType {
+  REVENUE      // Receita
+  EXPENSE      // Despesa
+  TRANSFER     // Transferência entre contas
+}
+
+enum ExpenseCategory {
+  SALARY                    // Ordenados
+  RENT                      // Aluguel
+  UTILITIES                 // Utilidades (água, luz, gás)
+  OFFICE_SUPPLIES           // Material de escritório
+  TRAVEL                    // Viagem
+  PROFESSIONAL_SERVICES     // Serviços profissionais
+  MAINTENANCE               // Manutenção
+  MARKETING                 // Marketing
+  INSURANCE                 // Seguro
+  TAXES                     // Impostos
+  DEPRECIATION              // Depreciação
+  INTEREST                  // Juros
+  MISCELLANEOUS             // Diversos
+}
+
+enum BudgetStatus {
+  DRAFT       // Rascunho
+  APPROVED    // Aprovado
+  ACTIVE      // Ativo
+  CLOSED      // Fechado
+}
+
+// Tabela de Transações Financeiras
+model FinancialTransaction {
+  id              String            @id @default(cuid())
+  tenantId        String
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  
+  // Descrição e valores
+  description     String
+  amount          Float
+  currency        String            @default("EUR")
+  date            DateTime
+  dueDate         DateTime?         // Para faturas
+  
+  // Categorização
+  category        ExpenseCategory?
+  accountId       String?           // Conta bancária
+  costCenter      String?           // Centro de custo
+  projectId       String?           // Projeto associado
+  
+  // Referências
+  invoiceNumber   String?           @unique
+  invoiceUrl      String?           // URL do PDF
+  supplier        String?           // Para despesas
+  customer        String?           // Para receitas
+  
+  // Aprovação
+  approvedBy      String?
+  approvedAt      DateTime?
+  notes           String?
+  
+  // Reconciliação
+  reconciliationStatus String @default("UNRECONCILED") // UNRECONCILED, RECONCILED
+  reconciliationDate   DateTime?
+  bankStatementRef     String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  createdBy       String?
+  
+  attachments     FinancialAttachment[]
+  
+  @@index([tenantId])
+  @@index([type])
+  @@index([status])
+  @@index([date])
+  @@index([category])
+  @@index([reconciliationStatus])
+  @@map("financial_transactions")
+}
+
+// Anexos de Transações (Faturas, Recibos)
+model FinancialAttachment {
+  id              String    @id @default(cuid())
+  transactionId   String
+  transaction     FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  
+  fileName        String
+  fileUrl         String    // URL do ficheiro armazenado
+  fileType        String    // pdf, image, etc
+  size            Int       // Tamanho em bytes
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([transactionId])
+  @@map("financial_attachments")
+}
+
+// Orçamentos
+model Budget {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  
+  name            String
+  description     String?
+  status          BudgetStatus @default(DRAFT)
+  
+  // Período
+  startDate       DateTime
+  endDate         DateTime
+  year            Int
+  month           Int?      // Null = ano inteiro
+  
+  // Categorias orçamentadas
+  budgetItems     BudgetItem[]
+  
+  // Aprovação
+  approvedBy      String?
+  approvedAt      DateTime?
+  
+  // Configurações
+  alertThreshold  Int       @default(90) // Alerta a 90% gasto
+  currencyCode    String    @default("EUR")
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([tenantId, year, month])
+  @@index([tenantId])
+  @@index([status])
+  @@map("budgets")
+}
+
+// Itens de Orçamento (por categoria)
+model BudgetItem {
+  id              String    @id @default(cuid())
+  budgetId        String
+  budget          Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  category        ExpenseCategory
+  budgetAmount    Float
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([budgetId, category])
+  @@index([budgetId])
+  @@map("budget_items")
+}
+
+// Fluxo de Caixa (Projeções)
+model CashFlowProjection {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  
+  // Período
+  date            DateTime
+  year            Int
+  month           Int
+  
+  // Saldos
+  openingBalance  Float     // Saldo inicial
+  inflows         Float     // Entrada de caixa
+  outflows        Float     // Saída de caixa
+  closingBalance  Float     // Saldo final
+  
+  // Cenários
+  scenario        String    @default("BASE") // BASE, OPTIMISTIC, PESSIMISTIC
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@unique([tenantId, date, scenario])
+  @@index([tenantId])
+  @@index([year, month])
+  @@map("cash_flow_projections")
+}
+
+// Reconciliação Bancária
+model BankReconciliation {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  
+  // Período
+  statementDate   DateTime
+  statementAmount Float
+  
+  // Transações reconciliadas
+  reconciledTransactionCount Int @default(0)
+  reconciledAmount Float @default(0)
+  
+  // Status
+  isComplete      Boolean   @default(false)
+  reconciliationNotes String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  reconciledAt    DateTime?
+  
+  @@index([tenantId])
+  @@index([statementDate])
+  @@map("bank_reconciliations")
+}
+
+// Relatórios Financeiros Pré-Calculados
+model FinancialReport {
+  id              String    @id @default(cuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  
+  reportType      String    // P&L, BALANCE_SHEET, CASH_FLOW
+  period          String    // MONTHLY, QUARTERLY, YEARLY
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Dados agregados (JSON flexível)
+  data            Json      // {revenues: 100000, expenses: 80000, profit: 20000, ...}
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([tenantId])
+  @@index([reportType])
+  @@index([startDate])
+  @@map("financial_reports")
 }
 
 

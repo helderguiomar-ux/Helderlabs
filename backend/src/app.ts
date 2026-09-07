@@ -13,6 +13,7 @@ import { publicRoutes } from './routes/public.routes';
 import { crmRoutes } from './modules/crm/routes/crm.routes';
 import { condominiosRoutes } from './modules/condominios/routes/condominios.routes';
 import { financasRoutes } from './modules/financas/routes/financas.routes';
+import { financeModuleRoutes } from './modules/finance/routes/index';
 import { platformRoutes } from './modules/platform/routes/platform.routes';
 import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
@@ -203,6 +204,7 @@ export function buildApp() {
   app.register(crmRoutes, { prefix: '/api/crm' });
   app.register(condominiosRoutes, { prefix: '/api/condominios' });
   app.register(financasRoutes, { prefix: '/api/financas' });
+  app.register(financeModuleRoutes, { prefix: '/api/finance' });
 
   const entitlementService = new EntitlementService();
   app.register(async (instance) => {

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install && npx prisma generate && (npx prisma migrate resolve --applied 20260823202500_initial_schema || true) && (npx prisma migrate resolve --applied 20260906214800_full_schema_update || true) && (npx prisma migrate resolve --applied 0000_baseline || true) && npx prisma migrate deploy && npm run build",
+  "buildCommand": "cd backend && npm install && node scripts/deploy-build.mjs",
   "outputDirectory": "backend/public",
   "redirects": [
     {

@@ -4,49 +4,42 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>HelderLabs ERP — Módulos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Caveat:wght@600&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/design-system/tokens.css">
-<link rel="stylesheet" href="/assets/css/design-system/typography.css">
-<link rel="stylesheet" href="/assets/css/design-system/components.css">
-<link rel="stylesheet" href="/assets/css/styles.css">
+  <!-- FAVICONS & MANIFEST -->
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="shortcut icon" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="manifest" href="/site.webmanifest">
+
+  <!-- OPEN GRAPH / SOCIAL -->
+  <meta property="og:title" content="HelderLabs ERP — Módulos">
+  <meta property="og:description" content="Gestão Financeira, CRM, Auditoria e Aplicações Corporativas.">
+  <meta property="og:url" content="https://helderlabs.eu/app.html">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_PT">
+  <meta property="og:image" content="https://helderlabs.eu/assets/img/og-image.svg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Caveat:wght@600&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/design-system/tokens.css">
+  <link rel="stylesheet" href="/assets/css/design-system/typography.css">
+  <link rel="stylesheet" href="/assets/css/design-system/components.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
 <style>
   :root {
-    color-scheme: light;
-    --surface-1: #fcfcfb;
-    --page-plane: #f9f9f7;
-    --text-primary: #0b0b0b;
-    --text-secondary: #52514e;
-    --muted: #898781;
-    --gridline: #e1e0d9;
-    --baseline: #c3c2b7;
-    --border: rgba(11, 11, 11, 0.10);
-    --accent: #0d419f;
-    --accent-dark: #092c6e;
-    --good: #0ca30c;
-    --warning: #fab219;
-    --serious: #ec835a;
-    --critical: #d03b3b;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      color-scheme: dark;
-      --surface-1: #161b22;
-      --page-plane: #0d1117;
-      --text-primary: #ffffff;
-      --text-secondary: #c3c2b7;
-      --muted: #898781;
-      --gridline: #21262d;
-      --baseline: #30363d;
-      --border: rgba(255, 255, 255, 0.10);
-      --accent: #1f6feb;
-      --accent-dark: #388bfd;
-      --good: #3fb950;
-      --warning: #d29922;
-      --serious: #db6d28;
-      --critical: #f85149;
-    }
+    --surface-1: var(--sheet);
+    --page-plane: var(--paper);
+    --text-primary: var(--ink);
+    --text-secondary: var(--ink-2);
+    --muted: var(--ink-3);
+    --gridline: var(--rule);
+    --baseline: var(--rule-2);
+    --border: var(--rule);
+    --accent: var(--pen);
+    --accent-dark: #12326e;
+    --good: var(--state-success-text);
+    --warning: var(--state-warning-text);
+    --serious: var(--state-warning-text);
   }
 
   * { box-sizing: border-box; }
@@ -280,6 +273,9 @@
 </header>
 
 <main>
+  <!-- VISTA MÓDULO INCOMPLETO (TRANSPARENTE — F2/A-04) -->
+  <div id="view-incomplete" class="module-view" style="display:none;"></div>
+
   <!-- VISTA CRM -->
   <div id="view-crm" class="module-view">
     <section>
@@ -605,42 +601,44 @@
 
 <div id="toast"></div>
 
-<script>
-(function () {
-  'use strict';
+<script type="module">
+  import { MODULES_REGISTRY, renderIncompleteModuleScreen } from '/assets/js/modules.js';
 
   var sessionStr = localStorage.getItem('erp_session');
   if (!sessionStr) {
     window.location.href = '/login.html';
-    return;
   }
 
-  var session = JSON.parse(sessionStr);
+  var session = JSON.parse(sessionStr || '{}');
   var currentToken = session.token;
-  var currentUser = session.user;
+  var currentUser = session.user || {};
 
   // Se for Super Admin e não tiver módulo em hash nem impersonation ativo, redireciona para a consola
   if ((currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'PLATFORM_ADMIN') && !window.location.hash && !session.impersonationId) {
     window.location.href = '/super-admin.html';
-    return;
   }
 
   if (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'PLATFORM_ADMIN') {
-    document.getElementById('super-admin-btn').style.display = 'block';
+    const adminBtn = document.getElementById('super-admin-btn');
+    if (adminBtn) adminBtn.style.display = 'block';
   }
 
   if (session.impersonationId) {
-    document.getElementById('impersonation-banner').classList.add('show');
+    const impBanner = document.getElementById('impersonation-banner');
+    if (impBanner) impBanner.classList.add('show');
   }
 
-  document.getElementById('session-name').textContent = currentUser.name || currentUser.email;
-  document.getElementById('session-tenant').textContent = 'Empresa: ' + (currentUser.tenantName || currentUser.tenantId);
+  const nameEl = document.getElementById('session-name');
+  const tenantEl = document.getElementById('session-tenant');
+  if (nameEl) nameEl.textContent = currentUser.name || currentUser.email || '—';
+  if (tenantEl) tenantEl.textContent = 'Empresa: ' + (currentUser.tenantName || currentUser.tenantId || '—');
 
   var currencyFormatter = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', notation: 'compact' });
   var numberFormatter = new Intl.NumberFormat('pt-PT');
 
   function showToast(message, kind) {
     var toast = document.getElementById('toast');
+    if (!toast) return;
     toast.textContent = message;
     toast.className = 'show ' + (kind || 'ok');
     window.clearTimeout(showToast._t);
@@ -667,13 +665,28 @@
     });
   }
 
-  // Hash Router
+  // Hash Router Transparente (F2/A-04)
   function route() {
     var hash = window.location.hash || '#/crm';
+    var rawKey = hash.replace(/^#\/?/, '').trim();
+    var cleanKey = rawKey === 'finance' ? 'financas' : rawKey;
+
     document.querySelectorAll('.module-view').forEach(e => e.style.display = 'none');
     document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
 
-    if (hash.includes('condominios')) {
+    const targetModule = MODULES_REGISTRY.find(m => m.key === cleanKey);
+
+    if (targetModule && (targetModule.status === 'em_construcao' || targetModule.status === 'planeado')) {
+      const viewInc = document.getElementById('view-incomplete');
+      if (viewInc) {
+        viewInc.style.display = 'block';
+        renderIncompleteModuleScreen(viewInc, targetModule.key, 'pt');
+      }
+      const titleEl = document.getElementById('app-title');
+      if (titleEl) titleEl.textContent = 'HelderLabs ERP — ' + targetModule.name.pt;
+      const tabBtn = document.getElementById('tab-' + targetModule.key);
+      if (tabBtn) tabBtn.classList.add('active');
+    } else if (hash.includes('condominios')) {
       document.getElementById('view-condominios').style.display = 'block';
       document.getElementById('tab-condominios').classList.add('active');
       document.getElementById('app-title').textContent = 'HelderLabs ERP — Condomínios';
@@ -687,6 +700,9 @@
       document.getElementById('view-crm').style.display = 'block';
       document.getElementById('tab-crm').classList.add('active');
       document.getElementById('app-title').textContent = 'HelderLabs ERP — CRM';
+      loadCRM();
+    }
+  }
       loadCRM();
     }
   }

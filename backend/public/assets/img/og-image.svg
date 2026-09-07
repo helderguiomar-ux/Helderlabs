@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#e9ece7"/>
+  <!-- Grelha Caderno de Engenharia -->
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(25, 30, 27, 0.06)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Cartão Principal -->
+  <rect x="100" y="80" width="1000" height="470" rx="4" fill="#f7f8f5" stroke="#bcc4bb" stroke-width="2"/>
+  
+  <text x="160" y="160" font-family="'IBM Plex Mono', monospace" font-size="20" font-weight="600" fill="#7c887f" letter-spacing="2">HELDERLABS — CONSULTORIA TECNOLÓGICA &amp; ERP</text>
+  <text x="160" y="240" font-family="'Spectral', serif" font-size="52" font-weight="700" fill="#191e1b">Informatizar não é coisa</text>
+  <text x="160" y="305" font-family="'Spectral', serif" font-size="52" font-weight="700" fill="#191e1b">de empresa grande.</text>
+
+  <!-- Subtítulo e Tagline -->
+  <text x="160" y="380" font-family="'Archivo', sans-serif" font-size="24" fill="#4e5a54">ERP Modular, Gestão Financeira, CRM &amp; Automação à medida.</text>
+  
+  <path d="M 160,420 Q 400,435 700,415" fill="none" stroke="#a32b1c" stroke-width="4" stroke-linecap="round"/>
+  
+  <text x="160" y="480" font-family="'Caveat', cursive" font-size="32" fill="#17408b">"Primeiro arrumamos os processos reais; depois ligamos a tecnologia."</text>
+  <text x="940" y="480" font-family="'IBM Plex Mono', monospace" font-size="20" font-weight="600" fill="#17408b">helderlabs.eu</text>
+</svg>

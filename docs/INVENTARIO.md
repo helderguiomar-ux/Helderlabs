@@ -83,4 +83,4 @@
 - **Vercel Project**: `helderlabs-erp` (`prj_HSjQPqsENNCduQtJNtz2BGMIWZSR`)
 - **Vercel Team**: `team_grzPq1IuWXqYUo3ksTtUiSCz`
 - **Output Directory**: `backend/public`
-- **Build Command**: `cd backend && npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run build`
+- **Build Command**: `cd backend && npm install && npx prisma generate && npx prisma migrate deploy && npm run build`

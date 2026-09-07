@@ -653,7 +653,8 @@
     if (currentToken) opts.headers['Authorization'] = 'Bearer ' + currentToken;
     return fetch(path, opts).then(function (res) {
       if (res.status === 401) {
-        localStorage.removeItem('erp_session');
+        localStorage.clear();
+        sessionStorage.clear();
         window.location.href = '/login.html';
         throw new Error('Sessão expirada.');
       }
@@ -663,6 +664,10 @@
         });
       }
       if (res.status === 204) return null;
+      var contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/csv') || contentType.includes('text/plain')) {
+        return res.text();
+      }
       return res.json();
     });
   }
@@ -926,6 +931,14 @@
 
   // Módulos de Finanças JS
   function loadFinancas() {
+    var todayStr = new Date().toISOString().substring(0, 10);
+    var dateEl = document.getElementById('fin-tx-date');
+    if (dateEl && !dateEl.value) dateEl.value = todayStr;
+    var ruleStartEl = document.getElementById('fin-rule-start');
+    if (ruleStartEl && !ruleStartEl.value) ruleStartEl.value = todayStr;
+    var loanDateEl = document.getElementById('fin-loan-date');
+    if (loanDateEl && !loanDateEl.value) loanDateEl.value = todayStr;
+
     Promise.all([
       api('/api/financas/dashboard'),
       api('/api/financas/categories'),
@@ -1090,7 +1103,24 @@
   };
 
   window.exportFinancas = function(format) {
-    window.open(`/api/financas/export?format=${format}`, '_blank');
+    api('/api/financas/export?format=' + (format || 'csv')).then(function (data) {
+      if (typeof data === 'string') {
+        var blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'export_financas.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Exportação descarregada com sucesso.', 'ok');
+      } else {
+        showToast('Exportação concluída.', 'ok');
+      }
+    }).catch(function (err) {
+      showToast('Erro ao exportar: ' + err.message, 'error');
+    });
   };
 
   window.promptLoanPayment = function(loanId) {
@@ -1194,7 +1224,8 @@
 
   document.getElementById('refresh-btn').addEventListener('click', route);
   document.getElementById('logout-btn').addEventListener('click', function () {
-    localStorage.removeItem('erp_session');
+    localStorage.clear();
+    sessionStorage.clear();
     window.location.href = '/login.html';
   });
 

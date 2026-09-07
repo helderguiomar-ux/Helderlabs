@@ -630,7 +630,8 @@
   }
 
   function logout() {
-    localStorage.removeItem('erp_session');
+    localStorage.clear();
+    sessionStorage.clear();
     window.location.href = '/login.html';
   }
 

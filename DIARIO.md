@@ -24,5 +24,15 @@ Resolver o bloqueio de login em produção, estabilizar a persistência de sess�
    - Executado teste Playwright em browser real contra `https://helderlabs.eu/login.html` com as credenciais de Super Administrador (`helderguiomar@gmail.com` / `admin1234`).
    - Confirmado acesso com sucesso e navegação sem redirecionamentos infinitos.
 
-4. **Sistema de Rastreio & Governança**:
-   - Criados os ficheiros de governança de raiz: `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `DIARIO.md`, `DECISOES.md`, `DIVIDA_TECNICA.md`.
+4. **Reestruturação do Login com Password**:
+   - Atualizado `login.html` para incluir diretamente os campos de **Email** e **Palavra-passe** (com olho de visibilidade) na vista principal.
+   - Ajustado o fluxo para submeter email + password diretamente com o botão "Entrar no ERP".
+   - Atualizado o teste de browser Playwright (`test-e2e-browser.mjs`) para cobrir o fluxo direto com email e password.
+
+5. **Estabilização do Módulo Financeiro**:
+   - Corrigida a função `exportFinancas` em `app.html` para realizar o pedido HTTP autenticado com o cabeçalho `Authorization: Bearer <token>` e descarregar o ficheiro CSV via Blob.
+   - Adicionado o pré-preenchimento automático da data atual nos campos de vencimento, início e empréstimo nos formulários de Finanças.
+   - Garantida a limpeza integral de `localStorage` e `sessionStorage` em todos os handlers de `logout()`.
+
+6. **Sistema de Rastreio & Governança**:
+   - Criados e atualizados os ficheiros de governança de raiz: `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `DIARIO.md`, `DECISOES.md`, `DIVIDA_TECNICA.md`.

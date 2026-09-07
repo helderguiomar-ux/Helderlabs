@@ -28,11 +28,11 @@
 
 ---
 
-## 🛠️ 3. Alterações Recentes em Produção
-- **Correção da Persistência de Sessão**: Injeção da chave `erp_session` no `localStorage` após login com sucesso e flexibilização da leitura de tokens em `workspace.html`, `super-admin.html` e `app.html`.
+- **Login Direto com Password**: Reestruturação do ecrã de autenticação (`login.html`) para apresentar ambos os campos (Email e Palavra-passe com olho de visibilidade) logo na primeira vista, permitindo a autenticação imediata por password ou alternância para OTP.
+- **Correção da Limpeza de Sessão (Logout)**: Garantida a limpeza integral de `localStorage` e `sessionStorage` ao fazer logout em todos os ecrãs corporativos (`workspace.html`, `super-admin.html`, `app.html`).
+- **Módulo Financeiro & Exportação CSV**: Otimização do carregamento do módulo financeiro (`loadFinancas()`), pré-preenchimento automático de datas nos formulários e exportação autenticada de ficheiros CSV por Blob.
 - **Aviso de Ligação Offline**: Introdução do script global `connection-banner.js` em todos os ecrãs para alerta visual e preservação automática de formulários em `localStorage`.
-- **Validação E2E em Browser Real**: Teste Playwright executado contra `https://helderlabs.eu` com login do Super Administrador (`helderguiomar@gmail.com`) e confirmação de redirecionamento para `/super-admin.html`.
-- **Governança de Agentes**: Criação dos ficheiros de rastreio `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `DIARIO.md`, `DECISOES.md` e `DIVIDA_TECNICA.md`.
+- **Governança de Agentes**: Implementação integral da especificação `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `DIARIO.md`, `DECISOES.md` e `DIVIDA_TECNICA.md`.
 
 ---
 

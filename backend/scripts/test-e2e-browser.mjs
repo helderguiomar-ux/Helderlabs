@@ -93,16 +93,15 @@ async function runBrowserE2ETests() {
     
     // 2.1 Verificação dos Campos de Login
     const emailInput = loginPage.locator('#email');
+    const passwordInput = loginPage.locator('#password');
     await emailInput.fill('helderguiomar@gmail.com');
-    await loginPage.locator('button:has-text("Continuar")').click();
+    await passwordInput.fill('admin1234');
     
-    await loginPage.waitForSelector('#step-password.active', { timeout: 5000 }).catch(() => {});
-
-    const stepPasswordVisible = await loginPage.locator('#step-password').evaluate(el => el.classList.contains('active'));
-    assertTest('Avanço para Passo de Password', stepPasswordVisible);
+    const emailVisible = await emailInput.isVisible();
+    const passwordVisible = await passwordInput.isVisible();
+    assertTest('Presença dos Campos Email e Password', emailVisible && passwordVisible);
 
     // 2.2 Olho de Visibilidade
-    const passwordInput = loginPage.locator('#password');
     const inputTypeInitial = await passwordInput.getAttribute('type');
     const eyeToggle = loginPage.locator('button[onclick*="togglePasswordVisibility"]').first();
     
@@ -115,9 +114,9 @@ async function runBrowserE2ETests() {
       assertTest('Olho de Visibilidade de Password', false, 'Botão não encontrado');
     }
 
-    // 2.3 Pedido de Acesso ao ERP na Login Page
-    await loginPage.locator('button:has-text("Esqueci-me da palavra-passe")').click();
-    await loginPage.waitForTimeout(300);
+    // 2.3 Navegação para Entrada via Código OTP
+    await loginPage.locator('button:has-text("Entrar com Código OTP")').click();
+    await loginPage.waitForTimeout(500);
     const stepOtpVisible = await loginPage.locator('#step-otp').isVisible();
     assertTest('Navegação para Recuperação OTP', stepOtpVisible);
 

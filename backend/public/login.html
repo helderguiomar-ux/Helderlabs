@@ -200,13 +200,26 @@
   <div id="error-msg" class="error"></div>
   <div id="success-msg" class="success-banner"></div>
 
-  <!-- Step 1: Email -->
+  <!-- Step 1: Login principal com Email + Password -->
   <div id="step-email" class="step active">
     <div class="input-group">
       <label for="email">Email Corporativo</label>
       <input type="email" id="email" placeholder="nome@empresa.pt" autofocus autocomplete="username">
     </div>
-    <button class="btn" type="button" onclick="checkEmail()">Continuar →</button>
+    <div class="input-group">
+      <label for="password">Palavra-passe de Acesso</label>
+      <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" id="password" placeholder="Insira a sua palavra-passe" autocomplete="current-password" style="padding-right: 40px;">
+        <button type="button" onclick="togglePasswordVisibility('password', this)" title="Mostrar/Ocultar Palavra-passe" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--ink-3); padding: 4px; display: flex; align-items: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <button class="btn" type="button" onclick="loginWithPassword()">Entrar no ERP</button>
+    <button class="btn-link" type="button" onclick="sendOtpFromMain()" style="margin-top: 8px;">Entrar com Código OTP (Sem Palavra-passe)</button>
 
     <div id="social-section" class="social-section" style="display:none;">
       <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--ink-3); text-align: center; font-family: var(--font-mono); margin-bottom: 12px; font-weight: 600;">
@@ -228,25 +241,6 @@
         Solicitar Acesso ao ERP →
       </button>
     </div>
-  </div>
-
-  <!-- Step 2: Password -->
-  <div id="step-password" class="step">
-    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);" id="pwd-email-display"></p>
-    <div class="input-group">
-      <label for="password">Palavra-passe de Acesso</label>
-      <div style="position: relative; display: flex; align-items: center;">
-        <input type="password" id="password" placeholder="Insira a sua palavra-passe" autocomplete="current-password" style="padding-right: 40px;">
-        <button type="button" onclick="togglePasswordVisibility('password', this)" title="Mostrar/Ocultar Palavra-passe" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--ink-3); padding: 4px; display: flex; align-items: center;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </svg>
-        </button>
-      </div>
-    </div>
-    <button class="btn" type="button" onclick="loginWithPassword()">Entrar no ERP</button>
-    <button class="btn-link" type="button" onclick="sendOtp()">Esqueci-me da palavra-passe (Entrar com Código OTP)</button>
   </div>
 
   <!-- Step 3: OTP -->
@@ -403,22 +397,33 @@
   }
 
   async function loginWithPassword() {
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
-    if (!password) return showError('Por favor introduza a palavra-passe.');
+    if (!email) return showError('Por favor introduza o seu email corporativo.');
+    if (!password) return showError('Por favor introduza a sua palavra-passe.');
+
+    currentEmail = email;
 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: currentEmail, password })
+        body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Palavra-passe incorreta.');
+      if (!res.ok) throw new Error(data.error || 'Credenciais inválidas. Verifique o email e palavra-passe.');
 
       handleLoginSuccess(data);
     } catch (err) {
       showError(err.message);
     }
+  }
+
+  async function sendOtpFromMain() {
+    const email = document.getElementById('email').value.trim();
+    if (!email) return showError('Por favor introduza o seu email corporativo.');
+    currentEmail = email;
+    await sendOtpSilent();
   }
 
   async function sendOtpSilent() {

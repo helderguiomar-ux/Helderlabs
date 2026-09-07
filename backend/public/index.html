@@ -471,7 +471,7 @@
       <p style="font-size:0.88rem; color:var(--ink-2); margin-bottom:1.5rem;" data-i18n="auth.modal_subtitle">Inicie sessão para aceder ao ambiente de trabalho da sua empresa.</p>
 
       <a href="/login.html" class="social-btn" style="background:var(--pen); color:#fff;" data-i18n="auth.modal_email_btn">
-        Entrar com Email e Código OTP
+        Entrar com Email e Palavra-passe
       </a>
 
       <!-- Bloco OAuth gerido dinamicamente por AUTH_OAUTH_ENABLED -->
@@ -484,8 +484,9 @@
   </div>
 
   <!-- SCRIPT DE NAVEGAÇÃO, SESSÃO E ANIMAÇÕES -->
-  <script type="module">
-    import { MODULES_REGISTRY } from '/assets/js/modules.js';
+  <script src="/assets/js/modules.js"></script>
+  <script>
+    var MODULES_REGISTRY = window.MODULES_REGISTRY;
 
     // 1. Renderizar Módulos Ativos e Beta no Catálogo Público
     const modulesGrid = document.getElementById('modules-public-grid');

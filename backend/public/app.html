@@ -601,8 +601,11 @@
 
 <div id="toast"></div>
 
-<script type="module">
-  import { MODULES_REGISTRY, renderIncompleteModuleScreen } from '/assets/js/modules.js';
+<script src="/assets/js/modules.js"></script>
+<script>
+  var MODULES_REGISTRY = window.MODULES_REGISTRY;
+  var renderIncompleteModuleScreen = window.renderIncompleteModuleScreen;
+
 
   var session = {};
   try {

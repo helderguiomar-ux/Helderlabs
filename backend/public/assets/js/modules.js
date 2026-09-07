@@ -1,9 +1,10 @@
 /**
  * REGISTO UNIFICADO DE MÓDULOS — HELDERLABS ERP
  * Fonte Única de Verdade para Plataforma, Landing Page e Área de Cliente
+ * NOTA: ficheiro carregado como script normal (sem ES module import) para compatibilidade com Vercel.
  */
 
-export const MODULES_REGISTRY = [
+window.MODULES_REGISTRY = [
   {
     key: "financas",
     name: { pt: "Gestão Financeira", en: "Financial Management" },
@@ -149,12 +150,13 @@ export const MODULES_REGISTRY = [
   }
 ];
 
-export function getModuleByKey(key) {
-  return MODULES_REGISTRY.find(m => m.key === key);
-}
+window.getModuleByKey = function(key) {
+  return window.MODULES_REGISTRY.find(m => m.key === key);
+};
 
-export function renderIncompleteModuleScreen(containerEl, moduleKey, lang = "pt") {
-  const mod = getModuleByKey(moduleKey);
+window.renderIncompleteModuleScreen = function(containerEl, moduleKey, lang) {
+  lang = lang || "pt";
+  const mod = window.getModuleByKey(moduleKey);
   if (!mod) return;
 
   const isEmConstrucao = mod.status === "em_construcao";

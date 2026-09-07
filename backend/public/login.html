@@ -363,8 +363,7 @@
     if (e.key === 'Enter') {
       const activeStep = document.querySelector('.step.active');
       if (!activeStep) return;
-      if (activeStep.id === 'step-email') checkEmail();
-      else if (activeStep.id === 'step-password') loginWithPassword();
+      if (activeStep.id === 'step-email') loginWithPassword();
       else if (activeStep.id === 'step-otp') verifyOtp();
       else if (activeStep.id === 'step-set-password') setPassword();
     }

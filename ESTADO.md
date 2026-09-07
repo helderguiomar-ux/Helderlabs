@@ -1,8 +1,8 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-07 23:36 (WEST) · Responsável: `[antigravity]`
-> Último deploy: `dpl_8aVXR6Xvqw5Uzz1Co8e5yHs44WKu` · Estado: **READY** · URL: https://helderlabs.eu
+> Última atualização: 2026-09-07 23:46 (WEST) · Responsável: `[antigravity]`
+> Último deploy: `dpl_Gj814pkj6yLDsFuoCFP8m4aisAc1` · Estado: **READY** · URL: https://helderlabs.eu
 
 ---
 

@@ -435,18 +435,20 @@
   <!-- MODAL DE LOGIN / AUTENTICAÇÃO -->
   <div id="auth-modal" class="modal-overlay">
     <div class="modal-content">
-      <button class="modal-close" id="close-auth-modal" type="button">&times;</button>
-      <h3 style="font-family:var(--font-serif); font-size:1.5rem; margin-bottom:0.5rem; color:var(--ink);">Acesso à Área de Cliente</h3>
-      <p style="font-size:0.88rem; color:var(--ink-2); margin-bottom:1.5rem;">Inicie sessão para aceder ao ambiente de trabalho da sua empresa.</p>
+      <button class="modal-close" id="close-auth-modal" type="button" aria-label="Fechar modal">&times;</button>
+      <h3 style="font-family:var(--font-serif); font-size:1.5rem; margin-bottom:0.5rem; color:var(--ink);" data-i18n="auth.modal_title">Acesso à Área de Cliente</h3>
+      <p style="font-size:0.88rem; color:var(--ink-2); margin-bottom:1.5rem;" data-i18n="auth.modal_subtitle">Inicie sessão para aceder ao ambiente de trabalho da sua empresa.</p>
 
-      <a href="/login.html" class="social-btn" style="background:var(--pen); color:#fff;">
+      <a href="/login.html" class="social-btn" style="background:var(--pen); color:#fff;" data-i18n="auth.modal_email_btn">
         Entrar com Email e Código OTP
       </a>
 
-      <div class="divider"><span>ou login social</span></div>
-
-      <a href="/api/auth/google" class="social-btn">Google Workspace</a>
-      <a href="/api/auth/microsoft" class="social-btn">Microsoft 365</a>
+      <!-- Bloco OAuth gerido dinamicamente por AUTH_OAUTH_ENABLED -->
+      <div id="oauth-block" style="display:none;">
+        <div class="divider"><span data-i18n="auth.modal_or_social">ou login social</span></div>
+        <a href="/api/auth/google" class="social-btn">Google Workspace</a>
+        <a href="/api/auth/microsoft" class="social-btn">Microsoft 365</a>
+      </div>
     </div>
   </div>
 

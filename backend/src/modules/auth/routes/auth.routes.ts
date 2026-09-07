@@ -94,4 +94,16 @@ export async function authRoutes(app: FastifyInstance) {
     const manifest = await entitlementService.resolveForUser(request.user!.sub, request.user!.tenantId);
     return reply.status(200).send(manifest);
   });
+
+  // F1: Guardas 501 Not Implemented para OAuth desativado
+  const handleOAuthNotImplemented = async (_request: any, reply: any) => {
+    return reply.status(501).send({
+      code: 'OAUTH_NOT_IMPLEMENTED',
+      message: 'A autenticação por fornecedor social está temporariamente desativada. Utilize o login por email/OTP ou palavra-passe.'
+    });
+  };
+
+  app.get('/google', handleOAuthNotImplemented);
+  app.get('/microsoft', handleOAuthNotImplemented);
+  app.get('/apple', handleOAuthNotImplemented);
 }

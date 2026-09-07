@@ -28,3 +28,14 @@
   2. Atualizar o plugin Fastify `@fastify/cookie` e descontinuar a leitura de `localStorage.hl_token` na camada de transporte REST API.
 - **Custo Estimado**: 12 horas de engenharia (1.5 dias).
 - **Impacto**: Proteção total da sessão contra exfiltração XSS.
+
+---
+
+### DT-03: Autenticação por Fornecedores Sociais / SSO OAuth (Google Workspace & Microsoft 365)
+- **Descrição**: Integração nativa de botões de Single Sign-On (SSO) com fornecedores OAuth2 (Google Workspace, Microsoft 365 e Apple ID).
+- **Mitigação Atual**: Interruptor de ambiente `AUTH_OAUTH_ENABLED` (por omissão `false`), botões ocultados na interface, e guardas de rota `/api/auth/{google,microsoft,apple}` a responder com `501 Not Implemented`.
+- **Solução Definitiva**:
+  1. Registo de aplicações de cliente no Google Cloud Console e Microsoft Entra ID.
+  2. Implementação de fluxo PKCE/OAuth2 com ecrãs de consentimento, associação a contas de tenant existentes e revogação de tokens.
+- **Custo Estimado**: 8 a 12 horas de engenharia (1 a 1.5 dias).
+- **Impacto**: Permitir autenticação empresarial sem palavra-passe direta.

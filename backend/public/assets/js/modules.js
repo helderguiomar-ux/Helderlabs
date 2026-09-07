@@ -167,8 +167,11 @@ export function renderIncompleteModuleScreen(containerEl, moduleKey, lang = "pt"
   const notifyBtnText = lang === "pt" ? "Avisem-me quando estiver pronto" : "Notify me when ready";
   const backBtnText = lang === "pt" ? "Voltar ao Ambiente de Trabalho" : "Back to Workspace";
 
-  const readyItems = (mod.ready[lang] || []).map(item => `<li>✅ ${item}</li>`).join("");
-  const missingItems = (mod.missing[lang] || []).map(item => `<li>⏳ ${item}</li>`).join("");
+  const checkSvg = `<svg style="width:14px;height:14px;stroke:var(--pen);fill:none;margin-right:6px;vertical-align:middle;" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+  const clockSvg = `<svg style="width:14px;height:14px;stroke:var(--ink-3);fill:none;margin-right:6px;vertical-align:middle;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+
+  const readyItems = (mod.ready[lang] || []).map(item => `<li style="display:flex;align-items:center;">${checkSvg} <span>${item}</span></li>`).join("");
+  const missingItems = (mod.missing[lang] || []).map(item => `<li style="display:flex;align-items:center;">${clockSvg} <span>${item}</span></li>`).join("");
 
   containerEl.innerHTML = `
     <div style="max-width: 680px; margin: 4rem auto; padding: 2.5rem; background: var(--sheet); border: 1px solid var(--rule-2); border-radius: var(--radius-card); font-family: var(--font-sans); color: var(--ink);">

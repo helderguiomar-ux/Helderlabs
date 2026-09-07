@@ -676,41 +676,43 @@
   function route() {
     var hash = window.location.hash || '#/crm';
     var rawKey = hash.replace(/^#\/?/, '').trim();
-    var cleanKey = rawKey === 'finance' ? 'financas' : rawKey;
+    var cleanKey = (rawKey === 'finance' || rawKey === 'financas') ? 'financas' : rawKey;
 
     document.querySelectorAll('.module-view').forEach(e => e.style.display = 'none');
     document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
 
-    const targetModule = MODULES_REGISTRY.find(m => m.key === cleanKey);
-
-    if (targetModule && (targetModule.status === 'em_construcao' || targetModule.status === 'planeado')) {
-      const viewInc = document.getElementById('view-incomplete');
-      if (viewInc) {
-        viewInc.style.display = 'block';
-        renderIncompleteModuleScreen(viewInc, targetModule.key, 'pt');
-      }
+    if (cleanKey === 'financas' || hash.includes('finance') || hash.includes('financas')) {
+      const viewFin = document.getElementById('view-finance');
+      if (viewFin) viewFin.style.display = 'block';
+      const tabFin = document.getElementById('tab-finance') || document.getElementById('tab-financas');
+      if (tabFin) tabFin.classList.add('active');
       const titleEl = document.getElementById('app-title');
-      if (titleEl) titleEl.textContent = 'HelderLabs ERP — ' + targetModule.name.pt;
-      const tabBtn = document.getElementById('tab-' + targetModule.key);
-      if (tabBtn) tabBtn.classList.add('active');
-    } else if (hash.includes('condominios')) {
-      document.getElementById('view-condominios').style.display = 'block';
-      document.getElementById('tab-condominios').classList.add('active');
-      document.getElementById('app-title').textContent = 'HelderLabs ERP — Condomínios';
-      loadCondominios();
-    } else if (hash.includes('finance') || hash.includes('financas')) {
-      document.getElementById('view-finance').style.display = 'block';
-      document.getElementById('tab-finance').classList.add('active');
-      document.getElementById('app-title').textContent = 'HelderLabs ERP — Finanças';
+      if (titleEl) titleEl.textContent = 'HelderLabs ERP — Finanças';
       loadFinancas();
+    } else if (cleanKey === 'condominios' || hash.includes('condominios')) {
+      const viewCond = document.getElementById('view-condominios');
+      if (viewCond) viewCond.style.display = 'block';
+      const tabCond = document.getElementById('tab-condominios');
+      if (tabCond) tabCond.classList.add('active');
+      const titleEl = document.getElementById('app-title');
+      if (titleEl) titleEl.textContent = 'HelderLabs ERP — Condomínios';
+      loadCondominios();
     } else {
-      document.getElementById('view-crm').style.display = 'block';
-      document.getElementById('tab-crm').classList.add('active');
-      document.getElementById('app-title').textContent = 'HelderLabs ERP — CRM';
-      loadCRM();
-    }
-  }
-      loadCRM();
+      const targetModule = MODULES_REGISTRY.find(m => m.key === cleanKey);
+      if (targetModule && (targetModule.status === 'em_construcao' || targetModule.status === 'planeado')) {
+        const viewInc = document.getElementById('view-incomplete');
+        if (viewInc) {
+          viewInc.style.display = 'block';
+          renderIncompleteModuleScreen(viewInc, targetModule.key, 'pt');
+        }
+        const titleEl = document.getElementById('app-title');
+        if (titleEl) titleEl.textContent = 'HelderLabs ERP — ' + targetModule.name.pt;
+      } else {
+        document.getElementById('view-crm').style.display = 'block';
+        document.getElementById('tab-crm').classList.add('active');
+        document.getElementById('app-title').textContent = 'HelderLabs ERP — CRM';
+        loadCRM();
+      }
     }
   }
 

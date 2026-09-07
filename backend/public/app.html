@@ -528,9 +528,31 @@
         </div>
       </div>
 
+      <div class="card" id="financas-pending-card" style="display:none; margin-bottom:20px; border:1px solid rgba(210, 153, 34, 0.4); background:rgba(210, 153, 34, 0.05);">
+        <div style="padding:14px 16px; border-bottom:1px solid rgba(210, 153, 34, 0.2); display:flex; justify-content:space-between; align-items:center;">
+          <strong style="color:var(--warning); display:flex; align-items:center; gap:6px;">⏳ Pedidos de Transação Pendentes de Autorização</strong>
+          <span class="badge-tag badge-warn" id="fin-pending-count-badge">0 Pendentes</span>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Valor (€)</th>
+                <th>Data</th>
+                <th>Ações de Autorização</th>
+              </tr>
+            </thead>
+            <tbody id="financas-pending-tx-body"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card" style="margin-top:16px;">
         <div style="padding:14px 16px; border-bottom:1px solid var(--gridline); display:flex; justify-content:space-between; align-items:center;">
-          <strong style="color:var(--accent);">⚡ Movimentos Recentes</strong>
+          <strong style="color:var(--accent);">⚡ Movimentos Registados</strong>
           <button class="ghost" style="padding:4px 10px; font-size:12px;" onclick="switchFinanceTab('transactions')">Ver Todas as Transações →</button>
         </div>
         <div class="table-responsive">
@@ -578,16 +600,17 @@
             <div class="field">
               <label for="fin-tx-category">Categoria</label>
               <select id="fin-tx-category">
-                <option value="OTHER">Outros</option>
-                <option value="SOFTWARE_SUBSCRIPTIONS">Software & Subscrições</option>
-                <option value="HARDWARE">Hardware & Equipamento</option>
-                <option value="OFFICE_RENT">Rendas & Instalações</option>
+                <option value="PROFESSIONAL_SERVICES">Software & Serviços Profissionais</option>
+                <option value="OFFICE_SUPPLIES">Equipamento & Material de Escritório</option>
+                <option value="RENT">Rendas & Instalações</option>
                 <option value="MARKETING">Marketing & Publicidade</option>
-                <option value="SALARIES">Salários & RH</option>
+                <option value="SALARY">Salários & RH</option>
                 <option value="UTILITIES">Água, Luz & Telecomunicações</option>
                 <option value="TRAVEL">Deslocações & Viagens</option>
-                <option value="CONSULTING">Consultoria & Serviços Externos</option>
+                <option value="MAINTENANCE">Manutenção & Reparações</option>
                 <option value="TAXES">Impostos & Taxas</option>
+                <option value="INSURANCE">Seguros</option>
+                <option value="MISCELLANEOUS">Outros / Geral</option>
               </select>
             </div>
             <div class="field">
@@ -598,7 +621,7 @@
               <label for="fin-tx-status">Estado</label>
               <select id="fin-tx-status">
                 <option value="PAID">Pago / Liquidado</option>
-                <option value="PENDING">Pendente</option>
+                <option value="PENDING">Pendente de Autorização</option>
                 <option value="APPROVED">Aprovado</option>
               </select>
             </div>
@@ -667,16 +690,17 @@
             <div class="field">
               <label for="fin-bgt-category">Categoria</label>
               <select id="fin-bgt-category">
-                <option value="SOFTWARE_SUBSCRIPTIONS">Software & Subscrições</option>
-                <option value="HARDWARE">Hardware & Equipamento</option>
-                <option value="OFFICE_RENT">Rendas & Instalações</option>
+                <option value="PROFESSIONAL_SERVICES">Software & Serviços Profissionais</option>
+                <option value="OFFICE_SUPPLIES">Equipamento & Material de Escritório</option>
+                <option value="RENT">Rendas & Instalações</option>
                 <option value="MARKETING">Marketing & Publicidade</option>
-                <option value="SALARIES">Salários & RH</option>
+                <option value="SALARY">Salários & RH</option>
                 <option value="UTILITIES">Água, Luz & Telecomunicações</option>
                 <option value="TRAVEL">Deslocações & Viagens</option>
-                <option value="CONSULTING">Consultoria & Serviços Externos</option>
+                <option value="MAINTENANCE">Manutenção & Reparações</option>
                 <option value="TAXES">Impostos & Taxas</option>
-                <option value="OTHER">Outros / Geral</option>
+                <option value="INSURANCE">Seguros</option>
+                <option value="MISCELLANEOUS">Outros / Geral</option>
               </select>
             </div>
             <div class="field">
@@ -1376,7 +1400,8 @@
 
       renderFinancasDashboard(dashData);
       renderFinanceCharts(dashData.monthlyTrend, dashData.categoryBreakdown);
-      renderRecentTransactions(dashData.recentTransactions || txData.slice(0, 5));
+      renderPendingTransactions(txData);
+      renderRecentTransactions(dashData.recentTransactions || txData.slice(0, 10));
       renderFinanceTransactions(txData);
       renderFinanceBudgets(bgtData);
       renderFinanceReconciliations(reconData);
@@ -1501,6 +1526,44 @@
     }
   }
 
+  function renderPendingTransactions(list) {
+    var card = document.getElementById('financas-pending-card');
+    var tbody = document.getElementById('financas-pending-tx-body');
+    var badge = document.getElementById('fin-pending-count-badge');
+    if (!card || !tbody) return;
+
+    var pending = (list || []).filter(t => t.status === 'PENDING');
+    if (badge) badge.textContent = `${pending.length} Pendentes`;
+
+    if (pending.length === 0) {
+      card.style.display = 'none';
+      tbody.innerHTML = '';
+      return;
+    }
+
+    card.style.display = 'block';
+    tbody.innerHTML = pending.map(function(t) {
+      var isRev = t.type === 'REVENUE' || t.kind === 'INCOME';
+      var val = t.amount !== undefined ? t.amount : ((t.amountCents || 0) / 100);
+      var dt = t.date || t.dueDate || new Date().toISOString();
+      return `
+        <tr>
+          <td><strong>${t.description}</strong></td>
+          <td><span class="badge-tag ${isRev ? 'badge-good' : 'badge-danger'}">${isRev ? 'Receita' : 'Despesa'}</span></td>
+          <td>${t.category ? (t.category.name || t.category) : '—'}</td>
+          <td><strong>${currencyFormatter.format(val)}</strong></td>
+          <td>${new Date(dt).toLocaleDateString('pt-PT')}</td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="primary" style="padding:4px 10px; font-size:12px;" onclick="updateFinanceTxStatus('${t.id}', 'APPROVED')">✅ Autorizar / Aprovar</button>
+              <button class="ghost" style="padding:4px 10px; font-size:12px; color:var(--critical);" onclick="updateFinanceTxStatus('${t.id}', 'REJECTED')">❌ Rejeitar</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
   function renderRecentTransactions(list) {
     var tbody = document.getElementById('financas-recent-tx-body');
     if (!tbody) return;
@@ -1508,10 +1571,13 @@
       tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Sem movimentos recentes.</td></tr>';
       return;
     }
-    tbody.innerHTML = list.slice(0, 5).map(function(t) {
+    tbody.innerHTML = list.slice(0, 10).map(function(t) {
       var isRev = t.type === 'REVENUE' || t.kind === 'INCOME';
       var val = t.amount !== undefined ? t.amount : ((t.amountCents || 0) / 100);
       var dt = t.date || t.dueDate || new Date().toISOString();
+      var isPending = t.status === 'PENDING';
+      var isPaid = t.status === 'PAID' || t.status === 'RECONCILED';
+      var badgeClass = isPaid ? 'badge-good' : (isPending ? 'badge-warn' : 'badge-neutral');
       return `
         <tr>
           <td><strong>${t.description || '—'}</strong></td>
@@ -1519,7 +1585,7 @@
           <td>${t.category ? (t.category.name || t.category) : '—'}</td>
           <td><strong style="color:${isRev ? 'var(--good)' : 'var(--critical)'};">${currencyFormatter.format(val)}</strong></td>
           <td>${new Date(dt).toLocaleDateString('pt-PT')}</td>
-          <td><span class="badge-tag badge-neutral">${t.status || 'PAID'}</span></td>
+          <td><span class="badge-tag ${badgeClass}">${t.status || 'PAID'}</span></td>
         </tr>
       `;
     }).join('');

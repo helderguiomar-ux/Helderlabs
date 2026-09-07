@@ -14,12 +14,14 @@ export class FinanceDashboardController {
     const last12Months = new Date();
     last12Months.setMonth(last12Months.getMonth() - 12);
 
-    // Resumo geral
+    // Resumo geral (considera todas as transações exceto REJECTED)
+    const validStatuses: any = { not: 'REJECTED' };
+
     const revenues = await prisma.financialTransaction.aggregate({
       where: {
         tenantId,
         type: 'REVENUE',
-        status: 'APPROVED',
+        status: validStatuses,
         date: { gte: last12Months }
       },
       _sum: { amount: true }
@@ -29,15 +31,16 @@ export class FinanceDashboardController {
       where: {
         tenantId,
         type: 'EXPENSE',
-        status: 'APPROVED',
+        status: validStatuses,
         date: { gte: last12Months }
       },
       _sum: { amount: true }
     });
 
-    const totalRevenue = revenues._sum?.amount || 0;
-    const totalExpense = expenses._sum?.amount || 0;
-    const profit = totalRevenue - totalExpense;
+    const totalRevenue = Number((revenues._sum?.amount || 0).toFixed(2));
+    const totalExpense = Number((expenses._sum?.amount || 0).toFixed(2));
+    const profit = Number((totalRevenue - totalExpense).toFixed(2));
+    const margin = totalRevenue > 0 ? Number(((profit / totalRevenue) * 100).toFixed(1)) : 0;
 
     // Gráfico de Receitas vs Despesas (últimos 12 meses)
     const monthlyData = [];
@@ -54,7 +57,7 @@ export class FinanceDashboardController {
         where: {
           tenantId,
           type: 'REVENUE',
-          status: 'APPROVED',
+          status: validStatuses,
           date: { gte: monthStart, lte: monthEnd }
         },
         _sum: { amount: true }
@@ -64,16 +67,21 @@ export class FinanceDashboardController {
         where: {
           tenantId,
           type: 'EXPENSE',
-          status: 'APPROVED',
+          status: validStatuses,
           date: { gte: monthStart, lte: monthEnd }
         },
         _sum: { amount: true }
       });
 
+      const mRev = Number((monthRevenues._sum?.amount || 0).toFixed(2));
+      const mExp = Number((monthExpenses._sum?.amount || 0).toFixed(2));
+      const monthLabel = `${year}-${String(month + 1).padStart(2, '0')}`;
+
       monthlyData.push({
-        month: date.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' }),
-        revenue: monthRevenues._sum?.amount || 0,
-        expense: monthExpenses._sum?.amount || 0
+        month: monthLabel,
+        revenue: mRev,
+        expense: mExp,
+        expenses: mExp
       });
     }
 
@@ -83,7 +91,7 @@ export class FinanceDashboardController {
       where: {
         tenantId,
         type: 'EXPENSE',
-        status: 'APPROVED',
+        status: validStatuses,
         date: { gte: last12Months }
       },
       _sum: { amount: true }
@@ -92,18 +100,15 @@ export class FinanceDashboardController {
     const categoryData = expensesByCategory
       .filter(c => c.category !== null)
       .map(c => ({
-        category: c.category,
-        amount: c._sum?.amount || 0
+        category: c.category || 'Geral',
+        amount: Number((c._sum?.amount || 0).toFixed(2))
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    // Transações pendentes
-    const pendingTransactions = await prisma.financialTransaction.findMany({
-      where: {
-        tenantId,
-        status: 'PENDING'
-      },
-      take: 5,
+    // Transações recentes
+    const recentTransactions = await prisma.financialTransaction.findMany({
+      where: { tenantId },
+      take: 10,
       orderBy: { date: 'desc' }
     });
 
@@ -119,7 +124,7 @@ export class FinanceDashboardController {
         where: {
           tenantId,
           type: 'EXPENSE',
-          status: 'APPROVED',
+          status: validStatuses,
           date: { gte: budget.startDate, lte: budget.endDate }
         },
         _sum: { amount: true }
@@ -138,33 +143,44 @@ export class FinanceDashboardController {
       }
     }
 
+    const payload = {
+      kpis: {
+        totalRevenue,
+        totalExpenses: totalExpense,
+        netIncome: profit,
+        netMarginPercent: margin,
+        availableBalance: profit,
+        budgetAlertsCount: budgetAlerts.length
+      },
+      summary: {
+        totalRevenue,
+        totalExpense,
+        totalExpenses: totalExpense,
+        profit,
+        netIncome: profit,
+        profitMargin: `${margin}%`,
+        currency: 'EUR'
+      },
+      monthlyTrend: monthlyData,
+      categoryBreakdown: categoryData,
+      recentTransactions: recentTransactions.map(t => ({
+        id: t.id,
+        description: t.description,
+        amount: t.amount,
+        type: t.type,
+        category: t.category,
+        date: t.date,
+        dueDate: t.dueDate,
+        status: t.status
+      })),
+      budgetAlerts
+    };
+
     return reply.send({
       success: true,
-      dashboard: {
-        summary: {
-          totalRevenue,
-          totalExpense,
-          profit,
-          profitMargin: totalRevenue > 0 ? `${((profit / totalRevenue) * 100).toFixed(2)}%` : '0%',
-          currency: 'EUR'
-        },
-        charts: {
-          monthlyTrend: monthlyData,
-          expenseDistribution: categoryData
-        },
-        alerts: {
-          budgetAlerts,
-          pendingTransactionsCount: pendingTransactions.length
-        },
-        recentTransactions: pendingTransactions.map(t => ({
-          id: t.id,
-          description: t.description,
-          amount: t.amount,
-          type: t.type,
-          dueDate: t.dueDate,
-          status: t.status
-        }))
-      }
+      data: payload,
+      dashboard: payload,
+      ...payload
     });
   }
 

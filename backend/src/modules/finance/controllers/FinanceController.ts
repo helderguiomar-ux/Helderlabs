@@ -3,6 +3,35 @@ import { prisma } from '../../../database/prisma/client';
 import { forTenant } from '../../../database/prisma/tenantScopedClient';
 import { CreateTransactionSchema, UpdateTransactionSchema } from '../middleware/financialValidation.middleware';
 
+function sanitizeExpenseCategory(cat?: string | null): any {
+  if (!cat) return null;
+  const upper = String(cat).trim().toUpperCase();
+  const valid = [
+    'SALARY', 'RENT', 'UTILITIES', 'OFFICE_SUPPLIES', 'TRAVEL',
+    'PROFESSIONAL_SERVICES', 'MAINTENANCE', 'MARKETING', 'INSURANCE',
+    'TAXES', 'DEPRECIATION', 'INTEREST', 'MISCELLANEOUS'
+  ];
+  if (valid.includes(upper)) return upper;
+  if (upper.includes('SALAR') || upper.includes('RH')) return 'SALARY';
+  if (upper.includes('RENT') || upper.includes('RENDA') || upper.includes('ESCRIT')) return 'RENT';
+  if (upper.includes('UTIL') || upper.includes('AGUA') || upper.includes('LUZ') || upper.includes('TEL')) return 'UTILITIES';
+  if (upper.includes('SUPPL') || upper.includes('OFFICE') || upper.includes('HARDWARE')) return 'OFFICE_SUPPLIES';
+  if (upper.includes('TRAVEL') || upper.includes('VIAGEM') || upper.includes('DESLOC')) return 'TRAVEL';
+  if (upper.includes('PROFESSIONAL') || upper.includes('SOFT') || upper.includes('CONSULT')) return 'PROFESSIONAL_SERVICES';
+  if (upper.includes('MAINT') || upper.includes('MANUT')) return 'MAINTENANCE';
+  if (upper.includes('MARKET') || upper.includes('PUB')) return 'MARKETING';
+  if (upper.includes('INSUR') || upper.includes('SEGUR')) return 'INSURANCE';
+  if (upper.includes('TAX') || upper.includes('IMP')) return 'TAXES';
+  return 'MISCELLANEOUS';
+}
+
+function sanitizeStatus(status?: string | null): any {
+  if (!status) return 'PAID';
+  const upper = String(status).trim().toUpperCase();
+  const valid = ['PENDING', 'APPROVED', 'REJECTED', 'RECONCILED', 'PLANNED', 'PAID'];
+  return valid.includes(upper) ? upper : 'PAID';
+}
+
 export class FinanceController {
   /**
    * GET /api/finance/transactions
@@ -11,12 +40,12 @@ export class FinanceController {
   static async listTransactions(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
     const tenantId = user?.tenantId;
-    const { type, status, category, startDate, endDate, limit = 50, offset = 0 } = req.query as any;
+    const { type, status, category, startDate, endDate, limit = 100, offset = 0 } = req.query as any;
 
     const where: any = { tenantId };
     if (type) where.type = type;
     if (status) where.status = status;
-    if (category) where.category = category;
+    if (category) where.category = sanitizeExpenseCategory(category);
     if (startDate || endDate) {
       where.date = {};
       if (startDate) where.date.gte = new Date(startDate);
@@ -32,29 +61,31 @@ export class FinanceController {
     });
 
     const total = await prisma.financialTransaction.count({ where });
+    const formatted = transactions.map(t => ({
+      id: t.id,
+      type: t.type,
+      status: t.status,
+      description: t.description,
+      amount: t.amount,
+      currency: t.currency,
+      date: t.date,
+      dueDate: t.dueDate,
+      category: t.category,
+      supplier: t.supplier,
+      customer: t.customer,
+      invoiceNumber: t.invoiceNumber,
+      costCenter: t.costCenter,
+      notes: t.notes,
+      approvedAt: t.approvedAt,
+      approvedBy: t.approvedBy,
+      reconciliationStatus: t.reconciliationStatus,
+      attachments: t.attachments ? t.attachments.length : 0
+    }));
 
     return reply.send({
       success: true,
-      transactions: transactions.map(t => ({
-        id: t.id,
-        type: t.type,
-        status: t.status,
-        description: t.description,
-        amount: t.amount,
-        currency: t.currency,
-        date: t.date,
-        dueDate: t.dueDate,
-        category: t.category,
-        supplier: t.supplier,
-        customer: t.customer,
-        invoiceNumber: t.invoiceNumber,
-        costCenter: t.costCenter,
-        notes: t.notes,
-        approvedAt: t.approvedAt,
-        approvedBy: t.approvedBy,
-        reconciliationStatus: t.reconciliationStatus,
-        attachments: t.attachments ? t.attachments.length : 0
-      })),
+      data: formatted,
+      transactions: formatted,
       pagination: { limit: parseInt(String(limit), 10), offset: parseInt(String(offset), 10), total }
     });
   }
@@ -68,17 +99,20 @@ export class FinanceController {
     const tenantId = user?.tenantId;
     const body = CreateTransactionSchema.parse(req.body);
 
+    const txDate = body.date ? new Date(body.date) : new Date();
+    const finalDate = isNaN(txDate.getTime()) ? new Date() : txDate;
+
     const transaction = await prisma.financialTransaction.create({
       data: {
         tenantId,
         type: body.type as any,
-        status: 'PENDING',
+        status: sanitizeStatus(body.status),
         description: body.description,
         amount: body.amount,
-        currency: body.currency,
-        date: new Date(body.date),
+        currency: body.currency || 'EUR',
+        date: finalDate,
         dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
-        category: body.category as any,
+        category: sanitizeExpenseCategory(body.category),
         supplier: body.supplier || undefined,
         customer: body.customer || undefined,
         invoiceNumber: body.invoiceNumber || undefined,
@@ -90,6 +124,7 @@ export class FinanceController {
 
     return reply.status(201).send({
       success: true,
+      data: transaction,
       transaction
     });
   }
@@ -115,7 +150,7 @@ export class FinanceController {
       });
     }
 
-    return reply.send({ success: true, transaction });
+    return reply.send({ success: true, data: transaction, transaction });
   }
 
   /**
@@ -137,12 +172,13 @@ export class FinanceController {
       where: { id },
       data: {
         ...(body.type && { type: body.type as any }),
+        ...(body.status && { status: sanitizeStatus(body.status) }),
         ...(body.description && { description: body.description }),
         ...(body.amount !== undefined && { amount: body.amount }),
         ...(body.currency && { currency: body.currency }),
         ...(body.date && { date: new Date(body.date) }),
         ...(body.dueDate !== undefined && { dueDate: body.dueDate ? new Date(body.dueDate) : null }),
-        ...(body.category !== undefined && { category: body.category as any }),
+        ...(body.category !== undefined && { category: sanitizeExpenseCategory(body.category) }),
         ...(body.supplier !== undefined && { supplier: body.supplier }),
         ...(body.customer !== undefined && { customer: body.customer }),
         ...(body.invoiceNumber !== undefined && { invoiceNumber: body.invoiceNumber }),
@@ -151,7 +187,34 @@ export class FinanceController {
       }
     });
 
-    return reply.send({ success: true, transaction });
+    return reply.send({ success: true, data: transaction, transaction });
+  }
+
+  /**
+   * PATCH /api/finance/transactions/:id/status
+   * Atualizar estado da transação
+   */
+  static async updateStatus(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const tenantId = user?.tenantId;
+    const { id } = req.params as any;
+    const { status } = (req.body as any) || {};
+
+    const existing = await prisma.financialTransaction.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      return reply.status(404).send({ error: 'TRANSACTION_NOT_FOUND', message: 'Transação não encontrada' });
+    }
+
+    const nextStatus = sanitizeStatus(status);
+    const transaction = await prisma.financialTransaction.update({
+      where: { id },
+      data: {
+        status: nextStatus,
+        ...(nextStatus === 'APPROVED' && { approvedBy: user?.sub, approvedAt: new Date() })
+      }
+    });
+
+    return reply.send({ success: true, data: transaction, transaction });
   }
 
   /**
@@ -177,12 +240,12 @@ export class FinanceController {
       }
     });
 
-    return reply.send({ success: true, transaction });
+    return reply.send({ success: true, data: transaction, transaction });
   }
 
   /**
    * DELETE /api/finance/transactions/:id
-   * Eliminar transação (apenas PENDING)
+   * Eliminar transação
    */
   static async deleteTransaction(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
@@ -195,13 +258,6 @@ export class FinanceController {
 
     if (!transaction) {
       return reply.status(404).send({ error: 'TRANSACTION_NOT_FOUND', message: 'Transação não encontrada' });
-    }
-
-    if (transaction.status !== 'PENDING') {
-      return reply.status(400).send({
-        error: 'CANNOT_DELETE',
-        message: 'Apenas transações pendentes podem ser eliminadas'
-      });
     }
 
     await prisma.financialTransaction.delete({ where: { id } });

@@ -9,6 +9,7 @@ export async function financeRoutes(app: FastifyInstance) {
   app.post('/', FinanceController.createTransaction);
   app.get('/:id', FinanceController.getTransaction);
   app.patch('/:id', FinanceController.updateTransaction);
+  app.patch('/:id/status', FinanceController.updateStatus);
   app.delete('/:id', FinanceController.deleteTransaction);
   app.post('/:id/approve', FinanceController.approveTransaction);
 

@@ -2,6 +2,28 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import { CreateBudgetSchema } from '../middleware/financialValidation.middleware';
 
+function sanitizeExpenseCategory(cat?: string | null): any {
+  if (!cat) return 'MISCELLANEOUS';
+  const upper = String(cat).trim().toUpperCase();
+  const valid = [
+    'SALARY', 'RENT', 'UTILITIES', 'OFFICE_SUPPLIES', 'TRAVEL',
+    'PROFESSIONAL_SERVICES', 'MAINTENANCE', 'MARKETING', 'INSURANCE',
+    'TAXES', 'DEPRECIATION', 'INTEREST', 'MISCELLANEOUS'
+  ];
+  if (valid.includes(upper)) return upper;
+  if (upper.includes('SALAR') || upper.includes('RH')) return 'SALARY';
+  if (upper.includes('RENT') || upper.includes('RENDA') || upper.includes('ESCRIT')) return 'RENT';
+  if (upper.includes('UTIL') || upper.includes('AGUA') || upper.includes('LUZ') || upper.includes('TEL')) return 'UTILITIES';
+  if (upper.includes('SUPPL') || upper.includes('OFFICE') || upper.includes('HARDWARE')) return 'OFFICE_SUPPLIES';
+  if (upper.includes('TRAVEL') || upper.includes('VIAGEM') || upper.includes('DESLOC')) return 'TRAVEL';
+  if (upper.includes('PROFESSIONAL') || upper.includes('SOFT') || upper.includes('CONSULT')) return 'PROFESSIONAL_SERVICES';
+  if (upper.includes('MAINT') || upper.includes('MANUT')) return 'MAINTENANCE';
+  if (upper.includes('MARKET') || upper.includes('PUB')) return 'MARKETING';
+  if (upper.includes('INSUR') || upper.includes('SEGUR')) return 'INSURANCE';
+  if (upper.includes('TAX') || upper.includes('IMP')) return 'TAXES';
+  return 'MISCELLANEOUS';
+}
+
 export class BudgetController {
   /**
    * GET /api/finance/budgets
@@ -22,9 +44,22 @@ export class BudgetController {
       orderBy: { createdAt: 'desc' }
     });
 
-    return reply.send({
-      success: true,
-      budgets: budgets.map(b => ({
+    const formatted = await Promise.all(budgets.map(async b => {
+      const actual = await prisma.financialTransaction.aggregate({
+        where: {
+          tenantId,
+          type: 'EXPENSE',
+          status: { not: 'REJECTED' },
+          date: { gte: b.startDate, lte: b.endDate }
+        },
+        _sum: { amount: true }
+      });
+
+      const totalBudgeted = b.budgetItems.reduce((sum, item) => sum + item.budgetAmount, 0) || 0;
+      const spent = actual._sum?.amount || 0;
+      const primaryCategory = b.budgetItems[0]?.category || 'Geral';
+
+      return {
         id: b.id,
         name: b.name,
         description: b.description,
@@ -34,12 +69,22 @@ export class BudgetController {
         startDate: b.startDate,
         endDate: b.endDate,
         alertThreshold: b.alertThreshold,
-        period: b.month ? `${b.year}-${String(b.month).padStart(2, '0')}` : b.year.toString(),
-        totalBudgeted: b.budgetItems.reduce((sum, item) => sum + item.budgetAmount, 0),
+        category: primaryCategory,
+        allocatedAmount: totalBudgeted,
+        spentAmount: spent,
+        totalBudgeted,
+        totalActual: spent,
+        period: b.month ? `${b.year}-${String(b.month).padStart(2, '0')}` : (b.year ? b.year.toString() : 'MENSAL'),
         itemsCount: b.budgetItems.length,
         items: b.budgetItems,
         approvedAt: b.approvedAt
-      }))
+      };
+    }));
+
+    return reply.send({
+      success: true,
+      data: formatted,
+      budgets: formatted
     });
   }
 
@@ -52,20 +97,38 @@ export class BudgetController {
     const tenantId = user?.tenantId;
     const body = CreateBudgetSchema.parse(req.body);
 
+    const sDate = new Date(body.startDate);
+    const eDate = new Date(body.endDate);
+    const yr = body.year || sDate.getFullYear();
+
+    let items = body.budgetItems || [];
+    if (items.length === 0 && body.allocatedAmount) {
+      items = [{
+        category: sanitizeExpenseCategory(body.category),
+        budgetAmount: body.allocatedAmount
+      }];
+    }
+    if (items.length === 0) {
+      items = [{
+        category: 'MISCELLANEOUS',
+        budgetAmount: 1000
+      }];
+    }
+
     const budget = await prisma.budget.create({
       data: {
         tenantId,
         name: body.name,
         description: body.description || undefined,
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
-        year: body.year,
+        startDate: isNaN(sDate.getTime()) ? new Date() : sDate,
+        endDate: isNaN(eDate.getTime()) ? new Date() : eDate,
+        year: yr,
         month: body.month || undefined,
-        status: 'DRAFT',
-        alertThreshold: body.alertThreshold,
+        status: 'ACTIVE',
+        alertThreshold: body.alertThreshold || 90,
         budgetItems: {
-          create: body.budgetItems.map(item => ({
-            category: item.category as any,
+          create: items.map(item => ({
+            category: sanitizeExpenseCategory(item.category),
             budgetAmount: item.budgetAmount
           }))
         }
@@ -75,6 +138,7 @@ export class BudgetController {
 
     return reply.status(201).send({
       success: true,
+      data: budget,
       budget
     });
   }

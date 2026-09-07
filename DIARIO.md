@@ -42,3 +42,21 @@ Resolver o bloqueio de login em produção, estabilizar a persistência de sess�
    - Reordenado: `financas` e `condominios` verificados PRIMEIRO, antes do registry.
    - Removido código orphaned `loadCRM(); } }`.
    - Build local OK. Deploy `dpl_3wtMNn8iPbNJYGwwWfw61fWhPkzs` → `https://helderlabs.eu` · READY · 21:42 WEST.
+
+8. **Correção Critical — modules.js compilado pelo Vercel para CJS**:
+   - Vercel compilava `modules.js` (ESM: `export const`) para CJS durante deploy. Browser tentava importar como ES Module → importação falhava silenciosamente → `route()` nunca corria → `view-finance` ficava `display:none` → página em branco.
+   - Convertido `modules.js` para globals `window.MODULES_REGISTRY` e `window.renderIncompleteModuleScreen`.
+   - `app.html` e `index.html` actualizados para usar `<script src="...">` em vez de `import`.
+   - Deploy `dpl_GTxeAGX2CKxw2gVJkuACiytVRDe6` · READY · 21:58 WEST.
+
+9. **Correção Critical — IIFE órfão em app.html**:
+   - Ao substituir `<script type="module">` por `<script>`, o `})();` do IIFE original ficou sem o `(function() {` correspondente → SyntaxError fatal → todo o JS parava → página em branco.
+   - Removido `})();` órfão da linha 1238.
+   - Deploy `dpl_4Ht1MyWGY9xvqbEodnk774gGvBzn` · READY · 22:09 WEST.
+
+10. **Landing page — Botão "Entrar" e botões separados**:
+    - Separados dois botões: `auth-area-btn` (com sessão → workspace) e `open-auth-modal` (sem sessão → login.html directo).
+    - Modal actualizado: texto "Entrar com Email e Palavra-passe".
+    - Login Enter key: corrigido para chamar `loginWithPassword()` directamente.
+    - Logout: redireciona para `/` (landing) em vez de `/login.html`.
+

@@ -1,11 +1,11 @@
-import type { PrismaClient } from '@prisma/client';
+import type { TenantScopedPrismaClient } from '../../../database/prisma/tenantScopedClient';
 import { EnterpriseCRMService } from '../services/EnterpriseCRMService';
 
 // O contexto é sempre derivado de request.user/request.db (preenchidos pelo
 // hook app.authenticate) — nunca de query/body. Ver crm.routes.ts.
 export interface CRMRequestContext {
   tenantId: string;
-  db: PrismaClient;
+  db: TenantScopedPrismaClient;
 }
 
 function serviceFor(context: CRMRequestContext) {

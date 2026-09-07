@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { AppError } from '../../../utils/errors';
 import bcrypt from 'bcrypt';
 import { signAuthToken } from '../../../plugins/authenticate';

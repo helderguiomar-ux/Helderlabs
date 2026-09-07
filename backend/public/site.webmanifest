@@ -1,0 +1,16 @@
+{
+  "name": "HELDERLABS ERP",
+  "short_name": "HELDERLABS",
+  "description": "Informatizar não é coisa de empresa grande. HELDERLABS ajuda empresas pequenas a organizar o trabalho repetido.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e9ece7",
+  "theme_color": "#17408b",
+  "icons": [
+    {
+      "src": "/assets/icons/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /app.html
+Disallow: /workspace.html
+Disallow: /super-admin.html
+Disallow: /login.html
+Disallow: /api/
+
+Sitemap: https://helderlabs.eu/sitemap.xml

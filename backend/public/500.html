@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>500 — Erro Interno do Servidor | HELDERLABS ERP</title>
+  <link rel="stylesheet" href="/assets/css/design-system/tokens.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <style>
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0; padding: 2rem; box-sizing: border-box;
+    }
+    .error-card {
+      background: var(--sheet);
+      border: 1px solid var(--rule-2);
+      border-radius: var(--radius-card);
+      padding: 3rem; max-width: 500px; text-align: center;
+      box-shadow: var(--shadow-elevation);
+    }
+    .error-code { font-family: var(--font-mono); font-size: 3.5rem; font-weight: 700; color: var(--red); margin: 0; }
+    .error-title { font-family: var(--font-serif); font-size: 1.75rem; margin: 0.5rem 0 1rem; color: var(--ink); }
+    .error-desc { color: var(--ink-2); font-size: 0.95rem; margin-bottom: 2rem; line-height: 1.6; }
+    .btn-home {
+      display: inline-block; padding: 0.75rem 1.5rem; background: var(--pen); color: #fff;
+      text-decoration: none; border-radius: var(--radius-btn); font-weight: 600; font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="error-card">
+    <div class="error-code">500</div>
+    <h1 class="error-title">Ocorreu um Erro no Servidor</h1>
+    <p class="error-desc">Pedimos desculpa pelo incómodo. O incidente foi registado com registo de auditoria para resolução imediata pela equipa técnica.</p>
+    <a href="/" class="btn-home">← Voltar à Página Principal</a>
+  </div>
+</body>
+</html>

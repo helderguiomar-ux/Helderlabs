@@ -1,11 +1,11 @@
-import type { PrismaClient } from '@prisma/client';
+import type { TenantScopedPrismaClient } from '../../../database/prisma/tenantScopedClient';
 import { EnterpriseCondominiosService } from '../services/EnterpriseCondominiosService';
 
 // O contexto é sempre derivado de request.user/request.db (preenchidos pelo
 // hook app.authenticate) — nunca de query/body. Ver condominios.routes.ts.
 export interface CondominiosRequestContext {
   tenantId: string;
-  db: PrismaClient;
+  db: TenantScopedPrismaClient;
 }
 
 function serviceFor(context: CondominiosRequestContext) {

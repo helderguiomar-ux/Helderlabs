@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { TenantScopedPrismaClient } from '../../../database/prisma/tenantScopedClient';
 import { prisma as defaultPrismaClient } from '../../../database/prisma/client';
 
 export class EnterpriseCRMService {
@@ -12,7 +12,7 @@ export class EnterpriseCRMService {
   // profundidade), não a única.
   constructor(
     private readonly tenantId: string,
-    private readonly db: PrismaClient = defaultPrismaClient
+    private readonly db: TenantScopedPrismaClient | any = defaultPrismaClient
   ) {}
 
   /**
@@ -187,20 +187,20 @@ export class EnterpriseCRMService {
     ]);
 
     const pipelineValue = opportunities
-      .filter(o => o.stage !== 'LOST')
-      .reduce((sum, o) => sum + o.estimatedValue, 0);
+      .filter((o: any) => o.stage !== 'LOST')
+      .reduce((sum: number, o: any) => sum + o.estimatedValue, 0);
 
     const expectedRevenue = opportunities
-      .filter(o => o.stage !== 'LOST')
-      .reduce((sum, o) => sum + (o.estimatedValue * (o.probability / 100)), 0);
+      .filter((o: any) => o.stage !== 'LOST')
+      .reduce((sum: number, o: any) => sum + (o.estimatedValue * (o.probability / 100)), 0);
 
     const totalOpps = opportunities.length;
-    const wonOpps = opportunities.filter(o => o.stage === 'WON').length;
+    const wonOpps = opportunities.filter((o: any) => o.stage === 'WON').length;
     const conversionRate = totalOpps > 0 ? ((wonOpps / totalOpps) * 100).toFixed(1) + '%' : '0%';
 
     // Agrupamento por Origem
     const leadsBySource: Record<string, number> = {};
-    leads.forEach(l => {
+    leads.forEach((l: any) => {
       leadsBySource[l.source] = (leadsBySource[l.source] || 0) + 1;
     });
 
@@ -208,7 +208,7 @@ export class EnterpriseCRMService {
       pipelineValue,
       expectedRevenue,
       totalLeads: leads.length,
-      activeOpportunities: opportunities.filter(o => o.stage !== 'WON' && o.stage !== 'LOST').length,
+      activeOpportunities: opportunities.filter((o: any) => o.stage !== 'WON' && o.stage !== 'LOST').length,
       activeCustomers: customers.length,
       conversionRate,
       leadsBySource

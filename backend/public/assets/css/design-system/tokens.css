@@ -1,0 +1,171 @@
+/* UNIFIED DESIGN SYSTEM TOKENS — HELDERLABS ERP (PALETA CADERNO DE ENGENHARIA) */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=Caveat:wght@600&family=IBM+Plex+Mono:wght@400;500&family=Spectral:wght@500;600&display=swap');
+
+:root {
+  /* Design Tokens — Claro */
+  --paper: #e9ece7;     /* Fundo principal com grelha */
+  --sheet: #f7f8f5;     /* Superfície de folha/cartão */
+  --sheet-2: #eef0eb;   /* Superfície recuada */
+  --ink: #191e1b;       /* Texto principal */
+  --ink-2: #4e5a54;     /* Texto secundário */
+  --ink-3: #7c887f;     /* Etiquetas e texto de apoio */
+  --rule: #d3d9d2;      /* Divisória subtil */
+  --rule-2: #bcc4bb;    /* Divisória/Contorno forte */
+  --pen: #17408b;       /* Esferográfica azul (acento primário) */
+  --red: #a32b1c;       /* Caneta de correção vermelha */
+
+  /* Cores de Estado */
+  --state-success-text: #065f46;
+  --state-success-bg: #d1fae5;
+  --state-warning-text: #92400e;
+  --state-warning-bg: #fef3c7;
+  --state-error-text: #991b1b;
+  --state-error-bg: #fee2e2;
+
+  /* Fontes */
+  --font-serif: 'Spectral', Georgia, serif;
+  --font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-handwriting: 'Caveat', cursive;
+
+  /* Regras de Forma */
+  --radius-card: 2px;
+  --radius-btn: 2px;
+  --shadow-rest: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-elevation: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+  /* Aliases para retrocompatibilidade */
+  --color-bg-primary: var(--paper);
+  --color-bg-secondary: var(--sheet);
+  --color-bg-tertiary: var(--sheet-2);
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-muted: var(--ink-3);
+  --color-border-subtle: var(--rule);
+  --color-border-strong: var(--rule-2);
+  --color-accent-indigo: var(--pen);
+  --color-accent-hover: #12326e;
+  --color-accent-emerald: #10b981;
+  --color-accent-cyan: #06b6d4;
+  --color-card-bg: var(--sheet);
+  --color-card-shadow: var(--shadow-rest);
+
+  --bg-primary: var(--color-bg-primary);
+  --bg-secondary: var(--color-bg-secondary);
+  --bg-tertiary: var(--color-bg-tertiary);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --border-subtle: var(--color-border-subtle);
+  --border-strong: var(--color-border-strong);
+  --accent-indigo: var(--color-accent-indigo);
+  --accent-indigo-hover: var(--color-accent-hover);
+  --accent-emerald: var(--color-accent-emerald);
+  --accent-cyan: var(--color-accent-cyan);
+  /* Aliases adicionais para workspace.html, app.html e super-admin.html */
+  --page-bg: var(--paper);
+  --page-plane: var(--paper);
+  --surface-1: var(--sheet);
+  --card-bg: var(--sheet);
+  --border-color: var(--rule);
+  --primary-color: var(--pen);
+  --accent-color: var(--pen);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111517;
+    --sheet: #191e21;
+    --sheet-2: #1f2528;
+    --ink: #e9ede9;
+    --ink-2: #a3aeaa;
+    --ink-3: #77837e;
+    --rule: #2b3235;
+    --rule-2: #3b4448;
+    --pen: #84aef2;
+    --red: #e08a7c;
+
+    --color-bg-primary: var(--paper);
+    --color-bg-secondary: var(--sheet);
+    --color-bg-tertiary: var(--sheet-2);
+    --color-text-primary: var(--ink);
+    --color-text-secondary: var(--ink-2);
+    --color-text-muted: var(--ink-3);
+    --color-border-subtle: var(--rule);
+    --color-border-strong: var(--rule-2);
+    --color-accent-indigo: var(--pen);
+    --color-accent-hover: #a3c4f7;
+    --color-card-bg: var(--sheet);
+    --color-card-shadow: var(--shadow-elevation);
+
+    --bg-primary: var(--color-bg-primary);
+    --bg-secondary: var(--color-bg-secondary);
+    --bg-tertiary: var(--color-bg-tertiary);
+    --text-primary: var(--color-text-primary);
+    --text-secondary: var(--color-text-secondary);
+    --text-muted: var(--color-text-muted);
+    --border-subtle: var(--color-border-subtle);
+    --border-strong: var(--color-border-strong);
+    --accent-indigo: var(--color-accent-indigo);
+    --accent-indigo-hover: var(--color-accent-hover);
+    --header-bg: rgba(17, 21, 23, 0.92);
+    --hero-badge-bg: var(--sheet-2);
+    --hero-badge-text: var(--pen);
+    --card-bg: var(--color-card-bg);
+    --card-shadow: var(--color-card-shadow);
+    --page-bg: var(--paper);
+    --page-plane: var(--paper);
+    --surface-1: var(--sheet);
+    --border-color: var(--rule);
+    --primary-color: var(--pen);
+    --accent-color: var(--pen);
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #111517;
+  --sheet: #191e21;
+  --sheet-2: #1f2528;
+  --ink: #e9ede9;
+  --ink-2: #a3aeaa;
+  --ink-3: #77837e;
+  --rule: #2b3235;
+  --rule-2: #3b4448;
+  --pen: #84aef2;
+  --red: #e08a7c;
+
+  --color-bg-primary: var(--paper);
+  --color-bg-secondary: var(--sheet);
+  --color-bg-tertiary: var(--sheet-2);
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-muted: var(--ink-3);
+  --color-border-subtle: var(--rule);
+  --color-border-strong: var(--rule-2);
+  --color-accent-indigo: var(--pen);
+  --color-accent-hover: #a3c4f7;
+  --color-card-bg: var(--sheet);
+  --color-card-shadow: var(--shadow-elevation);
+
+  --bg-primary: var(--color-bg-primary);
+  --bg-secondary: var(--color-bg-secondary);
+  --bg-tertiary: var(--color-bg-tertiary);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --border-subtle: var(--color-border-subtle);
+  --border-strong: var(--color-border-strong);
+  --accent-indigo: var(--color-accent-indigo);
+  --accent-indigo-hover: var(--color-accent-hover);
+  --header-bg: rgba(17, 21, 23, 0.92);
+  --hero-badge-bg: var(--sheet-2);
+  --hero-badge-text: var(--pen);
+  --card-bg: var(--color-card-bg);
+  --card-shadow: var(--color-card-shadow);
+  --page-bg: var(--paper);
+  --page-plane: var(--paper);
+  --surface-1: var(--sheet);
+  --border-color: var(--rule);
+  --primary-color: var(--pen);
+  --accent-color: var(--pen);
+}

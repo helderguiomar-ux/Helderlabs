@@ -1,247 +1,451 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - HelderLabs ERP</title>
-    <style>
-        body { margin: 0; padding: 1rem; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f6f8fa; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
-        .login-box { background: #ffffff; border: 1px solid #d0d7de; border-radius: 12px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2); box-sizing: border-box; }
-        .logo { text-align: center; font-size: 24px; font-weight: 600; color: #24292f; margin-bottom: 24px; }
-        .input-group { margin-bottom: 16px; }
-        .input-group label { display: block; font-size: 14px; font-weight: 600; color: #24292f; margin-bottom: 8px; }
-        .input-group input { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #d0d7de; border-radius: 6px; box-sizing: border-box; }
-        .input-group input:focus { outline: none; border-color: #0969da; box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3); }
-        .btn { width: 100%; padding: 10px 16px; font-size: 14px; font-weight: 600; text-align: center; border: none; border-radius: 6px; cursor: pointer; background-color: #0d419f; color: #ffffff; margin-top: 10px; }
-        .btn:hover { background-color: #1f6feb; }
-        .btn-link { background: none; color: #0969da; padding: 0; margin-top: 15px; border: none; cursor: pointer; text-decoration: underline; font-size: 14px; width: 100%; text-align: center; }
-        .error { color: #cf222e; font-size: 13px; margin-bottom: 16px; display: none; text-align: center; padding: 10px; background: #ffebe9; border: 1px solid #ff8182; border-radius: 6px; }
-        .step { display: none; }
-        .step.active { display: block; }
-        .otp-inputs { display: flex; gap: 6px; justify-content: center; margin-bottom: 16px; flex-wrap: nowrap; }
-        .otp-inputs input { width: clamp(32px, 11vw, 42px); height: 48px; text-align: center; font-size: 18px; font-weight: 600; border: 1px solid #d0d7de; border-radius: 6px; }
-        .success-banner { background: #dafbe1; color: #1a7f37; border: 1px solid #4ac26b; padding: 10px; border-radius: 6px; font-size: 14px; text-align: center; margin-bottom: 16px; display: none; }
-        
-        @media (max-width: 480px) {
-            .login-box { padding: 18px; border-radius: 8px; }
-            .logo { font-size: 20px; margin-bottom: 18px; }
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autenticação — HELDERLABS ERP</title>
 
-    </style>
+  <!-- UNIFIED DESIGN SYSTEM TOKENS & STYLES (CAMADA C1-C5) -->
+  <link rel="stylesheet" href="/assets/css/design-system/tokens.css">
+  <link rel="stylesheet" href="/assets/css/design-system/typography.css">
+  <link rel="stylesheet" href="/assets/css/design-system/components.css">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 1.5rem;
+      font-family: var(--font-sans);
+      background-color: var(--paper);
+      color: var(--ink);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .auth-box {
+      background: var(--sheet);
+      border: 1px solid var(--rule-2);
+      border-radius: var(--radius-card);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow-elevation);
+      box-sizing: border-box;
+    }
+    .logo {
+      text-align: center;
+      font-family: var(--font-serif);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+    .logo span { color: var(--pen); }
+    .auth-sub {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--ink-2);
+      margin-bottom: 24px;
+    }
+    .input-group { margin-bottom: 18px; }
+    .input-group label {
+      display: block;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-3);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 0.95rem;
+      border: 1px solid var(--rule-2);
+      border-radius: var(--radius-btn);
+      background: var(--sheet-2);
+      color: var(--ink);
+      box-sizing: border-box;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--pen);
+      box-shadow: 0 0 0 2px rgba(23, 64, 139, 0.2);
+    }
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+      border: none;
+      border-radius: var(--radius-btn);
+      cursor: pointer;
+      background-color: var(--pen);
+      color: #ffffff;
+      margin-top: 10px;
+      font-family: inherit;
+      transition: opacity 0.2s ease, transform 0.1s ease;
+    }
+    .btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-link {
+      background: none;
+      color: var(--pen);
+      padding: 0;
+      margin-top: 16px;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 0.85rem;
+      width: 100%;
+      text-align: center;
+      font-family: inherit;
+    }
+    .error {
+      color: var(--state-error-text);
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      display: none;
+      text-align: center;
+      padding: 10px;
+      background: var(--state-error-bg);
+      border: 1px solid var(--red);
+      border-radius: var(--radius-btn);
+      font-weight: 500;
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .otp-inputs { display: flex; gap: 8px; justify-content: center; margin-bottom: 20px; }
+    .otp-inputs input {
+      width: 44px;
+      height: 48px;
+      text-align: center;
+      font-size: 1.25rem;
+      font-weight: 700;
+      border: 1px solid var(--rule-2);
+      border-radius: var(--radius-btn);
+      background: var(--sheet-2);
+      color: var(--ink);
+      font-family: var(--font-mono);
+    }
+    .success-banner {
+      background: var(--state-success-bg);
+      color: var(--state-success-text);
+      border: 1px solid #10b981;
+      padding: 10px;
+      border-radius: var(--radius-btn);
+      font-size: 0.88rem;
+      text-align: center;
+      margin-bottom: 16px;
+      display: none;
+      font-weight: 500;
+    }
+    .social-section {
+      margin-top: 24px;
+      border-top: 1px solid var(--rule);
+      padding-top: 20px;
+    }
+    .social-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px;
+      border-radius: var(--radius-btn);
+      background: var(--sheet-2);
+      border: 1px solid var(--rule-2);
+      color: var(--ink);
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+      box-sizing: border-box;
+    }
+    .social-btn:hover { background: var(--rule); }
+    .social-btn svg { width: 18px; height: 18px; }
+  </style>
 </head>
 <body>
 
-<div class="login-box">
-    <div class="logo">HelderLabs ERP</div>
-    
-    <div id="error-msg" class="error"></div>
-    <div id="success-msg" class="success-banner"></div>
+<div class="auth-box">
+  <div class="logo">HELDER<span>LABS</span> ERP</div>
+  <div class="auth-sub">Autenticação de Segurança Corporativa</div>
 
-    <!-- Step 1: Email -->
-    <div id="step-email" class="step active">
-        <div class="input-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" placeholder="Insira o seu email" autofocus>
-        </div>
-        <button class="btn" onclick="checkEmail()">Continuar</button>
-    </div>
+  <div id="error-msg" class="error"></div>
+  <div id="success-msg" class="success-banner"></div>
 
-    <!-- Step 2: Password -->
-    <div id="step-password" class="step">
-        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;" id="pwd-email-display"></p>
-        <div class="input-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" placeholder="Insira a sua password">
-        </div>
-        <button class="btn" onclick="loginWithPassword()">Entrar</button>
-        <button class="btn-link" onclick="sendOtp()">Esqueci-me da password (Entrar com código)</button>
+  <!-- Step 1: Email -->
+  <div id="step-email" class="step active">
+    <div class="input-group">
+      <label for="email">Email Corporativo</label>
+      <input type="email" id="email" placeholder="nome@empresa.pt" autofocus autocomplete="username">
     </div>
+    <button class="btn" type="button" onclick="checkEmail()">Continuar →</button>
 
-    <!-- Step 3: OTP -->
-    <div id="step-otp" class="step">
-        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">Insira o código enviado para o seu email</p>
-        <div class="otp-inputs" id="otp-container">
-            <input type="text" maxlength="1">
-            <input type="text" maxlength="1">
-            <input type="text" maxlength="1">
-            <input type="text" maxlength="1">
-            <input type="text" maxlength="1">
-            <input type="text" maxlength="1">
-        </div>
-        <button class="btn" onclick="verifyOtp()">Verificar Código</button>
-        <button class="btn-link" onclick="showStep('step-email')">Voltar</button>
+    <div class="social-section">
+      <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--ink-3); text-align: center; font-family: var(--font-mono); margin-bottom: 12px; font-weight: 600;">
+        ou Entrar com SSO
+      </div>
+      <a href="/api/auth/google" class="social-btn">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        Google Workspace
+      </a>
+      <a href="/api/auth/microsoft" class="social-btn">
+        <svg viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
+        Microsoft 365
+      </a>
     </div>
+  </div>
 
-    <!-- Step 4: Set Password (After OTP) -->
-    <div id="step-set-password" class="step">
-        <p style="text-align: center; font-size: 14px; margin-bottom: 15px;">Defina a sua palavra-passe de acesso</p>
-        <div class="input-group">
-            <label for="new-password">Nova Password</label>
-            <input type="password" id="new-password" placeholder="No mínimo 4 caracteres">
-        </div>
-        <div class="input-group">
-            <label for="confirm-password">Confirmar Nova Password</label>
-            <input type="password" id="confirm-password" placeholder="Reintroduza a password">
-        </div>
-        <button class="btn" onclick="setPassword()">Confirmar e Definir Password</button>
-        <button class="btn-link" onclick="skipPassword()">Ignorar por agora</button>
+  <!-- Step 2: Password -->
+  <div id="step-password" class="step">
+    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);" id="pwd-email-display"></p>
+    <div class="input-group">
+      <label for="password">Palavra-passe de Acesso</label>
+      <input type="password" id="password" placeholder="Insira a sua palavra-passe" autocomplete="current-password">
     </div>
+    <button class="btn" type="button" onclick="loginWithPassword()">Entrar no ERP</button>
+    <button class="btn-link" type="button" onclick="sendOtp()">Esqueci-me da palavra-passe (Entrar com Código OTP)</button>
+  </div>
+
+  <!-- Step 3: OTP -->
+  <div id="step-otp" class="step">
+    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Insira o código de 6 dígitos enviado para o seu email</p>
+    <div class="otp-inputs" id="otp-container">
+      <input type="text" maxlength="1" inputmode="numeric">
+      <input type="text" maxlength="1" inputmode="numeric">
+      <input type="text" maxlength="1" inputmode="numeric">
+      <input type="text" maxlength="1" inputmode="numeric">
+      <input type="text" maxlength="1" inputmode="numeric">
+      <input type="text" maxlength="1" inputmode="numeric">
+    </div>
+    <button class="btn" type="button" onclick="verifyOtp()">Verificar Código</button>
+    <button class="btn-link" type="button" onclick="showStep('step-email')">← Voltar</button>
+  </div>
+
+  <!-- Step 4: Set Password (After OTP) -->
+  <div id="step-set-password" class="step">
+    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Defina a sua palavra-passe de acesso permanente</p>
+    <div class="input-group">
+      <label for="new-password">Nova Palavra-passe</label>
+      <input type="password" id="new-password" placeholder="No mínimo 4 caracteres">
+    </div>
+    <div class="input-group">
+      <label for="confirm-password">Confirmar Nova Palavra-passe</label>
+      <input type="password" id="confirm-password" placeholder="Reintroduza a palavra-passe">
+    </div>
+    <button class="btn" type="button" onclick="setPassword()">Confirmar e Definir</button>
+    <button class="btn-link" type="button" onclick="skipPassword()">Ignorar e entrar no Workspace</button>
+  </div>
 </div>
 
 <script>
-    let currentEmail = '';
-    let sessionToken = '';
-    let sessionData = null;
+  let currentEmail = '';
+  let sessionToken = '';
+  let sessionData = null;
 
-    function showStep(id) {
-        document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        document.getElementById('error-msg').style.display = 'none';
-        document.getElementById('success-msg').style.display = 'none';
+  function showStep(id) {
+    document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.getElementById('error-msg').style.display = 'none';
+    document.getElementById('success-msg').style.display = 'none';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.innerText = msg;
+    el.style.display = 'block';
+  }
+
+  function showSuccess(msg) {
+    const el = document.getElementById('success-msg');
+    el.innerText = msg;
+    el.style.display = 'block';
+  }
+
+  // Atalho Enter para submissão rápida
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const activeStep = document.querySelector('.step.active');
+      if (!activeStep) return;
+      if (activeStep.id === 'step-email') checkEmail();
+      else if (activeStep.id === 'step-password') loginWithPassword();
+      else if (activeStep.id === 'step-otp') verifyOtp();
+      else if (activeStep.id === 'step-set-password') setPassword();
     }
+  });
 
-    function showError(msg) {
-        const el = document.getElementById('error-msg');
-        el.textContent = msg;
-        el.style.display = 'block';
+  async function checkEmail() {
+    const email = document.getElementById('email').value.trim();
+    if (!email) return showError('Por favor introduza um email válido.');
+
+    currentEmail = email;
+    try {
+      const res = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao verificar email.');
+
+      if (data.hasPassword) {
+        document.getElementById('pwd-email-display').innerText = email;
+        showStep('step-password');
+        document.getElementById('password').focus();
+      } else {
+        await sendOtpSilent();
+      }
+    } catch (err) {
+      showError(err.message);
     }
+  }
 
-    function showSuccess(msg) {
-        const el = document.getElementById('success-msg');
-        el.textContent = msg;
-        el.style.display = 'block';
+  async function loginWithPassword() {
+    const password = document.getElementById('password').value;
+    if (!password) return showError('Por favor introduza a palavra-passe.');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail, password })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Palavra-passe incorreta.');
+
+      handleLoginSuccess(data);
+    } catch (err) {
+      showError(err.message);
     }
+  }
 
-    async function apiCall(path, body = null, token = null) {
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = 'Bearer ' + token;
-        
-        const res = await fetch('/api/auth' + path, {
-            method: body ? 'POST' : 'GET',
-            headers,
-            body: body ? JSON.stringify(body) : undefined
-        });
-        
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Erro no servidor');
-        return data;
+  async function sendOtpSilent() {
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao enviar código OTP.');
+
+      showStep('step-otp');
+      showSuccess('Código enviado para ' + currentEmail);
+      setupOtpInputs();
+    } catch (err) {
+      showError(err.message);
     }
+  }
 
-    async function checkEmail() {
-        const email = document.getElementById('email').value;
-        if (!email) return showError('Insira um email.');
-        currentEmail = email;
-        
-        try {
-            const data = await apiCall('/check-email', { email });
-            if (data.hasPassword) {
-                document.getElementById('pwd-email-display').textContent = email;
-                showStep('step-password');
-                document.getElementById('password').focus();
-            } else {
-                await sendOtp();
-            }
-        } catch (e) {
-            showError(e.message);
+  async function sendOtp() {
+    await sendOtpSilent();
+  }
+
+  function setupOtpInputs() {
+    const container = document.getElementById('otp-container');
+    const inputs = container.querySelectorAll('input');
+    inputs.forEach((input, index) => {
+      input.value = '';
+      input.onkeyup = (e) => {
+        if (e.key >= '0' && e.key <= '9') {
+          if (index < inputs.length - 1) inputs[index + 1].focus();
+        } else if (e.key === 'Backspace') {
+          if (index > 0) inputs[index - 1].focus();
         }
-    }
-
-    async function sendOtp() {
-        try {
-            await apiCall('/send-otp', { email: currentEmail });
-            showStep('step-otp');
-            document.querySelector('#otp-container input').focus();
-        } catch (e) {
-            showError(e.message);
+      };
+      input.onpaste = (e) => {
+        e.preventDefault();
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+        if (/^\d{6}$/.test(pasteData)) {
+          pasteData.split('').forEach((char, i) => {
+            if (inputs[i]) inputs[i].value = char;
+          });
+          inputs[inputs.length - 1].focus();
         }
-    }
+      };
+    });
+    inputs[0].focus();
+  }
 
-    async function loginWithPassword() {
-        const password = document.getElementById('password').value;
-        if (!password) return showError('Insira a password.');
-        
-        try {
-            const data = await apiCall('/login', { email: currentEmail, password });
-            handleAuthSuccess(data);
-        } catch (e) {
-            showError(e.message);
-        }
-    }
+  function getOtpValue() {
+    const inputs = document.querySelectorAll('#otp-container input');
+    let code = '';
+    inputs.forEach(input => code += input.value);
+    return code;
+  }
 
-    async function verifyOtp() {
-        const inputs = document.querySelectorAll('#otp-container input');
-        const code = Array.from(inputs).map(i => i.value).join('');
-        if (code.length !== 6) return showError('Insira o código completo.');
-        
-        try {
-            const data = await apiCall('/verify-otp', { email: currentEmail, code });
-            
-            if (data.status === 'PENDING_APPROVAL') {
-                showSuccess('A sua conta está a aguardar aprovação de um administrador.');
-                document.getElementById('step-otp').classList.remove('active');
-                return;
-            }
-            
-            // Sucesso com OTP - Guardar info e pedir para definir password
-            sessionToken = data.token;
-            sessionData = data;
-            
-            // Check Se já tem password, ignoramos este passo. (Mas nós sabemos q entrou por OTP)
-            showStep('step-set-password');
-            document.getElementById('new-password').focus();
-            
-        } catch (e) {
-            showError(e.message);
-        }
-    }
+  async function verifyOtp() {
+    const code = getOtpValue();
+    if (code.length < 6) return showError('Introduza o código completo de 6 dígitos.');
 
-    async function setPassword() {
-        const password = document.getElementById('new-password').value;
-        const confirmPassword = document.getElementById('confirm-password').value;
-        if (password.length < 4) return showError('A password deve ter pelo menos 4 caracteres.');
-        if (password !== confirmPassword) return showError('As palavras-passe não coincidem. Reintroduza a confirmação.');
-        
-        try {
-            await apiCall('/set-password', { password }, sessionToken);
-            finalizeLogin();
-        } catch (e) {
-            showError(e.message);
-        }
-    }
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail, code })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Código inválido ou expirado.');
 
-    function skipPassword() {
-        finalizeLogin();
-    }
-
-    function handleAuthSuccess(data) {
+      if (data.requiresPasswordSetup) {
         sessionToken = data.token;
         sessionData = data;
-        finalizeLogin();
+        showStep('step-set-password');
+      } else {
+        handleLoginSuccess(data);
+      }
+    } catch (err) {
+      showError(err.message);
     }
+  }
 
-    function finalizeLogin() {
-        localStorage.setItem('erp_session', JSON.stringify(sessionData));
-        if (sessionData.user.role === 'SUPER_ADMIN' || sessionData.user.role === 'PLATFORM_ADMIN') {
-            window.location.href = '/super-admin.html';
-        } else {
-            window.location.href = '/workspace.html';
-        }
+  async function setPassword() {
+    const p1 = document.getElementById('new-password').value;
+    const p2 = document.getElementById('confirm-password').value;
+
+    if (p1.length < 4) return showError('A palavra-passe deve ter pelo menos 4 caracteres.');
+    if (p1 !== p2) return showError('As palavras-passe não coincidem.');
+
+    try {
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
+        body: JSON.stringify({ password: p1 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao definir palavra-passe.');
+
+      handleLoginSuccess(sessionData);
+    } catch (err) {
+      showError(err.message);
     }
+  }
 
-    // OTP Auto-advance
-    document.querySelectorAll('#otp-container input').forEach((input, index, array) => {
-        input.addEventListener('input', (e) => {
-            if (e.target.value && index < array.length - 1) array[index + 1].focus();
-        });
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Backspace' && !e.target.value && index > 0) array[index - 1].focus();
-            if (e.key === 'Enter') verifyOtp();
-        });
-    });
-    
-    document.getElementById('email').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkEmail(); });
-    document.getElementById('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') loginWithPassword(); });
-    document.getElementById('new-password').addEventListener('keydown', (e) => { if (e.key === 'Enter') setPassword(); });
+  function skipPassword() {
+    if (sessionData) handleLoginSuccess(sessionData);
+  }
+
+  function handleLoginSuccess(data) {
+    localStorage.setItem('hl_token', data.token);
+    localStorage.setItem('auth_token', data.token);
+    window.location.href = '/workspace.html';
+  }
 </script>
 </body>
 </html>

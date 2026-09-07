@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { TenantScopedPrismaClient } from '../../../database/prisma/tenantScopedClient';
 import { prisma as defaultPrismaClient } from '../../../database/prisma/client';
 
 export class BuildingNotFoundError extends Error {
@@ -24,7 +24,7 @@ export class BuildingNotFoundError extends Error {
 export class EnterpriseCondominiosService {
   constructor(
     private readonly tenantId: string,
-    private readonly db: PrismaClient = defaultPrismaClient
+    private readonly db: TenantScopedPrismaClient | any = defaultPrismaClient
   ) {}
 
   public async createBuilding(data: {

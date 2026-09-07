@@ -1,7 +1,9 @@
-/* TOKENS DE TIPOGRAFIA */
+/* TOKENS DE TIPOGRAFIA — 4 FAMÍLIAS CANÓNICAS */
 :root {
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: 'Spectral', Georgia, serif;
+  --font-sans: 'Archivo', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-handwriting: 'Caveat', cursive;
 }
 
 body { font-family: var(--font-sans); color: var(--color-text-primary); background-color: var(--color-bg-primary); }

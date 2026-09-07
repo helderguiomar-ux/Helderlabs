@@ -1,6 +1,6 @@
 # CLAUDE.md — Guia do Agente IA para HelderLabs ERP
 
-Este ficheiro contém as regras, arquitetura e instruções completas para qualquer agente IA (Claude, Antigravity, GitHub Copilot) ou desenvolvedor trabalhar com segurança neste projeto.
+> ℹ️ **ATENÇÃO:** O contexto global canónico, arquitetura, catálogo de ecrãs e regras inegociáveis do projeto estão definidos em [AGENTS.md](file:///C:/Users/helde/Desktop/Dev/helderlabs-erp/AGENTS.md). Este ficheiro estende as diretivas do `AGENTS.md`.
 
 > **VERSÃO CANÓNICA OFICIAL: v0.3.0 (Módulo de Finanças, Aprovações & RGPD Completo)**
 > **Diretoria Única Canónica:** `C:\Users\helde\Desktop\Dev\helderlabs-erp`

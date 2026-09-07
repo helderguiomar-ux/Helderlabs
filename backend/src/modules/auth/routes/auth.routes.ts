@@ -32,13 +32,16 @@ export async function authRoutes(app: FastifyInstance) {
     return reply.status(200).send({ hasPassword });
   });
 
+  const isE2EDisabled = process.env.DISABLE_RATE_LIMIT === 'true';
+  const isStrictRateLimited = (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') && !isE2EDisabled;
+  const strictRateLimit = isStrictRateLimited
+    ? { max: 5, timeWindow: '15 minutes' }
+    : { max: 1000, timeWindow: '15 minutes' };
+
   // Passo 2a: Enviar OTP
   app.post('/send-otp', {
     config: {
-      rateLimit: {
-        max: 5,
-        timeWindow: '15 minutes'
-      }
+      rateLimit: strictRateLimit
     }
   }, async (request, reply) => {
     const { email } = emailSchema.parse(request.body);
@@ -49,10 +52,7 @@ export async function authRoutes(app: FastifyInstance) {
   // Passo 3a: Validar OTP
   app.post('/verify-otp', {
     config: {
-      rateLimit: {
-        max: 5,
-        timeWindow: '15 minutes'
-      }
+      rateLimit: strictRateLimit
     }
   }, async (request, reply) => {
     const { email, code } = verifyOtpSchema.parse(request.body);
@@ -63,10 +63,7 @@ export async function authRoutes(app: FastifyInstance) {
   // Passo 2b: Login com Password
   app.post('/login', {
     config: {
-      rateLimit: {
-        max: 5,
-        timeWindow: '15 minutes'
-      }
+      rateLimit: strictRateLimit
     }
   }, async (request, reply) => {
     const { email, password } = loginPasswordSchema.parse(request.body);

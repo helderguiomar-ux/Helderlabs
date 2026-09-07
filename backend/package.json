@@ -20,12 +20,14 @@
         "env:check": "node scripts/env-check.mjs",
         "dev": "npm run db:guard && tsx watch src/server.ts",
         "dev:serverless": "npx vercel dev",
-        "verify": "npm run lint && npm run typecheck && npm test",
+        "verify": "npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run test:browser",
         "lint": "npx eslint .",
         "build": "prisma generate && tsc -p tsconfig.json",
         "start": "node dist/server.js",
         "typecheck": "tsc --noEmit",
         "test": "node scripts/collect-and-run-tests.mjs",
+        "test:e2e": "node scripts/run-e2e-audit.mjs",
+        "test:browser": "node scripts/test-e2e-browser.mjs",
         "seed": "npm run db:seed"
     },
     "dependencies": {
@@ -53,6 +55,7 @@
         "@typescript-eslint/eslint-plugin": "^8.70.0",
         "@typescript-eslint/parser": "^8.70.0",
         "eslint": "^10.10.0",
+        "playwright": "^1.63.0",
         "prisma": "^5.20.0",
         "tsx": "^4.16.2",
         "typescript": "^5.5.3"

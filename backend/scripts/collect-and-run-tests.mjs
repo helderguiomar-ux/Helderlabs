@@ -16,6 +16,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
+process.env.NODE_ENV = 'test';
 const testsDir = path.join(process.cwd(), 'tests');
 
 function collectTestFiles(dir) {

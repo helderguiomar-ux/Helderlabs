@@ -1,3 +1,4 @@
+process.env.DISABLE_RATE_LIMIT = 'true';
 const LOCAL_URL = 'http://127.0.0.1:3333';
 const PROD_URL = 'https://helderlabs.eu';
 
@@ -192,7 +193,8 @@ async function runE2EAudit() {
       if (resNewLogin.status === 200) {
         record('Auth API', 'POST /api/auth/set-password & Re-autenticação', 'PASS', 'Password atualizada e nova autenticação com sucesso');
       } else {
-        record('Auth API', 'POST /api/auth/set-password & Re-autenticação', 'FAIL', 'Falha ao autenticar com nova password');
+        const errJson = await resNewLogin.json();
+        record('Auth API', 'POST /api/auth/set-password & Re-autenticação', 'FAIL', `Status ${resNewLogin.status}: ${JSON.stringify(errJson)}`);
       }
 
       // Restaurar admin1234

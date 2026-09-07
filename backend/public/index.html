@@ -7,9 +7,9 @@
   <meta id="meta-description" name="description" content="Informatizar não é coisa de empresa grande. HELDERLABS ajuda empresas pequenas a organizar o trabalho repetido.">
 
   <!-- FAVICONS & MANIFEST -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="shortcut icon" href="/favicon.svg">
-  <link rel="apple-touch-icon" href="/favicon.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
 
   <!-- OPEN GRAPH / SOCIAL -->
@@ -18,13 +18,13 @@
   <meta property="og:url" content="https://helderlabs.eu/">
   <meta property="og:type" content="website">
   <meta id="meta-og-locale" property="og:locale" content="pt_PT">
-  <meta property="og:image" content="https://helderlabs.eu/assets/img/og-image.svg">
+  <meta property="og:image" content="https://helderlabs.eu/assets/img/og-image.png">
 
   <!-- TWITTER CARD -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="HELDERLABS | Informatizar não é coisa de empresa grande">
   <meta name="twitter:description" content="Informatizar não é coisa de empresa grande. HELDERLABS ajuda empresas pequenas a organizar o trabalho repetido.">
-  <meta name="twitter:image" content="https://helderlabs.eu/assets/img/og-image.svg">
+  <meta name="twitter:image" content="https://helderlabs.eu/assets/img/og-image.png">
 
   <!-- UNIFIED DESIGN SYSTEM TOKENS & STYLES -->
   <link rel="stylesheet" href="/assets/css/design-system/tokens.css">
@@ -191,7 +191,7 @@
         HELDER<span>LABS</span>
       </a>
 
-      <nav class="links">
+      <nav class="links" id="main-nav">
         <a href="#sobre" data-i18n="nav.about">Para Quem É</a>
         <a href="#desafios" data-i18n="nav.challenges">As Dúvidas</a>
         <a href="#degraus" data-i18n="nav.steps">Por Onde Começar</a>
@@ -201,6 +201,12 @@
       </nav>
 
       <div style="display:flex; gap:10px; align-items:center; margin-left:auto;">
+        <!-- Botão Menu Mobile Hambúrguer (B1) -->
+        <button id="mobile-menu-toggle" class="icon-btn mobile-menu-toggle" type="button" aria-expanded="false" aria-label="Abrir Menu">
+          <svg id="hamburger-icon" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          <svg id="close-icon" viewBox="0 0 24 24" style="display:none;"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+
         <!-- Botão Idioma (Sem emojis - E14) -->
         <button id="lang-btn" class="icon-btn" type="button" aria-label="Alternar Idioma">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
@@ -212,9 +218,10 @@
           <svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
 
-        <!-- Botão Área de Cliente / Sessão -->
+        <!-- Botão Área de Cliente / Sessão (B3) -->
         <button id="open-auth-modal" class="icon-btn" style="background:var(--pen); color:#fff; border:none;" type="button">
-          <span id="auth-btn-text">Área de Cliente</span>
+          <span class="auth-btn-label-desktop" id="auth-btn-text">Área de Cliente</span>
+          <span class="auth-btn-label-mobile">Entrar</span>
         </button>
       </div>
     </div>
@@ -225,10 +232,15 @@
     <div>
       <span class="num-label">Consultoria Tecnológica & ERP Modular</span>
       <div class="hero-title-wrap">
-        <h1 data-i18n="hero.title">Informatizar não é coisa de empresa grande.</h1>
-        <svg class="underline-svg" viewBox="0 0 640 30">
-          <path id="hero-underline-path" class="animate-stroke" d="M 5,18 Q 160,28 320,12 T 635,20" fill="none" stroke="var(--red)" stroke-width="4" stroke-linecap="round" />
-        </svg>
+        <h1>
+          Informatizar não é coisa de 
+          <span style="position: relative; display: inline-block; white-space: nowrap;">
+            empresa grande
+            <svg class="underline-svg" viewBox="0 0 280 20" preserveAspectRatio="none" style="position: absolute; bottom: -8px; left: 0; width: 100%; height: 16px; overflow: visible; pointer-events: none;">
+              <path id="hero-underline-path" class="animate-stroke" d="M 4,12 Q 70,18 140,10 T 275,12" fill="none" stroke="var(--red)" stroke-width="4" stroke-linecap="round" />
+            </svg>
+          </span>.
+        </h1>
       </div>
       <p class="hero-sub" data-i18n="hero.subtitle">
         HELDERLABS ajuda empresas pequenas a organizar o trabalho repetido — sem complicações de multinacional nem custos proibitivos.
@@ -512,12 +524,78 @@
       if (closeAuthBtn && authModal) {
         closeAuthBtn.onclick = () => authModal.style.display = 'none';
       }
-      window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && authModal) authModal.style.display = 'none';
+    }
+
+    // 2b. Menu Mobile Hambúrguer & Acessibilidade (B1)
+    const mobileToggle = document.getElementById('mobile-menu-toggle');
+    const mainNav = document.getElementById('main-nav');
+    const hamburgerIcon = document.getElementById('hamburger-icon');
+    const closeIcon = document.getElementById('close-icon');
+
+    function openMobileMenu() {
+      if (!mobileToggle || !mainNav) return;
+      mobileToggle.setAttribute('aria-expanded', 'true');
+      mobileToggle.setAttribute('aria-label', 'Fechar Menu');
+      mainNav.classList.add('mobile-open');
+      if (hamburgerIcon) hamburgerIcon.style.display = 'none';
+      if (closeIcon) closeIcon.style.display = 'block';
+      document.body.style.overflow = 'hidden';
+      const firstLink = mainNav.querySelector('a');
+      if (firstLink) firstLink.focus();
+    }
+
+    function closeMobileMenu() {
+      if (!mobileToggle || !mainNav) return;
+      mobileToggle.setAttribute('aria-expanded', 'false');
+      mobileToggle.setAttribute('aria-label', 'Abrir Menu');
+      mainNav.classList.remove('mobile-open');
+      if (hamburgerIcon) hamburgerIcon.style.display = 'block';
+      if (closeIcon) closeIcon.style.display = 'none';
+      document.body.style.overflow = '';
+      mobileToggle.focus();
+    }
+
+    if (mobileToggle) {
+      mobileToggle.addEventListener('click', () => {
+        const isOpen = mobileToggle.getAttribute('aria-expanded') === 'true';
+        if (isOpen) closeMobileMenu();
+        else openMobileMenu();
       });
     }
 
-    // 3. Alternador de Idioma (PT / EN com tradução real — F2/A-03)
+    if (mainNav) {
+      mainNav.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          if (mainNav.classList.contains('mobile-open')) closeMobileMenu();
+        });
+      });
+
+      mainNav.addEventListener('keydown', e => {
+        if (e.key === 'Tab' && mainNav.classList.contains('mobile-open')) {
+          const focusables = Array.from(mainNav.querySelectorAll('a'));
+          if (!focusables.length) return;
+          const first = focusables[0];
+          const last = focusables[focusables.length - 1];
+
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (mainNav && mainNav.classList.contains('mobile-open')) closeMobileMenu();
+        if (authModal) authModal.style.display = 'none';
+      }
+    });
+
+    // 3. Alternador de Idioma com Atualização de SEO / OpenGraph (I6)
     const langBtn = document.getElementById('lang-btn');
     const langLabel = document.getElementById('lang-label');
     let currentLang = localStorage.getItem('hl_lang') || 'pt';
@@ -535,6 +613,23 @@
         const res = await fetch(`/locales/${lang}.json`);
         if (!res.ok) return;
         const dict = await res.json();
+
+        // SEO i18n
+        if (dict.meta_title) {
+          document.title = dict.meta_title;
+          const ogTitle = document.querySelector('meta[property="og:title"]');
+          if (ogTitle) ogTitle.setAttribute('content', dict.meta_title);
+          const twTitle = document.querySelector('meta[name="twitter:title"]');
+          if (twTitle) twTitle.setAttribute('content', dict.meta_title);
+        }
+        if (dict.meta_desc) {
+          const metaDesc = document.getElementById('meta-description');
+          if (metaDesc) metaDesc.setAttribute('content', dict.meta_desc);
+          const ogDesc = document.querySelector('meta[property="og:description"]');
+          if (ogDesc) ogDesc.setAttribute('content', dict.meta_desc);
+          const twDesc = document.querySelector('meta[name="twitter:description"]');
+          if (twDesc) twDesc.setAttribute('content', dict.meta_desc);
+        }
 
         document.querySelectorAll('[data-i18n]').forEach(el => {
           const keyPath = el.getAttribute('data-i18n').split('.');

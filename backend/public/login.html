@@ -221,6 +221,13 @@
         Microsoft 365
       </a>
     </div>
+
+    <div style="text-align: center; margin-top: 20px; font-size: 0.85rem; color: var(--ink-2); border-top: 1px solid var(--rule-2); padding-top: 16px;">
+      Ainda não tem conta corporativa?
+      <button class="btn-link" type="button" onclick="showStep('step-request-access')" style="display: inline; width: auto; margin-top: 4px; font-weight: 600;">
+        Solicitar Acesso ao ERP →
+      </button>
+    </div>
   </div>
 
   <!-- Step 2: Password -->
@@ -286,6 +293,33 @@
     </div>
     <button class="btn" type="button" onclick="setPassword()">Confirmar e Guardar</button>
     <button class="btn-link" type="button" onclick="skipPassword()">Ignorar e entrar no Workspace</button>
+  </div>
+
+  <!-- Step 5: Request Access (Solicitar Acesso) -->
+  <div id="step-request-access" class="step">
+    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Solicite uma demonstração ou conta de empresa para o HelderLabs ERP</p>
+    <div class="input-group">
+      <label for="req-name">Nome Completo</label>
+      <input type="text" id="req-name" placeholder="O seu nome">
+    </div>
+    <div class="input-group">
+      <label for="req-email">Email Corporativo</label>
+      <input type="email" id="req-email" placeholder="nome@empresa.pt">
+    </div>
+    <div class="input-group">
+      <label for="req-company">Empresa / Organização</label>
+      <input type="text" id="req-company" placeholder="Nome da empresa">
+    </div>
+    <div class="input-group">
+      <label for="req-phone">Telefone de Contacto</label>
+      <input type="tel" id="req-phone" placeholder="912 345 678">
+    </div>
+    <div class="input-group">
+      <label for="req-message">Mensagem / Módulos Pretendidos</label>
+      <input type="text" id="req-message" placeholder="Ex: CRM, Gestão de Condomínios, Finanças...">
+    </div>
+    <button class="btn" type="button" onclick="submitRequestAccess()">Enviar Pedido de Acesso</button>
+    <button class="btn-link" type="button" onclick="showStep('step-email')">← Voltar ao Login</button>
   </div>
 </div>
 
@@ -500,6 +534,32 @@
     localStorage.setItem('hl_token', data.token);
     localStorage.setItem('auth_token', data.token);
     window.location.href = '/workspace.html';
+  }
+
+  async function submitRequestAccess() {
+    const name = document.getElementById('req-name').value.trim();
+    const email = document.getElementById('req-email').value.trim();
+    const company = document.getElementById('req-company').value.trim();
+    const phone = document.getElementById('req-phone').value.trim();
+    const message = document.getElementById('req-message').value.trim() || 'Solicitação de Acesso ao HelderLabs ERP';
+
+    if (!name || name.length < 2) return showError('Por favor introduza o seu nome.');
+    if (!email || !email.includes('@')) return showError('Por favor introduza um email válido.');
+
+    try {
+      const res = await fetch('/api/public/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, company, phone, message })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erro ao enviar pedido.');
+
+      showSuccess('O seu pedido de acesso foi enviado com sucesso! A nossa equipa entrará em contacto brevemente.');
+      setTimeout(() => showStep('step-email'), 3000);
+    } catch (err) {
+      showError(err.message);
+    }
   }
 </script>
 </body>

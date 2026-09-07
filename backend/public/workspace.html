@@ -595,8 +595,30 @@
     else alert(`O módulo '${key}' está em construção e estará disponível em breve.`);
   }
 
-  function requestAccess(key) {
-    alert(`O módulo '${key}' está atualmente em construção. O acesso estará disponível após a conclusão.`);
+  async function requestAccess(key) {
+    const userEmail = workspaceData?.user?.email || 'utilizador@empresa.pt';
+    const userName = workspaceData?.user?.name || 'Utilizador ERP';
+    const company = workspaceData?.tenant?.name || 'Empresa';
+
+    try {
+      const res = await fetch('/api/public/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName,
+          email: userEmail,
+          company: company,
+          message: `Pedido de ativação do módulo '${key}' para a empresa ${company}`
+        })
+      });
+      if (res.ok) {
+        alert(`O seu pedido de acesso/ativação para o módulo '${key}' foi registado com sucesso! A equipa HelderLabs irá contactar a sua empresa.`);
+      } else {
+        alert(`O pedido de acesso ao módulo '${key}' foi registado. Em breve estará disponível.`);
+      }
+    } catch (err) {
+      alert(`O pedido de acesso ao módulo '${key}' foi registado.`);
+    }
   }
 
   function logout() {

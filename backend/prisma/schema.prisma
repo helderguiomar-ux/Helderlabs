@@ -603,6 +603,11 @@ model FinanceCategory {
 }
 
 enum TransactionStatus {
+  PLANNED
+  PAID
+}
+
+enum FinancialTransactionStatus {
   PENDING
   APPROVED
   REJECTED
@@ -757,12 +762,12 @@ enum BudgetStatus {
 
 // Tabela de Transações Financeiras
 model FinancialTransaction {
-  id              String            @id @default(cuid())
-  tenantId        String
-  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  id                    String            @id @default(cuid())
+  tenantId              String
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
-  type            TransactionType
-  status          TransactionStatus @default(PENDING)
+  type                  TransactionType
+  status                FinancialTransactionStatus @default(PENDING)
   
   // Descrição e valores
   description     String

@@ -5,14 +5,11 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- AlterEnum
+-- CreateEnum
 DO $$ BEGIN
-    ALTER TYPE "TransactionStatus" ADD VALUE IF NOT EXISTS 'PENDING';
-    ALTER TYPE "TransactionStatus" ADD VALUE IF NOT EXISTS 'APPROVED';
-    ALTER TYPE "TransactionStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
-    ALTER TYPE "TransactionStatus" ADD VALUE IF NOT EXISTS 'RECONCILED';
+    CREATE TYPE "FinancialTransactionStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'RECONCILED', 'PLANNED', 'PAID');
 EXCEPTION
-    WHEN others THEN null;
+    WHEN duplicate_object THEN null;
 END $$;
 
 -- CreateEnum
@@ -39,7 +36,7 @@ CREATE TABLE IF NOT EXISTS "financial_transactions" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "type" "TransactionType" NOT NULL,
-    "status" "TransactionStatus" NOT NULL DEFAULT 'PENDING',
+    "status" "FinancialTransactionStatus" NOT NULL DEFAULT 'PENDING',
     "description" TEXT NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
     "currency" TEXT NOT NULL DEFAULT 'EUR',

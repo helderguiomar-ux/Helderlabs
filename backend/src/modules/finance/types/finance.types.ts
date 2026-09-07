@@ -1,9 +1,9 @@
-import { TransactionType, TransactionStatus, ExpenseCategory, BudgetStatus } from '@prisma/client';
+import { TransactionType, FinancialTransactionStatus, ExpenseCategory, BudgetStatus } from '@prisma/client';
 
 export interface FinancialTransactionDTO {
   id: string;
   type: TransactionType;
-  status: TransactionStatus;
+  status: FinancialTransactionStatus;
   description: string;
   amount: number;
   currency: string;

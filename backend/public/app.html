@@ -604,13 +604,15 @@
 <script type="module">
   import { MODULES_REGISTRY, renderIncompleteModuleScreen } from '/assets/js/modules.js';
 
-  var sessionStr = localStorage.getItem('erp_session');
-  if (!sessionStr) {
+  var session = {};
+  try {
+    session = JSON.parse(localStorage.getItem('erp_session') || '{}');
+  } catch (e) {}
+
+  var currentToken = session.token || localStorage.getItem('hl_token') || localStorage.getItem('auth_token');
+  if (!currentToken) {
     window.location.href = '/login.html';
   }
-
-  var session = JSON.parse(sessionStr || '{}');
-  var currentToken = session.token;
   var currentUser = session.user || {};
 
   // Se for Super Admin e não tiver módulo em hash nem impersonation ativo, redireciona para a consola

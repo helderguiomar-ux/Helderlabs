@@ -465,20 +465,27 @@
   let workspaceData = null;
 
   async function loadWorkspace() {
-    const session = JSON.parse(localStorage.getItem('erp_session') || '{}');
-    if (!session.token) {
+    let token = null;
+    try {
+      const session = JSON.parse(localStorage.getItem('erp_session') || '{}');
+      token = session.token || localStorage.getItem('hl_token') || localStorage.getItem('auth_token');
+    } catch(e) {}
+
+    if (!token) {
       window.location.href = '/login.html';
       return;
     }
 
     try {
       const res = await fetch('/api/me/workspace', {
-        headers: { 'Authorization': `Bearer ${session.token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (!res.ok) {
         if (res.status === 401) {
           localStorage.removeItem('erp_session');
+          localStorage.removeItem('hl_token');
+          localStorage.removeItem('auth_token');
           window.location.href = '/login.html';
           return;
         }
@@ -486,6 +493,7 @@
       }
 
       workspaceData = await res.json();
+      localStorage.setItem('erp_session', JSON.stringify({ token, user: workspaceData.user }));
       renderWorkspace(workspaceData);
 
     } catch (err) {

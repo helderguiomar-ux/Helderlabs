@@ -531,9 +531,19 @@
   }
 
   function handleLoginSuccess(data) {
+    const sessionObj = {
+      token: data.token,
+      user: data.user
+    };
+    localStorage.setItem('erp_session', JSON.stringify(sessionObj));
     localStorage.setItem('hl_token', data.token);
     localStorage.setItem('auth_token', data.token);
-    window.location.href = '/workspace.html';
+
+    if (data.user && (data.user.role === 'SUPER_ADMIN' || data.user.role === 'PLATFORM_ADMIN')) {
+      window.location.href = '/super-admin.html';
+    } else {
+      window.location.href = '/workspace.html';
+    }
   }
 
   async function submitRequestAccess() {

@@ -438,18 +438,22 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  const erpSessionStr = localStorage.getItem('erp_session');
-  if (!erpSessionStr) window.location.href = '/login.html';
-  let session;
+  let session = {};
+  let token = null;
   try {
-    session = JSON.parse(erpSessionStr);
+    const raw = localStorage.getItem('erp_session');
+    if (raw) session = JSON.parse(raw);
+    token = session.token || localStorage.getItem('hl_token') || localStorage.getItem('auth_token');
+  } catch(e) {}
+
+  if (!token) {
+    window.location.href = '/login.html';
+  } else if (session.user) {
     if (session.user.role !== 'SUPER_ADMIN' && session.user.role !== 'PLATFORM_ADMIN') {
       window.location.href = '/workspace.html';
     }
-    document.getElementById('admin-name').textContent = session.user.email;
-  } catch(e) {
-    localStorage.removeItem('erp_session');
-    window.location.href = '/login.html';
+    const adminNameEl = document.getElementById('admin-name');
+    if (adminNameEl && session.user.email) adminNameEl.textContent = session.user.email;
   }
 
   function logout() {

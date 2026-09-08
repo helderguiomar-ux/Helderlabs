@@ -632,4 +632,122 @@ describe('2SELLMAIS Module — E2E & Business Rules', () => {
 
     assert.equal(transForbidden.statusCode, 404, 'Tenant B não deve conseguir alterar artigos do Tenant A');
   });
+
+  it('9. Fase 7: Registo de Proveniência, Restauro com Custo Automático e Media', async () => {
+    // 9.1 Add Provenance
+    const provRes = await app.inject({
+      method: 'POST',
+      url: `/api/sellmais/items/${createdItemId}/provenance`,
+      headers: { authorization: `Bearer ${tokenA1}` },
+      payload: {
+        ownerName: 'Conde de Vila Real',
+        period: '1890 - 1925',
+        location: 'Palácio Real de Sintra',
+        documentRef: 'Inventário Histórico Doc #459'
+      }
+    });
+    assert.equal(provRes.statusCode, 201);
+    const prov = JSON.parse(provRes.payload).provenance;
+    assert.equal(prov.ownerName, 'Conde de Vila Real');
+
+    // 9.2 Add Restoration with cost materialization
+    const restRes = await app.inject({
+      method: 'POST',
+      url: `/api/sellmais/items/${createdItemId}/restorations`,
+      headers: { authorization: `Bearer ${tokenA1}` },
+      payload: {
+        restorerName: 'Atelier de Restauro D. Afonso',
+        description: 'Limpeza de verniz oxidado e consolidação de estrutura',
+        cost: 75.00 // 75.00 EUR -> 7500 cents
+      }
+    });
+    assert.equal(restRes.statusCode, 201);
+    const rest = JSON.parse(restRes.payload).restoration;
+    assert.equal(rest.restorerName, 'Atelier de Restauro D. Afonso');
+
+    // 9.3 Add Media
+    const mediaRes = await app.inject({
+      method: 'POST',
+      url: `/api/sellmais/items/${createdItemId}/media`,
+      headers: { authorization: `Bearer ${tokenA1}` },
+      payload: {
+        url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc',
+        isCover: true,
+        caption: 'Vista frontal em luz natural'
+      }
+    });
+    assert.equal(mediaRes.statusCode, 201);
+  });
+
+  it('10. Fase 10: Assistente IA de Descrições e Peritagem com Conformidade Estrita', async () => {
+    const aiRes = await app.inject({
+      method: 'POST',
+      url: `/api/sellmais/items/${createdItemId}/ai-describe`,
+      headers: { authorization: `Bearer ${tokenA1}` },
+      payload: {
+        title: 'Cómoda D. José com Marchequetaria',
+        period: 'Século XVIII',
+        style: 'Rococó Português',
+        material: 'Pau-santo e bronzes dourados',
+        maker: 'Oficina Lisbonense',
+        conditionNotes: 'Pequenas faltas de folheado no tampo'
+      }
+    });
+
+    assert.equal(aiRes.statusCode, 200);
+    const aiData = JSON.parse(aiRes.payload);
+    assert.equal(aiData.success, true);
+    assert.ok(aiData.confidenceScore >= 0.70 && aiData.confidenceScore <= 1.0);
+    assert.ok(aiData.longDescription.includes('ao estilo') || aiData.longDescription.includes('atribuível a'));
+    assert.ok(aiData.disclaimer.includes('caráter exclusivamente orientador'));
+    assert.ok(aiData.model.includes('gemini'));
+  });
+
+  it('11. Fase 11: Motor Outbox de Canais e Processamento Assíncrono de Jobs', async () => {
+    const jobRes = await app.inject({
+      method: 'POST',
+      url: '/api/sellmais/channels/jobs/process',
+      headers: { authorization: `Bearer ${tokenA1}` }
+    });
+
+    assert.equal(jobRes.statusCode, 200);
+    const jobData = JSON.parse(jobRes.payload);
+    assert.equal(jobData.success, true);
+    assert.ok(typeof jobData.processedCount === 'number');
+  });
+
+  it('12. Fase 13: Alertas Operacionais, Relatório de Aging e Rentabilidade', async () => {
+    // 12.1 Aging Report
+    const agingRes = await app.inject({
+      method: 'GET',
+      url: '/api/sellmais/reports/aging',
+      headers: { authorization: `Bearer ${tokenA1}` }
+    });
+    assert.equal(agingRes.statusCode, 200);
+    const agingData = JSON.parse(agingRes.payload);
+    assert.ok(Array.isArray(agingData.items));
+
+    // 12.2 Alerts
+    const alertsRes = await app.inject({
+      method: 'GET',
+      url: '/api/sellmais/reports/alerts',
+      headers: { authorization: `Bearer ${tokenA1}` }
+    });
+    assert.equal(alertsRes.statusCode, 200);
+    const alertsData = JSON.parse(alertsRes.payload);
+    assert.ok(Array.isArray(alertsData.expiringConsignments));
+    assert.ok(Array.isArray(alertsData.unpricedItems));
+    assert.ok(Array.isArray(alertsData.itemsWithoutCover));
+
+    // 12.3 Profitability
+    const profRes = await app.inject({
+      method: 'GET',
+      url: '/api/sellmais/reports/profitability',
+      headers: { authorization: `Bearer ${tokenA1}` }
+    });
+    assert.equal(profRes.statusCode, 200);
+    const profData = JSON.parse(profRes.payload);
+    assert.ok(typeof profData.totalRevenueCents === 'number');
+  });
 });
+

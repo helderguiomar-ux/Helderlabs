@@ -9,6 +9,8 @@ import { SellItemStateService } from '../services/SellItemStateService';
 import { SellConsignmentService } from '../services/SellConsignmentService';
 import { SellChannelService } from '../services/SellChannelService';
 import { SellAuctionService } from '../services/SellAuctionService';
+import { SellAiService } from '../services/SellAiService';
+
 
 // ===========================================================================
 // SCHEMAS DE VALIDAÇÃO ZOD
@@ -524,4 +526,133 @@ export class SellmaisController {
     const valuation = await SellItemService.getInventoryValuation(db, user.tenantId);
     return reply.send({ success: true, ...valuation });
   }
+
+  // =========================================================================
+  // PROVENIÊNCIA, RESTAUROS & MEDIA (Fase 7)
+  // =========================================================================
+
+  static async addProvenance(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id: string };
+    const body = z.object({
+      ownerName: z.string().optional(),
+      period: z.string().optional(),
+      location: z.string().optional(),
+      documentRef: z.string().optional(),
+      notes: z.string().optional(),
+      order: z.number().int().optional()
+    }).parse(req.body);
+
+    const db = forTenant(user.tenantId);
+    const provenance = await SellItemService.addProvenance(db, user.tenantId, user.sub, id, body);
+    return reply.status(201).send({ success: true, provenance });
+  }
+
+  static async addRestoration(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id: string };
+    const raw = req.body as any;
+    const body = z.object({
+      restorerName: z.string().min(1),
+      restorerCompanyId: z.string().optional(),
+      description: z.string().min(1),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      costCents: z.number().int().optional(),
+      conditionBefore: z.string().optional(),
+      conditionAfter: z.string().optional()
+    }).parse({
+      ...raw,
+      costCents: raw.costCents ?? (raw.cost ? Math.round(Number(raw.cost) * 100) : undefined)
+    });
+
+    const db = forTenant(user.tenantId);
+    const restoration = await SellItemService.addRestoration(db, user.tenantId, user.sub, id, {
+      ...body,
+      startDate: body.startDate ? new Date(body.startDate) : undefined,
+      endDate: body.endDate ? new Date(body.endDate) : undefined
+    });
+    return reply.status(201).send({ success: true, restoration });
+  }
+
+  static async addMedia(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id: string };
+    const body = z.object({
+      url: z.string().min(1),
+      thumbnailUrl: z.string().optional(),
+      mediaType: z.string().optional(),
+      caption: z.string().optional(),
+      isCover: z.boolean().optional(),
+      sortOrder: z.number().int().optional()
+    }).parse(req.body);
+
+    const db = forTenant(user.tenantId);
+    const media = await SellItemService.addMedia(db, user.tenantId, user.sub, id, body);
+    return reply.status(201).send({ success: true, media });
+  }
+
+  static async deleteMedia(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { mediaId } = req.params as { mediaId: string };
+    const db = forTenant(user.tenantId);
+    await SellItemService.deleteMedia(db, user.tenantId, user.sub, mediaId);
+    return reply.send({ success: true, message: 'Ficheiro removido com sucesso.' });
+  }
+
+  // =========================================================================
+  // ASSISTENTE DE IA DE DESCRIÇÕES & PERITAGEM (Fase 10)
+  // =========================================================================
+
+  static async describeItemAi(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id?: string };
+    const body = z.object({
+      title: z.string().min(1),
+      typeId: z.string().optional(),
+      period: z.string().optional(),
+      style: z.string().optional(),
+      material: z.string().optional(),
+      maker: z.string().optional(),
+      conditionNotes: z.string().optional(),
+      dimensions: z.any().optional()
+    }).parse(req.body);
+
+    const db = forTenant(user.tenantId);
+    const output = await SellAiService.generateItemDescription(
+      db,
+      user.tenantId,
+      user.sub,
+      id || null,
+      body
+    );
+
+    return reply.send({ success: true, ...output });
+  }
+
+  // =========================================================================
+  // RELATÓRIOS & ALERTAS OPERACIONAIS (Fase 13)
+  // =========================================================================
+
+  static async getAgingReport(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const db = forTenant(user.tenantId);
+    const report = await SellItemService.getAgingReport(db, user.tenantId);
+    return reply.send({ success: true, ...report });
+  }
+
+  static async getAlerts(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const db = forTenant(user.tenantId);
+    const alerts = await SellItemService.getAlerts(db, user.tenantId);
+    return reply.send({ success: true, ...alerts });
+  }
+
+  static async getProfitabilityReport(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const db = forTenant(user.tenantId);
+    const report = await SellItemService.getProfitabilityReport(db, user.tenantId);
+    return reply.send({ success: true, ...report });
+  }
 }
+

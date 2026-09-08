@@ -79,4 +79,25 @@ Resolver o bloqueio de login em produção, estabilizar a persistência de sess�
       - Gerador interativo de relatórios P&L com exportação/impressão.
       - Barras de progresso e alertas visuais de teto orçamental.
 
-
+12. **Implementação Completa dos Módulos HCCALL Telecom e 2SELLMAIS (Fases 0 a 14 · v0.5.0)**:
+    - **Fase 0 a 5 (HCCALL Telecom `hccall`)**:
+      - PWA standalone mobile-first (`hccall.html`, `hccall-sw.js`, `hccall.webmanifest`) com operação com uma mão e tempos de registo <20s.
+      - Fila offline local com IndexedDB e endpoint `POST /api/hccall/sync` idempotente com `clientUuid`.
+      - Snapshot imutável de promoções (`promotionSnapshot`) e histórico auditado de alterações (`HccallSaleChange`).
+      - Relatórios de comissões por estado (`FORECAST`, `CONFIRMED`, `PAID`) e exportação CSV estruturada (BOM UTF-8 e `;`).
+      - Registo e histórico de interações com clientes (`HccallContact`).
+    - **Fase 6 a 12 (2SELLMAIS `sellmais`)**:
+      - Registo de artigos com validação dinâmica de atributos JSONB por tipo via Zod e código sequencial `ART-YYYY-NNNN`.
+      - Máquina de estados estrita (`DRAFT` ➔ `AVAILABLE` ➔ `RESERVED` ➔ `SOLD`) com bloqueio de transições inválidas (HTTP 409).
+      - Materialização de custos em tempo real (`totalCostCents` = aquisição + restauros + taxas) e margem real calculada no backend.
+      - Proveniência (`SellProvenance`), Restauros (`SellRestoration`) e Gestão Multimédia (`SellItemMedia`).
+      - Gestão de contratos de consignação (`SellConsignment`), comitentes e liquidações com separação no valor de inventário.
+      - Catálogo público SSR (`/loja`, `/loja/artigo/:slug`) com JSON-LD Schema `Product`, Open Graph e whitelist estrita de proteção de custos confidenciais.
+      - Assistente IA de descrições e peritagem (`SellAiService`) em conformidade com o código deontológico de antiguidades.
+      - Outbox assíncrono para publicação e despublicação em canais (`SellChannelJob`) e suporte ao modo manual honesto (`manualOnly`).
+      - Motor de leilões concorrente (`SellAuction`, `SellAuctionLot`, `SellBid`) com validação atómica de incrementos e proteção anti-sniping.
+    - **Fases 13 e 14 (Painéis, Alertas & QA Total)**:
+      - Relatórios de envelhecimento de inventário (`/api/sellmais/reports/aging`), alertas de prazos de consignação e peças sem preço/foto.
+      - 86 testes unitários e E2E aprovados (100% green em 20 suites).
+      - 24 asserções full-stack no script de auditoria E2E.
+      - Typecheck e build limpos com zero erros.

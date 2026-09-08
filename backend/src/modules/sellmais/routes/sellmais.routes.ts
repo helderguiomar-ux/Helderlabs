@@ -74,8 +74,26 @@ export async function sellmaisRoutes(app: FastifyInstance) {
     protectedApp.post('/lots/:lotId/bid', SellmaisController.placeBid);
 
     // -----------------------------------------------------------------------
-    // VALORIZAÇÃO DE INVENTÁRIO
+    // PROVENIÊNCIA, RESTAUROS & MEDIA (Fase 7)
+    // -----------------------------------------------------------------------
+    protectedApp.post('/items/:id/provenance', SellmaisController.addProvenance);
+    protectedApp.post('/items/:id/restorations', SellmaisController.addRestoration);
+    protectedApp.post('/items/:id/media', SellmaisController.addMedia);
+    protectedApp.delete('/media/:mediaId', SellmaisController.deleteMedia);
+
+    // -----------------------------------------------------------------------
+    // ASSISTENTE DE IA DE DESCRIÇÕES & PERITAGEM (Fase 10)
+    // -----------------------------------------------------------------------
+    protectedApp.post('/ai/describe', SellmaisController.describeItemAi);
+    protectedApp.post('/items/:id/ai-describe', SellmaisController.describeItemAi);
+
+    // -----------------------------------------------------------------------
+    // VALORIZAÇÃO DE INVENTÁRIO & RELATÓRIOS (Fase 13)
     // -----------------------------------------------------------------------
     protectedApp.get('/valuation', SellmaisController.getValuation);
+    protectedApp.get('/reports/aging', SellmaisController.getAgingReport);
+    protectedApp.get('/reports/alerts', SellmaisController.getAlerts);
+    protectedApp.get('/reports/profitability', SellmaisController.getProfitabilityReport);
   });
 }
+

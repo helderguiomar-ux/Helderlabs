@@ -32,17 +32,38 @@ export async function applicationsRoutes(app: FastifyInstance) {
   app.get('/modules', ApplicationController.listModules);
 
   // ── Aplicativos (instâncias de módulos por tenant) ───────────────────────
-  // GET  /api/platform/applications
+  // GET  /api/platform/applications (SUPER_ADMIN, PLATFORM_ADMIN, TENANT_ADMIN)
   app.get('/', ApplicationController.list);
 
-  // POST /api/platform/applications
-  app.post('/', ApplicationController.create);
+  // POST /api/platform/applications (Apenas SUPER_ADMIN / PLATFORM_ADMIN)
+  app.post('/', {
+    preHandler: async (req, reply) => {
+      const role = (req.user as any)?.role;
+      if (role !== 'SUPER_ADMIN' && role !== 'PLATFORM_ADMIN') {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas administradores de plataforma podem licenciar módulos.' });
+      }
+    }
+  }, ApplicationController.create);
 
-  // PATCH /api/platform/applications/:applicationId
-  app.patch('/:applicationId', ApplicationController.update);
+  // PATCH /api/platform/applications/:applicationId (Apenas SUPER_ADMIN / PLATFORM_ADMIN)
+  app.patch('/:applicationId', {
+    preHandler: async (req, reply) => {
+      const role = (req.user as any)?.role;
+      if (role !== 'SUPER_ADMIN' && role !== 'PLATFORM_ADMIN') {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas administradores de plataforma podem alterar licenciamentos.' });
+      }
+    }
+  }, ApplicationController.update);
 
-  // DELETE /api/platform/applications/:applicationId  (soft-delete → ARCHIVED)
-  app.delete('/:applicationId', ApplicationController.remove);
+  // DELETE /api/platform/applications/:applicationId (Apenas SUPER_ADMIN / PLATFORM_ADMIN)
+  app.delete('/:applicationId', {
+    preHandler: async (req, reply) => {
+      const role = (req.user as any)?.role;
+      if (role !== 'SUPER_ADMIN' && role !== 'PLATFORM_ADMIN') {
+        return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas administradores de plataforma podem remover licenciamentos.' });
+      }
+    }
+  }, ApplicationController.remove);
 
   // ── Atribuições de utilizadores ──────────────────────────────────────────
   // POST   /api/platform/applications/:applicationId/assign

@@ -1,0 +1,1096 @@
+<meta charset="utf-8">
+<title>Proposta HelderLabs — D. Fátima</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root{
+    --paper:#FCFAF6;
+    --ink:#1B1A18;
+    --ink2:#4A453D;
+    --muted:#7A736A;
+    --rule:#E3DCD1;
+    --rule2:#CFC5B5;
+    --brass:#9A7328;
+    --brass-soft:#F4EDDF;
+    --blue:#17408B;
+    --blue-soft:#EDF1F9;
+    --green:#2C6A50;
+    --green-soft:#E9F1ED;
+    --red:#A33B22;
+    --red-soft:#F8EDE9;
+    --serif:"Bitstream Charter","Charter","Liberation Serif",Georgia,serif;
+    --sans:"Carlito","Calibri","Liberation Sans",Arial,sans-serif;
+  }
+
+  html,body{ background:#8a8378; }
+  body{ font-family:var(--sans); color:var(--ink); font-size:10.6pt; line-height:1.55; -webkit-font-smoothing:antialiased; }
+
+  .page{
+    position:relative; width:210mm; height:297mm; overflow:hidden;
+    background:var(--paper); padding:19mm 18mm 14mm; page-break-after:always;
+    margin:0 auto;
+  }
+  .page:last-child{ page-break-after:auto; }
+  .page.dark{ background:#16202E; color:#F3EFE8; }
+  .page.brass{ background:#1E1A14; color:#F6F0E4; }
+
+  /* running head / foot */
+  .rh{ position:absolute; top:9mm; left:18mm; right:18mm; display:flex; justify-content:space-between;
+       font-size:6.8pt; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+  .rf{ position:absolute; bottom:8mm; left:18mm; right:18mm; display:flex; justify-content:space-between;
+       font-size:6.8pt; letter-spacing:.12em; color:var(--muted); border-top:.5pt solid var(--rule); padding-top:2.5mm; }
+  .dark .rh,.dark .rf,.brass .rh,.brass .rf{ color:rgba(255,255,255,.42); border-color:rgba(255,255,255,.14); }
+
+  /* type */
+  h1{ font-family:var(--serif); font-size:30pt; line-height:1.12; font-weight:600; letter-spacing:-.01em; }
+  h2{ font-family:var(--serif); font-size:21pt; line-height:1.18; font-weight:600; margin-bottom:4mm; }
+  h3{ font-family:var(--sans); font-size:11.5pt; font-weight:700; margin-bottom:1.5mm; }
+  p{ margin-bottom:3mm; color:var(--ink2); }
+  .lead{ font-size:12pt; line-height:1.5; color:var(--ink); }
+  .kicker{ font-size:7.4pt; letter-spacing:.22em; text-transform:uppercase; color:var(--brass); font-weight:700; margin-bottom:3mm; }
+  .kicker.blue{ color:var(--blue); }
+  .kicker.light{ color:rgba(255,255,255,.55); }
+  .big{ font-family:var(--serif); font-size:40pt; line-height:1; font-weight:600; }
+  .strike{ text-decoration:line-through; color:var(--muted); }
+  b,strong{ color:var(--ink); font-weight:700; }
+  .dark b,.brass b{ color:#fff; }
+  .dark p,.brass p{ color:rgba(255,255,255,.78); }
+  em{ font-style:italic; }
+  .hairline{ height:.5pt; background:var(--rule); margin:6mm 0; }
+  .rule-brass{ height:2pt; width:22mm; background:var(--brass); margin-bottom:5mm; }
+
+  /* layout */
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:7mm; }
+  .grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:5mm; }
+  .stack{ display:flex; flex-direction:column; gap:4mm; }
+  .center{ text-align:center; }
+
+  .card{ border:.5pt solid var(--rule2); padding:6mm; background:#fff; }
+  .card.tint{ background:var(--brass-soft); border-color:#E5D9BF; }
+  .card.blue{ background:var(--blue-soft); border-color:#D5DEF0; }
+  .card.green{ background:var(--green-soft); border-color:#CFE1D8; }
+  .card.red{ background:var(--red-soft); border-color:#EDD6CD; }
+
+  .num{ font-family:var(--serif); font-size:26pt; line-height:1; color:var(--brass); font-weight:600; }
+  .num.blue{ color:var(--blue); } .num.green{ color:var(--green); } .num.red{ color:var(--red); }
+
+  ul{ list-style:none; }
+  ul li{ position:relative; padding-left:5mm; margin-bottom:1.8mm; color:var(--ink2); }
+  ul li::before{ content:""; position:absolute; left:0; top:2.1mm; width:2mm; height:2mm; background:var(--brass); }
+  ul.check li::before{ content:"\2713"; background:none; color:var(--green); font-weight:700; left:0; top:.3mm; font-size:9.5pt; }
+  ul.cross li::before{ content:"\2715"; background:none; color:var(--red); font-weight:700; left:.2mm; top:.7mm; font-size:8.5pt; }
+  .dark ul li,.brass ul li{ color:rgba(255,255,255,.78); }
+
+  table{ width:100%; border-collapse:collapse; font-size:9.4pt; }
+  th{ text-align:left; font-size:7.2pt; letter-spacing:.14em; text-transform:uppercase; color:var(--muted);
+      font-weight:700; padding:0 3mm 2.5mm 0; border-bottom:.75pt solid var(--rule2); }
+  td{ padding:2.8mm 3mm 2.8mm 0; border-bottom:.5pt solid var(--rule); vertical-align:top; color:var(--ink2); }
+  td.k{ color:var(--ink); font-weight:700; }
+
+  .tl{ position:relative; padding-left:9mm; }
+  .tl::before{ content:""; position:absolute; left:2.4mm; top:1mm; bottom:1mm; width:.75pt; background:var(--rule2); }
+  .tl .ev{ position:relative; margin-bottom:3.4mm; }
+  .tl .ev::before{ content:""; position:absolute; left:-7.3mm; top:1.6mm; width:2.6mm; height:2.6mm; border-radius:50%;
+                   background:var(--paper); border:1pt solid var(--brass); }
+  .tl .ev.on::before{ background:var(--brass); }
+  .tl .t{ font-family:var(--sans); font-size:8pt; font-weight:700; color:var(--brass); letter-spacing:.06em; }
+  .tl .d{ font-size:9.6pt; color:var(--ink2); }
+
+  .mock{ border:.75pt solid var(--rule2); background:#fff; }
+  .mock .bar{ background:#16202E; color:#fff; font-size:7.6pt; letter-spacing:.1em; text-transform:uppercase;
+              padding:2.4mm 4mm; display:flex; justify-content:space-between; }
+  .mock .body{ padding:5mm; }
+  .chip{ display:inline-block; font-size:7.4pt; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+         padding:1mm 2.6mm; border-radius:1mm; }
+  .chip.g{ background:var(--green-soft); color:var(--green); }
+  .chip.r{ background:var(--red-soft); color:var(--red); }
+  .chip.b{ background:var(--blue-soft); color:var(--blue); }
+  .chip.y{ background:var(--brass-soft); color:var(--brass); }
+
+  .kpi{ border:.5pt solid var(--rule2); background:#fff; padding:4mm; }
+  .kpi .lab{ font-size:7pt; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:1.5mm; }
+  .kpi .val{ font-family:var(--serif); font-size:17pt; line-height:1; color:var(--ink); }
+  .kpi .sub{ font-size:7.6pt; color:var(--muted); margin-top:1mm; }
+
+  .quote{ font-family:var(--serif); font-size:15pt; line-height:1.35; color:var(--ink); }
+  .dark .quote,.brass .quote{ color:#fff; }
+
+  .note{ font-size:8.4pt; color:var(--muted); line-height:1.45; }
+
+  .flow{ display:flex; align-items:center; gap:2.5mm; flex-wrap:wrap; }
+  .flow .n{ border:.5pt solid var(--rule2); background:#fff; padding:2.2mm 3.2mm; font-size:8.4pt; }
+  .flow .a{ color:var(--brass); font-size:10pt; }
+
+  /* annex compact */
+  .annex{ font-size:9.5pt; }
+  .annex h2{ font-size:15pt; margin-bottom:3mm; }
+  .annex h3{ font-size:10pt; margin-top:4mm; }
+  .annex ul li{ margin-bottom:1.1mm; }
+  .annex ul li::before{ top:1.9mm; width:1.4mm; height:1.4mm; }
+  .cols2{ column-count:2; column-gap:7mm; }
+  .cols3{ column-count:3; column-gap:6mm; }
+  .fieldlist{ font-size:8.8pt; color:var(--ink2); }
+  .fieldlist div{ padding:1mm 0; border-bottom:.4pt solid var(--rule); break-inside:avoid; }
+</style>
+
+<!-- ============ 1 · CAPA ============ -->
+<section class="page" style="padding:0;">
+  <div style="position:absolute; inset:0; background:#16202E;"></div>
+  <div style="position:absolute; left:0; right:0; top:0; height:88mm; background:
+       repeating-linear-gradient(135deg, rgba(154,115,40,.10) 0 1px, transparent 1px 9px);"></div>
+  <div style="position:absolute; left:18mm; top:22mm; color:#fff;">
+    <div style="font-family:var(--serif); font-size:19pt; font-weight:600; letter-spacing:.02em;">HelderLabs</div>
+    <div style="font-size:7.4pt; letter-spacing:.2em; text-transform:uppercase; color:rgba(255,255,255,.45); margin-top:1.5mm;">
+      Soluções Digitais, Automação e Inteligência Artificial</div>
+  </div>
+
+  <div style="position:absolute; left:18mm; right:18mm; top:88mm; color:#fff;">
+    <div style="height:2.5pt; width:26mm; background:var(--brass); margin-bottom:8mm;"></div>
+    <div style="font-size:7.6pt; letter-spacing:.24em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:6mm;">
+      Proposta para a D. Fátima</div>
+    <div style="font-family:var(--serif); font-size:37pt; line-height:1.14; font-weight:600; letter-spacing:-.015em;">
+      Mais peças vendidas.<br>
+      Menos peças paradas.<br>
+      <span style="color:#D9B268;">Melhores margens.</span>
+    </div>
+    <div style="font-size:12.5pt; line-height:1.5; color:rgba(255,255,255,.72); margin-top:9mm; max-width:130mm;">
+      Uma plataforma feita à medida do negócio das antiguidades — para saber sempre o que tem,
+      quanto vale, onde está e quanto ganha realmente com cada peça.
+    </div>
+  </div>
+
+  <div style="position:absolute; left:18mm; right:18mm; bottom:16mm; display:flex; justify-content:space-between;
+              align-items:flex-end; color:rgba(255,255,255,.5); font-size:8pt;">
+    <div>
+      <div style="letter-spacing:.16em; text-transform:uppercase; font-size:7pt; margin-bottom:1.5mm;">Apresentado por</div>
+      <div style="color:#fff; font-size:10pt; font-weight:700;">Hélder Nóbrega</div>
+      <div>Funchal, Madeira · helderlabs.eu</div>
+    </div>
+    <div style="text-align:right;">
+      <div>Setembro de 2026</div>
+      <div>Documento confidencial</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 · CARTA ============ -->
+<section class="page">
+  <div class="rh"><span>HelderLabs</span><span>Proposta · D. Fátima</span></div>
+
+  <div style="max-width:150mm; margin-top:12mm;">
+    <div class="kicker">Uma nota pessoal</div>
+    <h2>Cara D. Fátima,</h2>
+
+    <p class="lead" style="margin-bottom:5mm;">Antes de falar de programas e de tecnologia, deixe-me falar do que
+      me parece ser o essencial: <b>o seu negócio tem valor parado nas prateleiras</b>, e a única forma de o
+      libertar é vender mais depressa e melhor.</p>
+
+    <p>Antes de trabalhar com software, geri lojas e empresas. Sei o que é olhar para uma sala cheia de mercadoria
+      e não saber, de cabeça, quanto ali está investido nem há quanto tempo cada peça espera comprador. Sei
+      também que numa loja de antiguidades cada peça é única — e que essa é ao mesmo tempo a sua maior força e
+      a sua maior dificuldade de gestão.</p>
+
+    <p>Não lhe proponho um programa de inventário. Proponho-lhe uma forma diferente de trabalhar: <b>cada peça
+      passa a ter uma ficha única</b>, e tudo o que lhe diz respeito — fotografias, história, custos, onde está,
+      onde está anunciada, quem perguntou por ela — fica ligado a essa ficha. Fotografa uma peça com o telemóvel
+      e, em poucos minutos, ela está tratada, descrita e publicada nos seus canais. Quando vende, desaparece
+      sozinha de todos eles.</p>
+
+    <p>O objetivo é simples e mede-se em três números que a D. Fátima conhece melhor do que ninguém:
+      <b>quanto tempo uma peça demora a vender</b>, <b>quanto ganha em cada uma</b> e
+      <b>quanto do seu dinheiro está imobilizado</b>.</p>
+
+    <p>Nesta proposta encontra primeiro as vantagens para o negócio, explicadas sem termos técnicos. No final,
+      em anexo, deixo o dossier técnico com o detalhe completo — para o caso de o querer analisar, ou mostrar
+      a alguém da sua confiança.</p>
+
+    <p style="margin-top:6mm;">Fico ao seu dispor para conversarmos com calma, na sua loja, com as peças à frente.
+      É aí que estas coisas se percebem melhor.</p>
+
+    <div style="margin-top:10mm;">
+      <div style="font-family:var(--serif); font-size:15pt; color:var(--brass);">Hélder Nóbrega</div>
+      <div class="note">HelderLabs · Funchal, Madeira</div>
+    </div>
+  </div>
+
+  <div class="rf"><span>HL-PROP-2026-ANT-02</span><span>2</span></div>
+</section>
+
+<!-- ============ 3 · O DINHEIRO PARADO ============ -->
+<section class="page">
+  <div class="rh"><span>O ponto de partida</span><span>Onde está hoje o seu dinheiro</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">O ponto de partida</div>
+    <h1 style="max-width:150mm;">Numa loja de antiguidades,<br>o stock <span style="color:var(--brass);">é</span> o dinheiro.</h1>
+    <div class="rule-brass" style="margin-top:6mm;"></div>
+    <p class="lead" style="max-width:155mm;">Cada peça em exposição ou em armazém é capital seu, à espera.
+      Enquanto não vende, esse dinheiro não trabalha. E há três formas silenciosas de o perder.</p>
+  </div>
+
+  <div class="grid3" style="margin-top:9mm;">
+    <div class="card red">
+      <div class="num red">1</div>
+      <h3 style="margin-top:3mm;">Tempo de prateleira</h3>
+      <p style="font-size:9.6pt; margin:0;">Uma peça parada há um ano é um ano de capital sem retorno.
+        Sem um sistema, as peças antigas confundem-se com as novas e ninguém repara nelas.</p>
+    </div>
+    <div class="card red">
+      <div class="num red">2</div>
+      <h3 style="margin-top:3mm;">Margem que não é a real</h3>
+      <p style="font-size:9.6pt; margin:0;">Transporte, restauro e pequenas despesas raramente entram na conta.
+        A margem que julga ter é quase sempre maior do que a margem que tem.</p>
+    </div>
+    <div class="card red">
+      <div class="num red">3</div>
+      <h3 style="margin-top:3mm;">Oportunidades perdidas</h3>
+      <p style="font-size:9.6pt; margin:0;">Peças que nunca chegaram a ser fotografadas, anúncios de artigos já
+        vendidos, clientes que procuravam exatamente aquilo e nunca souberam que existia.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:9mm; background:#fff; border-color:var(--rule2);">
+    <div class="kicker blue" style="margin-bottom:4mm;">A conta que quase ninguém faz</div>
+    <table>
+      <tr><td class="k" style="width:52%;">Comprou a peça por</td><td style="text-align:right; font-family:var(--serif); font-size:12pt;">200 €</td></tr>
+      <tr><td class="k">Vendeu por</td><td style="text-align:right; font-family:var(--serif); font-size:12pt;">500 €</td></tr>
+      <tr><td class="k">Margem que julga ter</td><td style="text-align:right; font-family:var(--serif); font-size:12pt; color:var(--muted);" class="strike">300 €</td></tr>
+      <tr><td>Transporte e recolha</td><td style="text-align:right;">− 40 €</td></tr>
+      <tr><td>Restauro e materiais</td><td style="text-align:right;">− 90 €</td></tr>
+      <tr style="border:none;"><td class="k" style="border-bottom:none; padding-top:4mm;">Margem real</td>
+          <td style="text-align:right; border-bottom:none; padding-top:4mm; font-family:var(--serif); font-size:19pt; color:var(--green);">170 €</td></tr>
+    </table>
+    <p class="note" style="margin:4mm 0 0;">Exemplo ilustrativo. A diferença é de 43 %. Não é um erro de contas —
+      é falta de um sítio onde os custos fiquem colados à peça. A plataforma faz esta conta sozinha, peça a peça.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>3</span></div>
+</section>
+
+<!-- ============ 4 · AS QUATRO PERGUNTAS ============ -->
+<section class="page dark">
+  <div class="rh"><span>Diagnóstico</span><span>Quatro perguntas</span></div>
+
+  <div style="margin-top:14mm;">
+    <div class="kicker light">Quatro perguntas simples</div>
+    <h1 style="max-width:155mm; color:#fff;">Quanto tempo demora hoje<br>a responder a isto?</h1>
+  </div>
+
+  <div style="margin-top:12mm; display:grid; grid-template-columns:1fr 1fr; gap:8mm 10mm;">
+    <div>
+      <div style="font-family:var(--serif); font-size:26pt; color:#D9B268;">01</div>
+      <div class="quote" style="margin:2mm 0 2.5mm;">Quanto vale, hoje, tudo o que tenho em loja e em armazém?</div>
+      <p style="font-size:9.4pt; margin:0;">Com a plataforma: aparece no ecrã inicial, atualizado ao minuto.</p>
+    </div>
+    <div>
+      <div style="font-family:var(--serif); font-size:26pt; color:#D9B268;">02</div>
+      <div class="quote" style="margin:2mm 0 2.5mm;">Quanto ganhei realmente na peça que vendi na semana passada?</div>
+      <p style="font-size:9.4pt; margin:0;">Com a plataforma: margem real, já com restauro e transporte descontados.</p>
+    </div>
+    <div>
+      <div style="font-family:var(--serif); font-size:26pt; color:#D9B268;">03</div>
+      <div class="quote" style="margin:2mm 0 2.5mm;">Que peças estão aqui há mais de seis meses sem ninguém lhes tocar?</div>
+      <p style="font-size:9.4pt; margin:0;">Com a plataforma: lista automática, com sugestões do que fazer a cada uma.</p>
+    </div>
+    <div>
+      <div style="font-family:var(--serif); font-size:26pt; color:#D9B268;">04</div>
+      <div class="quote" style="margin:2mm 0 2.5mm;">Onde está fisicamente aquela peça que o cliente veio ver?</div>
+      <p style="font-size:9.4pt; margin:0;">Com a plataforma: sala, zona, estante e posição — em três segundos.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:13mm; border-left:2.5pt solid var(--brass); padding-left:6mm; max-width:150mm;">
+    <p style="font-size:11pt; color:rgba(255,255,255,.85); margin:0;">
+      Nenhuma destas perguntas é difícil. São todas <b>impossíveis de responder depressa</b> quando a informação
+      está espalhada por folhas de Excel, fotografias no telemóvel, conversas de WhatsApp, anúncios e papéis.
+      É esse o problema que se resolve — e resolve-se uma vez só.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>4</span></div>
+</section>
+
+<!-- ============ 5 · TRÊS ALAVANCAS ============ -->
+<section class="page">
+  <div class="rh"><span>A proposta de valor</span><span>Três alavancas</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">O que muda no seu negócio</div>
+    <h1 style="max-width:158mm;">Três formas de ganhar mais<br>com as peças que já tem.</h1>
+    <div class="rule-brass" style="margin-top:6mm;"></div>
+  </div>
+
+  <div class="stack" style="margin-top:8mm;">
+    <div class="card" style="border-left:3pt solid var(--brass);">
+      <div style="display:flex; gap:6mm; align-items:flex-start;">
+        <div class="num" style="min-width:16mm;">01</div>
+        <div>
+          <h3 style="font-size:14pt; font-family:var(--serif); font-weight:600;">Vender mais depressa</h3>
+          <p style="margin-bottom:2.5mm;">A mesma peça, exposta a muito mais gente, muito mais cedo. O que hoje
+            demora dias entre fotografar, escrever e publicar em cada sítio, passa a demorar minutos — e é feito
+            uma vez só, para todos os canais.</p>
+          <p style="margin:0;"><b>Efeito directo:</b> menos tempo de prateleira, menos dinheiro imobilizado,
+            mais rotação com o mesmo espaço e o mesmo esforço.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3pt solid var(--brass);">
+      <div style="display:flex; gap:6mm; align-items:flex-start;">
+        <div class="num" style="min-width:16mm;">02</div>
+        <div>
+          <h3 style="font-size:14pt; font-family:var(--serif); font-weight:600;">Vender mais caro</h3>
+          <p style="margin-bottom:2.5mm;">Uma peça bem fotografada, bem descrita e <b>com a sua história
+            documentada</b> não vale o mesmo que a mesma peça com uma fotografia escura e três palavras. Em
+            antiguidades, a proveniência é argumento de preço — e hoje essa história está na sua cabeça, não no anúncio.</p>
+          <p style="margin:0;"><b>Efeito directo:</b> menos regateio, menos descontos para despachar,
+            preço sustentado por informação.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3pt solid var(--brass);">
+      <div style="display:flex; gap:6mm; align-items:flex-start;">
+        <div class="num" style="min-width:16mm;">03</div>
+        <div>
+          <h3 style="font-size:14pt; font-family:var(--serif); font-weight:600;">Deixar de perder</h3>
+          <p style="margin-bottom:2.5mm;">Deixar de anunciar o que já vendeu. Deixar de esquecer peças no armazém.
+            Deixar de descobrir tarde que uma peça deu menos do que parecia. Deixar de perder clientes que
+            procuravam exactamente aquilo que tem.</p>
+          <p style="margin:0;"><b>Efeito directo:</b> a margem que já existe deixa de escorrer por fugas que
+            hoje ninguém consegue ver.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:8mm; background:var(--brass-soft); border:.5pt solid #E5D9BF; padding:6mm;">
+    <p style="margin:0; font-size:11pt;"><b>Repare que nenhuma destas três alavancas exige comprar mais peças,
+      abrir mais loja ou contratar mais pessoas.</b> Todas elas se conseguem com o inventário que já tem —
+      apenas organizado de outra maneira.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>5</span></div>
+</section>
+
+<!-- ============ 6 · UM DIA NA LOJA ============ -->
+<section class="page">
+  <div class="rh"><span>Como funciona na prática</span><span>Um dia na loja</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">Como funciona, na prática</div>
+    <h1>Da porta da loja<br>ao anúncio, em 20 minutos.</h1>
+    <p class="lead" style="max-width:150mm; margin-top:5mm;">Chega uma cómoda. Hoje, entre fotografar, medir,
+      escrever, publicar no site e nos classificados, isto pode arrastar-se por dias — quando chega a acontecer.</p>
+  </div>
+
+  <div class="grid2" style="margin-top:8mm; gap:10mm;">
+    <div>
+      <div class="kicker" style="color:var(--red);">Hoje</div>
+      <div class="tl" style="margin-top:2mm;">
+        <div class="ev"><div class="t">DIA 1</div><div class="d">A peça entra. Fica encostada a um canto.</div></div>
+        <div class="ev"><div class="t">DIA 3</div><div class="d">Alguém se lembra de a fotografar com o telemóvel.</div></div>
+        <div class="ev"><div class="t">DIA 6</div><div class="d">As fotografias ficam perdidas entre centenas de outras.</div></div>
+        <div class="ev"><div class="t">DIA 9</div><div class="d">Escreve-se a descrição. Outra vez, do zero.</div></div>
+        <div class="ev"><div class="t">DIA 10</div><div class="d">Publica-se no site. Depois nos classificados — a copiar tudo de novo.</div></div>
+        <div class="ev"><div class="t">DIA 40</div><div class="d">Vende-se em loja. O anúncio fica no ar mais duas semanas.</div></div>
+        <div class="ev on"><div class="t">RESULTADO</div><div class="d" style="color:var(--red);"><b>10 dias até estar à venda online.<br>Custos do restauro? Ninguém somou.</b></div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="kicker" style="color:var(--green);">Com a plataforma</div>
+      <div class="tl" style="margin-top:2mm;">
+        <div class="ev"><div class="t">10H00</div><div class="d">A peça entra. Fotografa com o telemóvel, ali mesmo.</div></div>
+        <div class="ev"><div class="t">10H02</div><div class="d">As fotografias são tratadas automaticamente: luz, fundo, enquadramento.</div></div>
+        <div class="ev"><div class="t">10H05</div><div class="d">O sistema propõe a descrição. A D. Fátima lê, corrige, aprova.</div></div>
+        <div class="ev"><div class="t">10H08</div><div class="d">Regista o que pagou, a origem e a história que conhece.</div></div>
+        <div class="ev"><div class="t">10H12</div><div class="d">Indica onde a arrumou: Sala 2, Estante 4.</div></div>
+        <div class="ev"><div class="t">10H20</div><div class="d">Publica. Site e canais, ao mesmo tempo, num só clique.</div></div>
+        <div class="ev on"><div class="t">RESULTADO</div><div class="d" style="color:var(--green);"><b>20 minutos até estar à venda.<br>Custo real e margem, calculados sozinhos.</b></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:7mm; border-top:.75pt solid var(--rule2); padding-top:5mm;">
+    <p style="margin:0;"><b>E quando vender?</b> Marca "Vendido" uma única vez. O artigo sai do site e de todos os
+      canais onde estava anunciado, automaticamente. Nunca mais alguém liga a perguntar por uma peça que já não tem.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>6</span></div>
+</section>
+
+<!-- ============ 7 · A FICHA DA PEÇA ============ -->
+<section class="page">
+  <div class="rh"><span>O que vai ver no ecrã</span><span>A ficha da peça</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">O coração do sistema</div>
+    <h1>Uma peça. Uma ficha.<br>Tudo num só sítio.</h1>
+    <p class="lead" style="max-width:152mm; margin-top:5mm;">Deixa de haver informação sobre a peça espalhada:
+      passa a haver <b>a</b> informação da peça. Quem a vê, vê tudo.</p>
+  </div>
+
+  <div class="mock" style="margin-top:7mm;">
+    <div class="bar"><span>Ficha de artigo · HL-2026-00125</span><span>Cómoda D. Maria</span></div>
+    <div class="body">
+      <div style="display:grid; grid-template-columns:1.15fr 1fr; gap:7mm;">
+        <div>
+          <div style="display:flex; gap:2mm; margin-bottom:4mm;">
+            <span class="chip g">Disponível</span>
+            <span class="chip b">Publicada em 3 canais</span>
+            <span class="chip y">Perfil 80 % completo</span>
+          </div>
+          <table style="font-size:9pt;">
+            <tr><td class="k" style="width:42%;">Época</td><td>Séc. XIX (a confirmar)</td></tr>
+            <tr><td class="k">Material</td><td>Pau-santo e mogno</td></tr>
+            <tr><td class="k">Dimensões</td><td>120 × 70 × 90 cm</td></tr>
+            <tr><td class="k">Estado</td><td>Bom · restaurada em 2026</td></tr>
+            <tr><td class="k">Localização</td><td>Loja · Sala 2 · Estante 4</td></tr>
+            <tr><td class="k">Proveniência</td><td>Casa particular, Funchal · documentada</td></tr>
+          </table>
+
+          <div style="margin-top:5mm; background:var(--green-soft); border:.5pt solid #CFE1D8; padding:4mm;">
+            <div style="font-size:7.2pt; letter-spacing:.14em; text-transform:uppercase; color:var(--green); font-weight:700; margin-bottom:2.5mm;">
+              Contas da peça</div>
+            <table style="font-size:9pt;">
+              <tr><td>Compra</td><td style="text-align:right;">200 €</td></tr>
+              <tr><td>Transporte</td><td style="text-align:right;">40 €</td></tr>
+              <tr><td>Restauro</td><td style="text-align:right;">90 €</td></tr>
+              <tr><td class="k" style="border-bottom:none;">Custo real</td><td style="text-align:right; border-bottom:none;" class="k">330 €</td></tr>
+              <tr><td class="k" style="border-bottom:none;">Preço de venda</td><td style="text-align:right; border-bottom:none;" class="k">500 €</td></tr>
+              <tr><td class="k" style="border-bottom:none; padding-top:2mm;">Margem real</td>
+                  <td style="text-align:right; border-bottom:none; padding-top:2mm; font-family:var(--serif); font-size:14pt; color:var(--green);">170 €</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:7.2pt; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:3mm;">
+            História da peça</div>
+          <div class="tl" style="padding-left:8mm;">
+            <div class="ev on"><div class="t">15 FEV</div><div class="d" style="font-size:9pt;">Aquisição</div></div>
+            <div class="ev on"><div class="t">20 FEV</div><div class="d" style="font-size:9pt;">Entrada em inventário</div></div>
+            <div class="ev on"><div class="t">23 FEV</div><div class="d" style="font-size:9pt;">Fotografias tratadas</div></div>
+            <div class="ev on"><div class="t">24 FEV</div><div class="d" style="font-size:9pt;">Descrição criada e aprovada</div></div>
+            <div class="ev on"><div class="t">28 FEV</div><div class="d" style="font-size:9pt;">Restauro concluído · 90 €</div></div>
+            <div class="ev on"><div class="t">01 MAR</div><div class="d" style="font-size:9pt;">Publicada no site e nos canais</div></div>
+            <div class="ev on"><div class="t">10 MAR</div><div class="d" style="font-size:9pt;">Preço ajustado · 550 € → 500 €</div></div>
+            <div class="ev"><div class="t">15 MAR</div><div class="d" style="font-size:9pt;">Reservada por cliente</div></div>
+          </div>
+          <p class="note" style="margin-top:4mm;">Cada passo fica registado com quem fez, quando e o que mudou.
+            Nada se apaga.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin-top:6mm;"><b>É esta ficha que alimenta tudo o resto:</b> o site, os anúncios, as contas do
+    negócio, o histórico e a conversa com o cliente. Escreve-se uma vez; serve para tudo.</p>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>7</span></div>
+</section>
+
+<!-- ============ 8 · DISPONIBILIDADE ============ -->
+<section class="page">
+  <div class="rh"><span>A funcionalidade de retorno imediato</span><span>Disponibilidade</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">A funcionalidade que se paga sozinha</div>
+    <h1>Nunca mais anunciar<br>o que já vendeu.</h1>
+  </div>
+
+  <div class="card red" style="margin-top:7mm;">
+    <p style="margin:0; font-size:11pt;"><b>A situação que todos conhecem:</b> o cliente vê a peça na internet,
+      telefona ou desloca-se à loja — e a peça já tinha sido vendida há duas semanas. Perde-se o tempo dele,
+      perde-se o tempo da loja, e perde-se algo mais difícil de recuperar: a confiança de quem procura
+      exclusividade e encontrou um anúncio desatualizado.</p>
+  </div>
+
+  <div style="margin-top:9mm;">
+    <div class="kicker blue">Como passa a funcionar</div>
+    <div class="grid2" style="gap:9mm; margin-top:4mm;">
+      <div class="card">
+        <h3>Um estado, um só lugar</h3>
+        <p style="font-size:9.6pt;">A peça tem um estado, e só um, definido na ficha:</p>
+        <div style="display:flex; flex-wrap:wrap; gap:2mm; margin-top:3mm;">
+          <span class="chip g">Disponível</span><span class="chip y">Reservada</span>
+          <span class="chip r">Vendida</span><span class="chip b">Em restauro</span>
+          <span class="chip b">Em leilão</span><span class="chip r">Indisponível</span>
+        </div>
+        <p style="font-size:9.6pt; margin-top:4mm; margin-bottom:0;">Muda-o uma vez, no sítio onde já está a
+          trabalhar. Não precisa de se lembrar de mais nada.</p>
+      </div>
+      <div class="card">
+        <h3>Os canais seguem sozinhos</h3>
+        <p style="font-size:9.6pt; margin-bottom:4mm;">O que muda na ficha propaga-se para onde a peça está anunciada:</p>
+        <div class="flow" style="flex-direction:column; align-items:flex-start; gap:2mm;">
+          <div class="n" style="width:100%;">O seu website</div>
+          <div class="n" style="width:100%;">Classificados online</div>
+          <div class="n" style="width:100%;">Redes sociais</div>
+          <div class="n" style="width:100%;">Outros canais que venha a usar</div>
+        </div>
+        <p style="font-size:9.6pt; margin-top:4mm; margin-bottom:0;">Vendida em loja às 15h00 → fora de todos os
+          canais às 15h01.</p>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:9mm; border-top:.75pt solid var(--rule2); padding-top:5mm;">
+    <div class="grid2" style="gap:9mm;">
+      <div>
+        <h3>E funciona ao contrário também</h3>
+        <p style="margin:0;">Uma peça que volta do restauro, ou uma reserva que não se concretiza, regressa
+          automaticamente a todos os canais. Nada fica esquecido fora de circulação.</p>
+      </div>
+      <div>
+        <h3>O que ganha, em concreto</h3>
+        <ul class="check" style="margin:0;">
+          <li>Zero contactos por peças indisponíveis</li>
+          <li>Zero tempo a apagar anúncios um a um</li>
+          <li>Credibilidade junto de quem compra online</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>8</span></div>
+</section>
+
+<!-- ============ 9 · PROVENIÊNCIA ============ -->
+<section class="page brass">
+  <div class="rh"><span>A alavanca de margem</span><span>Proveniência</span></div>
+
+  <div style="margin-top:24mm; max-width:150mm;">
+    <div class="kicker" style="color:#D9B268;">A alavanca de margem</div>
+    <h1 style="color:#fff; font-size:32pt;">A história da peça<br>também se vende.</h1>
+    <p class="lead" style="color:rgba(255,255,255,.8); margin-top:6mm;">
+      Numa loja de antiguidades, duas peças aparentemente iguais podem valer valores muito diferentes.
+      A diferença raramente está na madeira. Está no que se sabe sobre ela — e no que se consegue provar.</p>
+  </div>
+
+  <div style="margin-top:13mm; display:grid; grid-template-columns:1fr 1fr; gap:9mm;">
+    <div style="border:.5pt solid rgba(255,255,255,.18); padding:6mm;">
+      <div style="font-size:7.4pt; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.5); margin-bottom:3mm;">
+        Anúncio comum</div>
+      <div style="font-family:var(--serif); font-size:13pt; color:#fff; margin-bottom:3mm;">Cómoda antiga em madeira</div>
+      <p style="font-size:9.4pt; margin:0; color:rgba(255,255,255,.6);">Bom estado. 120 × 70 cm. Contacte-nos.</p>
+      <div style="margin-top:5mm; padding-top:4mm; border-top:.5pt solid rgba(255,255,255,.15); font-size:9pt; color:rgba(255,255,255,.55);">
+        O comprador só tem um argumento para usar: o preço.</div>
+    </div>
+
+    <div style="border:1pt solid var(--brass); padding:6mm; background:rgba(154,115,40,.10);">
+      <div style="font-size:7.4pt; letter-spacing:.16em; text-transform:uppercase; color:#D9B268; margin-bottom:3mm;">
+        Com a plataforma</div>
+      <div style="font-family:var(--serif); font-size:13pt; color:#fff; margin-bottom:3mm;">Cómoda de estilo D. Maria</div>
+      <p style="font-size:9.4pt; margin:0 0 3mm; color:rgba(255,255,255,.78);">Pau-santo e mogno. Proveniente de casa
+        particular no Funchal. Restaurada em 2026 por artesão local, com registo fotográfico do antes e depois.
+        Documentação de origem disponível.</p>
+      <div style="margin-top:4mm; padding-top:4mm; border-top:.5pt solid rgba(255,255,255,.18); font-size:9pt; color:#D9B268;">
+        Aqui o comprador tem razões para pagar o preço pedido.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:13mm; max-width:158mm;">
+    <p style="font-size:10.6pt;">A plataforma guarda, ligado a cada peça, tudo o que sustenta esta diferença:
+      <b>origem, proprietário anterior, local, história conhecida, documentos, certificados, avaliações,
+      fotografias antigas e todos os restauros feitos</b>. A D. Fátima decide, peça a peça, o que mostra
+      publicamente e o que fica só para si.</p>
+    <p style="font-size:10.6pt; margin-bottom:0;"><b>E há uma vantagem que só se percebe com o tempo:</b> essa
+      história deixa de estar apenas na sua cabeça. Fica no negócio — para quem lá trabalha hoje, e para o dia
+      em que a loja passar a outras mãos.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>9</span></div>
+</section>
+
+<!-- ============ 10 · ARTIGOS PARADOS ============ -->
+<section class="page">
+  <div class="rh"><span>Capital adormecido</span><span>Artigos parados</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">Capital adormecido</div>
+    <h1>O sistema avisa-o<br>do que está a dormir.</h1>
+    <p class="lead" style="max-width:150mm; margin-top:5mm;">Numa loja com centenas de peças, ninguém consegue ter
+      presente há quanto tempo cada uma ali está. A plataforma tem — e diz-lhe.</p>
+  </div>
+
+  <div class="mock" style="margin-top:7mm;">
+    <div class="bar"><span>Aviso automático</span><span>Atualizado hoje</span></div>
+    <div class="body">
+      <div style="display:flex; gap:8mm; align-items:center;">
+        <div style="text-align:center; min-width:34mm;">
+          <div style="font-family:var(--serif); font-size:38pt; line-height:1; color:var(--red);">27</div>
+          <div style="font-size:8pt; color:var(--muted); margin-top:1mm;">artigos há mais<br>de 180 dias</div>
+        </div>
+        <div style="flex:1;">
+          <h3 style="margin-bottom:2.5mm;">O que o sistema sugere fazer com cada um</h3>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1mm 6mm;">
+            <ul style="margin:0;"><li>Ajustar o preço</li><li>Incluir numa promoção</li><li>Publicar noutro canal</li></ul>
+            <ul style="margin:0;"><li>Levar a leilão</li><li>Criar conjunto com peças afins</li><li>Repetir a fotografia</li></ul>
+          </div>
+        </div>
+      </div>
+      <p class="note" style="margin:5mm 0 0; border-top:.5pt solid var(--rule); padding-top:3mm;">
+        As sugestões são apresentadas para a D. Fátima decidir. O sistema nunca altera preços nem publica nada
+        sozinho — a decisão comercial é sempre sua.</p>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-top:8mm; gap:8mm;">
+    <div class="card blue">
+      <h3>Quem procurava aquilo que acabou de chegar</h3>
+      <p style="margin:0; font-size:9.8pt;">Sempre que regista uma peça, a plataforma cruza-a com os interesses
+        dos clientes que já lhe compraram ou perguntaram por peças semelhantes — e mostra-lhe a lista.</p>
+      <div style="margin-top:4mm; background:#fff; border:.5pt solid #D5DEF0; padding:3.5mm; font-size:9.4pt;">
+        <b>Nova peça registada · Art Déco</b><br>
+        <span style="color:var(--blue);">12 clientes demonstraram interesse neste tipo de artigo.</span>
+      </div>
+      <p style="margin:3.5mm 0 0; font-size:9.8pt;">Uma peça pode estar vendida <b>antes sequer de chegar à montra</b>.</p>
+    </div>
+    <div class="card green">
+      <h3>O efeito nas contas</h3>
+      <p style="font-size:9.8pt;">Cada peça que sai mais cedo é dinheiro que volta ao negócio mais cedo — e que
+        pode comprar a peça seguinte.</p>
+      <p style="font-size:9.8pt; margin-bottom:0;">Não é preciso vender a preços mais baixos para ganhar mais.
+        Basta que o mesmo capital <b>dê mais voltas por ano</b>. Uma loja que gira o stock uma vez e meia por ano
+        em vez de uma vez, ganha metade outra vez — sem comprar mais nada.</p>
+    </div>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>10</span></div>
+</section>
+
+<!-- ============ 11 · PAINEL ============ -->
+<section class="page">
+  <div class="rh"><span>A vista de quem gere</span><span>Painel de gestão</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">A vista de quem gere</div>
+    <h1>O seu negócio inteiro,<br>num ecrã.</h1>
+    <p class="lead" style="max-width:150mm; margin-top:5mm;">Abre a aplicação — no computador, no tablet ou no
+      telemóvel — e sabe como está a loja. Sem pedir nada a ninguém, sem abrir uma folha de cálculo.</p>
+  </div>
+
+  <div class="mock" style="margin-top:7mm;">
+    <div class="bar"><span>Painel de gestão</span><span>Setembro de 2026</span></div>
+    <div class="body" style="background:#F7F5F1;">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:3mm;">
+        <div class="kpi"><div class="lab">Peças disponíveis</div><div class="val">418</div><div class="sub">+12 este mês</div></div>
+        <div class="kpi"><div class="lab">Valor do inventário</div><div class="val">a custo real</div><div class="sub">atualizado ao minuto</div></div>
+        <div class="kpi"><div class="lab">Valor potencial</div><div class="val">a preço de venda</div><div class="sub">margem potencial</div></div>
+        <div class="kpi"><div class="lab">Vendas do mês</div><div class="val">31</div><div class="sub">margem real apurada</div></div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:3mm; margin-top:3mm;">
+        <div class="kpi"><div class="lab">Reservas ativas</div><div class="val">6</div><div class="sub">a aguardar decisão</div></div>
+        <div class="kpi"><div class="lab">Em restauro</div><div class="val">9</div><div class="sub">custo em curso</div></div>
+        <div class="kpi" style="border-color:#EDD6CD; background:var(--red-soft);"><div class="lab" style="color:var(--red);">Paradas +180 dias</div><div class="val" style="color:var(--red);">27</div><div class="sub">capital imobilizado</div></div>
+        <div class="kpi"><div class="lab">Por publicar</div><div class="val">4</div><div class="sub">sem fotografia</div></div>
+      </div>
+
+      <div style="margin-top:4mm; background:#fff; border:.5pt solid var(--rule2); padding:4.5mm;">
+        <div style="font-size:7.2pt; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; margin-bottom:3mm;">
+          Gráficos disponíveis</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1mm 6mm;">
+          <ul style="margin:0; font-size:9.4pt;"><li>Evolução das vendas</li><li>Evolução do inventário</li><li>Vendas por categoria</li></ul>
+          <ul style="margin:0; font-size:9.4pt;"><li>Margem por categoria</li><li>Vendas por canal</li><li>Peças paradas há mais tempo</li></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:7mm; border-left:2.5pt solid var(--brass); padding-left:6mm;">
+    <p style="margin:0; font-size:11pt;">Os valores mostrados são exemplos. O que interessa é o princípio:
+      <b>decisões de compra, de preço e de promoção deixam de se tomar por intuição</b> e passam a tomar-se
+      com os números do próprio negócio à frente.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>11</span></div>
+</section>
+
+<!-- ============ 12 · ANTES / DEPOIS ============ -->
+<section class="page">
+  <div class="rh"><span>Resumo</span><span>Antes e depois</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">Em resumo</div>
+    <h1>O que muda,<br>no dia a dia.</h1>
+  </div>
+
+  <table style="margin-top:8mm; font-size:9.8pt;">
+    <thead>
+      <tr>
+        <th style="width:32%;">Situação</th>
+        <th style="width:34%; color:var(--red);">Hoje</th>
+        <th style="width:34%; color:var(--green);">Com a plataforma</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="k">Onde está a informação da peça</td><td>Excel, telemóvel, WhatsApp, papéis</td><td>Uma ficha única, acessível de qualquer lado</td></tr>
+      <tr><td class="k">Publicar uma peça</td><td>Repetir tudo em cada canal</td><td>Uma vez, para todos os canais</td></tr>
+      <tr><td class="k">Peça vendida</td><td>Anúncios ficam no ar</td><td>Sai de todos os canais automaticamente</td></tr>
+      <tr><td class="k">Fotografias</td><td>Como saírem, quando houver tempo</td><td>Tratadas automaticamente, com aspeto uniforme</td></tr>
+      <tr><td class="k">Descrições</td><td>Escritas de raiz, uma a uma</td><td>Propostas pelo sistema, aprovadas por si</td></tr>
+      <tr><td class="k">História da peça</td><td>Na memória de quem a comprou</td><td>Registada, documentada e utilizável na venda</td></tr>
+      <tr><td class="k">Margem por peça</td><td>Estimada de cabeça</td><td>Calculada, já com restauro e transporte</td></tr>
+      <tr><td class="k">Peças paradas</td><td>Descobertas por acaso</td><td>Assinaladas com sugestões de ação</td></tr>
+      <tr><td class="k">Localização física</td><td>"Deve estar lá atrás"</td><td>Sala, zona, estante e posição</td></tr>
+      <tr><td class="k">Clientes interessados</td><td>Na memória e em conversas antigas</td><td>Ficha por cliente, com alertas de novas peças</td></tr>
+      <tr><td class="k">Saber como está o negócio</td><td>Sensação e fecho de caixa</td><td>Painel com números reais, a qualquer momento</td></tr>
+      <tr><td class="k">Quem alterou o quê</td><td>Não se sabe</td><td>Registado com autor, data e valor anterior</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:8mm; background:var(--brass-soft); border:.5pt solid #E5D9BF; padding:6mm;">
+    <div class="quote" style="font-size:13.5pt;">"Passar a saber, a qualquer hora, o que tenho,
+      quanto vale, onde está e quanto ganho com cada peça."</div>
+    <p style="margin:3mm 0 0; font-size:9.6pt;">É esta a promessa da proposta. Tudo o resto — canais, leilões,
+      inteligência artificial — é consequência.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>12</span></div>
+</section>
+
+<!-- ============ 13 · FASES ============ -->
+<section class="page">
+  <div class="rh"><span>Percurso</span><span>Como avançamos</span></div>
+
+  <div style="margin-top:8mm;">
+    <div class="kicker">Como avançamos</div>
+    <h1>Por passos.<br>Cada um útil por si.</h1>
+    <p class="lead" style="max-width:152mm; margin-top:5mm;">Não é preciso decidir tudo hoje. O trabalho está
+      organizado por fases, e <b>cada fase é utilizável mesmo que nunca se avance para a seguinte</b>.</p>
+  </div>
+
+  <div class="stack" style="margin-top:8mm;">
+    <div style="display:flex; gap:6mm; align-items:flex-start; border-bottom:.5pt solid var(--rule); padding-bottom:4.5mm;">
+      <div style="min-width:24mm;"><div class="num">1</div><div style="font-size:7.4pt; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:1mm;">Base</div></div>
+      <div><h3>Passa a saber o que tem</h3>
+        <p style="margin:0;">Todas as peças registadas, com fotografias, custos, proveniência, localização e histórico.
+          O inventário deixa de estar disperso. <b>Só isto já responde às quatro perguntas da página 4.</b></p></div>
+    </div>
+    <div style="display:flex; gap:6mm; align-items:flex-start; border-bottom:.5pt solid var(--rule); padding-bottom:4.5mm;">
+      <div style="min-width:24mm;"><div class="num">2</div><div style="font-size:7.4pt; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:1mm;">Vender</div></div>
+      <div><h3>Passa a mostrar o que tem</h3>
+        <p style="margin:0;">Website e catálogo online alimentados pelo próprio inventário, reservas, fichas de
+          cliente e histórico comercial. Sem escrever nada duas vezes.</p></div>
+    </div>
+    <div style="display:flex; gap:6mm; align-items:flex-start; border-bottom:.5pt solid var(--rule); padding-bottom:4.5mm;">
+      <div style="min-width:24mm;"><div class="num">3</div><div style="font-size:7.4pt; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:1mm;">Acelerar</div></div>
+      <div><h3>Passa a fazê-lo em minutos</h3>
+        <p style="margin:0;">Tratamento automático de fotografias e descrições propostas pelo sistema. É a fase
+          que transforma dias de trabalho em minutos.</p></div>
+    </div>
+    <div style="display:flex; gap:6mm; align-items:flex-start; border-bottom:.5pt solid var(--rule); padding-bottom:4.5mm;">
+      <div style="min-width:24mm;"><div class="num">4</div><div style="font-size:7.4pt; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:1mm;">Alcance</div></div>
+      <div><h3>Passa a estar em todo o lado</h3>
+        <p style="margin:0;">Publicação nos canais externos a partir da ficha e sincronização automática da
+          disponibilidade. Mais gente a ver as mesmas peças.</p></div>
+    </div>
+    <div style="display:flex; gap:6mm; align-items:flex-start;">
+      <div style="min-width:24mm;"><div class="num">5</div><div style="font-size:7.4pt; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:1mm;">Leilões</div></div>
+      <div><h3>Passa a ter um canal novo</h3>
+        <p style="margin:0;">Leilões próprios, com licitações, preço de reserva e histórico — procura concentrada
+          no tempo, útil sobretudo para peças de maior valor ou paradas há muito.</p></div>
+    </div>
+  </div>
+
+  <div class="card blue" style="margin-top:8mm;">
+    <h3 style="color:var(--blue);">A minha recomendação</h3>
+    <p style="margin:0;">Começar pela <b>Fase 1</b>. É a que resolve o problema de fundo e sobre a qual todas as
+      outras assentam — e é a que lhe permite avaliar, com o seu inventário verdadeiro e sem compromisso
+      adicional, se isto lhe serve. Se servir, avançamos. Se não servir, ficou com o inventário organizado.</p>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>13</span></div>
+</section>
+
+<!-- ============ 14 · PORQUÊ + PRÓXIMOS PASSOS ============ -->
+<section class="page">
+  <div class="rh"><span>Encerramento</span><span>Próximos passos</span></div>
+
+  <div style="margin-top:5mm;">
+    <div class="kicker">Com quem vai trabalhar</div>
+    <h1 style="font-size:25pt;">Não é só quem faz o programa.<br>É quem já geriu o negócio.</h1>
+  </div>
+
+  <div class="grid2" style="margin-top:6mm; gap:8mm;">
+    <div>
+      <p>Antes de me dedicar a software de gestão, passei mais de duas décadas em funções comerciais e de
+        direção: gestão de lojas, recuperação de negócios em dificuldade e negociação com empresas. Já estive
+        do lado de quem decide o que comprar, a que preço vender e o que fazer com o que não sai.</p>
+      <p>É essa experiência que faz a diferença: <b>não lhe vou entregar um programa cheio de funcionalidades
+        que ninguém usa</b>, mas uma ferramenta que responde às perguntas que quem tem uma loja faz todos os dias.</p>
+      <p style="margin-bottom:0;">Trabalho a partir do Funchal: quando precisar de falar comigo, fala comigo —
+        e não com um serviço de apoio ao cliente.</p>
+    </div>
+    <div class="card tint">
+      <h3>Compromissos que assumo</h3>
+      <ul class="check" style="margin:0;">
+        <li><b>Os dados são seus.</b> Pode exportá-los na íntegra, a qualquer momento.</li>
+        <li><b>Nada se apaga.</b> O que for removido fica recuperável; a história das peças não se perde.</li>
+        <li><b>Sem promessas que não dependem de mim.</b> Digo-lhe sempre o que é certo e o que depende de terceiros.</li>
+        <li><b>Nenhuma decisão comercial é automática.</b> O sistema sugere; quem decide é a D. Fátima.</li>
+        <li><b>Formação incluída.</b> Se a equipa não souber usar, não serviu de nada.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="hairline" style="margin:5mm 0 4mm;"></div>
+
+  <div class="kicker">Próximos passos</div>
+  <h2 style="font-size:16pt; margin-bottom:0;">Três passos simples, sem compromisso.</h2>
+
+  <div class="grid3" style="margin-top:3.5mm;">
+    <div class="card">
+      <div class="num">1</div>
+      <h3 style="margin-top:2.5mm;">Uma conversa na loja</h3>
+      <p style="font-size:9.6pt; margin:0;">Vou até si, vejo como trabalha hoje e percebo o que faz sentido
+        e o que não faz. Sem custo e sem compromisso.</p>
+    </div>
+    <div class="card">
+      <div class="num">2</div>
+      <h3 style="margin-top:2.5mm;">Ajustamos a proposta</h3>
+      <p style="font-size:9.6pt; margin:0;">O que não precisa, sai. O que faltar, entra. Fica com uma proposta
+        feita para a sua loja, não para uma loja qualquer.</p>
+    </div>
+    <div class="card">
+      <div class="num">3</div>
+      <h3 style="margin-top:2.5mm;">Condições e arranque</h3>
+      <p style="font-size:9.6pt; margin:0;">Só depois de o âmbito estar fechado apresento valores e prazos.
+        Assim o orçamento é firme e não muda pelo caminho.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:4mm; background:#16202E; color:#fff; padding:5mm;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8mm;">
+      <div>
+        <div style="font-family:var(--serif); font-size:15pt; margin-bottom:1.5mm;">Quando quiser, é só dizer.</div>
+        <p style="margin:0; color:rgba(255,255,255,.72); font-size:9.6pt;">A primeira conversa não tem custo nem
+          obriga a nada.</p>
+      </div>
+      <div style="text-align:right; min-width:52mm;">
+        <div style="font-family:var(--serif); font-size:14pt; color:#D9B268;">HelderLabs</div>
+        <div style="font-size:9.4pt; margin-top:1.5mm;">Hélder Nóbrega</div>
+        <div style="font-size:9.4pt; color:rgba(255,255,255,.6);">Funchal, Madeira</div>
+        <div style="font-size:9.4pt; color:rgba(255,255,255,.6);">helderlabs.eu</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rf"><span>HelderLabs · Proposta</span><span>14</span></div>
+</section>
+
+<!-- ============ 15 · SEPARADOR ANEXO ============ -->
+<section class="page dark">
+  <div class="rh"><span>Anexo</span><span>Dossier técnico</span></div>
+  <div style="position:absolute; left:18mm; right:18mm; top:110mm;">
+    <div style="height:2.5pt; width:26mm; background:var(--brass); margin-bottom:8mm;"></div>
+    <div class="kicker light">Anexo</div>
+    <h1 style="color:#fff; font-size:34pt;">Dossier técnico</h1>
+    <p class="lead" style="color:rgba(255,255,255,.72); max-width:140mm; margin-top:6mm;">
+      O detalhe completo do que a plataforma faz, como está organizada e o que fica de fora.
+      Não é necessário ler para decidir — fica aqui para consulta, ou para mostrar a alguém
+      da sua confiança que queira analisar a solução em detalhe.</p>
+    <p style="color:rgba(255,255,255,.5); font-size:9.5pt; margin-top:8mm;">
+      Páginas 16 a 19 · HL-PROP-2026-ANT-02</p>
+  </div>
+  <div class="rf"><span>HelderLabs · Proposta</span><span>15</span></div>
+</section>
+
+<!-- ============ 16 · ANEXO A ============ -->
+<section class="page annex">
+  <div class="rh"><span>Dossier técnico</span><span>Artigo · Proveniência · Imagem</span></div>
+
+  <h2 style="margin-top:6mm;">A · Ficha do artigo</h2>
+  <p>Cada artigo tem identificador único atribuído automaticamente e ficha própria. Os campos apresentados
+    adaptam-se ao tipo de peça — mobiliário, pintura, joia, relógio ou objeto de coleção têm atributos distintos,
+    configuráveis sem intervenção técnica.</p>
+  <div class="cols3 fieldlist" style="margin-top:3mm;">
+    <div>Código interno</div><div>Nome</div><div>Categoria</div><div>Subcategoria</div><div>Descrição</div>
+    <div>Época / período</div><div>Estilo</div><div>Material</div><div>Autor / fabricante</div><div>Dimensões</div>
+    <div>Estado de conservação</div><div>Observações</div><div>Preço de aquisição</div><div>Custos associados</div>
+    <div>Preço de venda</div><div>Margem estimada</div><div>Disponibilidade</div><div>Localização física</div>
+  </div>
+  <h3>Preenchimento progressivo</h3>
+  <p>Para registar uma peça bastam nome, categoria e preço de aquisição. A ficha indica depois o seu grau de
+    completude e assinala o que falta — sem fotografias, sem proveniência, sem preço de venda — permitindo
+    enriquecer a informação ao longo do tempo. Não há formulários de quarenta campos por preencher.</p>
+
+  <h3>Estados comerciais</h3>
+  <p>Disponível · Reservado · Vendido · Indisponível · Em restauro · Em leilão. O estado é único e central:
+    é a partir dele que os canais são sincronizados.</p>
+
+  <h2 style="margin-top:7mm;">B · Rastreabilidade e proveniência</h2>
+  <p>Todas as operações relevantes ficam registadas com autor, data, valor anterior e valor novo. O registo é
+    acumulativo e não editável. Nada é eliminado fisicamente: um registo removido é desativado e permanece
+    recuperável.</p>
+  <p>A proveniência regista, por peça:</p>
+  <div class="cols3 fieldlist">
+    <div>Origem</div><div>Proprietário anterior</div><div>Vendedor</div><div>Data de aquisição</div>
+    <div>Local de origem</div><div>História conhecida</div><div>Documentação</div><div>Certificados</div>
+    <div>Avaliações</div><div>Fotografias antigas</div><div>Referências</div><div>Restauros</div>
+  </div>
+
+  <h2 style="margin-top:7mm;">C · Tratamento de imagem e descrições</h2>
+  <div class="grid2" style="gap:7mm;">
+    <div>
+      <h3 style="margin-top:2mm;">Imagem</h3>
+      <ul><li>Melhoria de iluminação e nitidez</li><li>Correção de enquadramento e perspetiva</li>
+        <li>Remoção ou substituição de fundo</li><li>Uniformização entre artigos</li>
+        <li>Formatos adequados a cada canal</li></ul>
+      <p style="font-size:8.8pt; margin-top:2mm;"><b>Princípio de integridade:</b> o tratamento melhora as
+        condições de captação, não altera a peça. Não são removidos defeitos, marcas de uso ou danos. A imagem
+        original é sempre preservada na ficha.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:2mm;">Descrição</h3>
+      <ul><li>Primeira versão proposta a partir das fotografias e dos dados introduzidos</li>
+        <li>Ações disponíveis: aceitar, editar ou gerar de novo</li>
+        <li>Nenhuma descrição é publicada sem validação humana</li></ul>
+      <p style="font-size:8.8pt; margin-top:2mm;"><b>Distinção obrigatória entre facto e estimativa:</b>
+        autenticidade, época e autoria nunca são afirmadas como facto enquanto não forem confirmadas por quem
+        tem competência para o fazer. É uma decisão de conceção, não uma opção de configuração.</p>
+    </div>
+  </div>
+
+  <div class="rf"><span>HL-PROP-2026-ANT-02</span><span>16</span></div>
+</section>
+
+<!-- ============ 17 · ANEXO B ============ -->
+<section class="page annex">
+  <div class="rh"><span>Dossier técnico</span><span>Canais · Leilões · Clientes · Operação</span></div>
+
+  <h2 style="margin-top:6mm;">D · Website e canais externos</h2>
+  <p>O catálogo público é alimentado diretamente pelo inventário. Pesquisa por categoria, época, estilo, material,
+    intervalo de preço e características. Cada peça tem página própria com galeria, descrição, características,
+    proveniência pública, preço, disponibilidade em tempo real e formulário de contacto.</p>
+  <div class="card red" style="margin-top:3mm; padding:4.5mm;">
+    <h3 style="color:var(--red); margin-bottom:2mm;">Nota técnica importante sobre canais externos</h3>
+    <p style="font-size:9pt; margin-bottom:2mm;">As plataformas externas — classificados e redes sociais —
+      controlam o acesso às suas próprias interfaces de integração. Nem todas permitem publicação automática por
+      soluções de terceiros, e as condições podem mudar por decisão unilateral dessas plataformas.</p>
+    <p style="font-size:9pt; margin:0;">A solução é construída com uma camada de canais preparada para receber
+      essas integrações; o âmbito real de cada canal é confirmado em análise técnica prévia à respetiva fase.
+      Onde a integração automática não for possível, a plataforma prepara o conteúdo pronto a publicar e mantém
+      o registo de onde a peça está anunciada, avisando quando é preciso retirá-la.</p>
+  </div>
+
+  <h2 style="margin-top:6mm;">E · Leilões</h2>
+  <p>Criação de leilão, adição de artigos, preço inicial, incremento mínimo, preço de reserva, data e hora,
+    receção e acompanhamento de licitações, encerramento, identificação do vencedor, notificações e histórico.
+    Modelos possíveis: leilão tradicional ou leilão com compra imediata.</p>
+  <p style="font-size:8.8pt;">Pela natureza das obrigações envolvidas — contrato entre licitante e vendedor,
+    prazos, regulamento e eventual tratamento de pagamentos — este módulo exige validação prévia do regulamento
+    e das condições de participação, e está por isso posicionado na última fase.</p>
+
+  <h2 style="margin-top:6mm;">F · Clientes</h2>
+  <p>Ficha por cliente com dados de contacto, artigos adquiridos, artigos consultados, licitações, interesses
+    declarados, histórico de contactos, propostas e reservas. Cruzamento automático entre novas peças e
+    interesses registados. Tratamento de dados em conformidade com o RGPD: consentimento registado para
+    comunicações comerciais, direito de acesso e de eliminação, e registo de acessos.</p>
+
+  <h2 style="margin-top:6mm;">G · Operação em loja</h2>
+  <div class="grid2" style="gap:7mm;">
+    <div>
+      <h3 style="margin-top:2mm;">Localização física</h3>
+      <p style="font-size:9.2pt;">Estrutura hierárquica — loja, sala, zona, estante, posição — e situação da peça:
+        em exposição, em armazém, em restauro, reservada ou em trânsito.</p>
+      <h3>Restauro</h3>
+      <p style="font-size:9.2pt; margin-bottom:0;">Data, responsável, descrição, custo, materiais, fotografias
+        antes e depois, documentos e observações. Os custos são incorporados automaticamente no custo real da peça.</p>
+    </div>
+    <div>
+      <h3 style="margin-top:2mm;">Custo real e margem</h3>
+      <p style="font-size:9.2pt;">Custo de aquisição + transporte + restauro + outros custos = custo real.
+        Margem apurada por peça e agregada por categoria, período e canal de venda.</p>
+      <h3>Utilizadores e permissões</h3>
+      <p style="font-size:9.2pt; margin-bottom:0;">Perfis distintos — proprietário, colaborador de loja,
+        responsável de restauro, gestão de conteúdos — com acesso apenas ao que compete a cada um. Informação
+        sensível, como preços de aquisição e margens, restringida a perfis autorizados.</p>
+    </div>
+  </div>
+
+  <div class="rf"><span>HL-PROP-2026-ANT-02</span><span>17</span></div>
+</section>
+
+<!-- ============ 18 · ANEXO C ============ -->
+<section class="page annex">
+  <div class="rh"><span>Dossier técnico</span><span>Arquitetura · Âmbito · Evolução</span></div>
+
+  <h2 style="margin-top:6mm;">H · Princípios técnicos</h2>
+  <table style="font-size:9.2pt;">
+    <tr><td class="k" style="width:34%;">Ficha única do artigo</td><td>Toda a informação está ligada a um só registo. Não existem cópias a divergir entre si.</td></tr>
+    <tr><td class="k">Arquitetura modular</td><td>Cada área funciona de forma independente. Acrescentar leilões ou um novo canal não obriga a mexer no inventário.</td></tr>
+    <tr><td class="k">Rastreabilidade integral</td><td>Qualquer alteração relevante fica registada com autor, data e valor anterior.</td></tr>
+    <tr><td class="k">Nada é eliminado</td><td>Registos removidos são desativados e permanecem recuperáveis.</td></tr>
+    <tr><td class="k">Acesso online</td><td>Computador, tablet e telemóvel, na loja ou fora dela, sem instalação.</td></tr>
+    <tr><td class="k">Propriedade dos dados</td><td>Os dados são do cliente, com exportação integral em formato aberto a qualquer momento.</td></tr>
+    <tr><td class="k">Segurança</td><td>Cópias de segurança automáticas, comunicação cifrada e autenticação por utilizador.</td></tr>
+  </table>
+
+  <h2 style="margin-top:6mm;">I · Faseamento</h2>
+  <table style="font-size:9.2pt;">
+    <tr><td class="k" style="width:22%;">Fase 1 · Gestão interna</td><td>Artigos, inventário, categorias, localizações, compras e custos, proveniência, documentos, rastreabilidade, utilizadores e permissões.</td></tr>
+    <tr><td class="k">Fase 2 · Comercial</td><td>Website, catálogo online, reservas, clientes, propostas e estatísticas.</td></tr>
+    <tr><td class="k">Fase 3 · IA</td><td>Tratamento de imagem, geração de descrições, classificação automática, pesquisa inteligente e recomendações.</td></tr>
+    <tr><td class="k">Fase 4 · Canais</td><td>Camada de canais, integrações disponíveis e sincronização de disponibilidade.</td></tr>
+    <tr><td class="k">Fase 5 · Leilões</td><td>Criação de leilões, licitações, preços de reserva, vencedores, notificações e histórico.</td></tr>
+  </table>
+
+  <h2 style="margin-top:6mm;">J · Pressupostos</h2>
+  <ul>
+    <li>O cliente designa um interlocutor único para validação de âmbito e aceitação de cada fase.</li>
+    <li>Os conteúdos de partida — fotografias, listagens existentes, textos — são disponibilizados pelo cliente.</li>
+    <li>A migração de inventário existente, se aplicável, é orçamentada em função do formato e do volume dos dados de origem.</li>
+    <li>Domínio, alojamento e serviços externos de terceiros são contratados em nome do cliente e faturados conforme o consumo real.</li>
+  </ul>
+
+  <div class="rf"><span>HL-PROP-2026-ANT-02</span><span>18</span></div>
+</section>
+
+<!-- ============ 19 - ANEXO D ============ -->
+<section class="page annex">
+  <div class="rh"><span>Dossier técnico</span><span>Âmbito · Evolução · Condições</span></div>
+
+  <h2 style="margin-top:6mm;">K · Fora de âmbito</h2>
+  <ul class="cross">
+    <li>Faturação certificada e comunicação de documentos à Autoridade Tributária</li>
+    <li>Contabilidade organizada e lançamentos contabilísticos</li>
+    <li>Processamento direto de pagamentos — previsto por integração com prestador externo, em fase posterior</li>
+    <li>Peritagem, avaliação ou autenticação de peças — a aplicação regista e organiza informação, não a atesta</li>
+    <li>Fotografia profissional de estúdio</li>
+  </ul>
+
+  <h2 style="margin-top:8mm;">L · Evolução futura</h2>
+  <p>A arquitetura modular permite acrescentar mais tarde, sem reconstruir o que já estiver feito:</p>
+  <div class="cols3 fieldlist">
+    <div>Marketplace próprio</div><div>Aplicação móvel dedicada</div><div>Leilões avançados</div>
+    <div>Notificações a clientes</div><div>Listas de desejos</div><div>Reservas online</div>
+    <div>Pagamentos integrados</div><div>Integração com transportadoras</div><div>Estatísticas avançadas</div>
+    <div>Recomendação de preços</div><div>Pesquisa por imagem</div><div>Reconhecimento de peças</div>
+  </div>
+
+  <h2 style="margin-top:8mm;">M · Condições comerciais</h2>
+  <p style="margin-bottom:0;">O presente documento apresenta e valida o âmbito funcional da solução. As condições
+    comerciais — investimento por fase, modelo de contratação, prazos de execução e condições de manutenção e
+    evolução — são apresentadas em documento próprio, após validação conjunta do âmbito aqui descrito.
+    Proposta válida por 60 dias a contar da data de emissão. Documento confidencial, destinado exclusivamente
+    ao destinatário indicado.</p>
+
+  <div style="margin-top:14mm; border-top:.75pt solid var(--rule2); padding-top:6mm; display:flex;
+              justify-content:space-between; align-items:flex-end;">
+    <div>
+      <div style="font-family:var(--serif); font-size:15pt; color:var(--brass);">HelderLabs</div>
+      <div style="font-size:8pt; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-top:1mm;">
+        Soluções Digitais, Automação e Inteligência Artificial</div>
+      <div style="margin-top:4mm; font-size:9.6pt;"><b>Hélder Nóbrega</b><br>
+        <span style="color:var(--muted);">Funchal, Madeira · helderlabs.eu</span></div>
+    </div>
+    <div style="text-align:right; font-size:9pt; color:var(--muted);">
+      Proposta HL-PROP-2026-ANT-02<br>Setembro de 2026<br>Fim do documento
+    </div>
+  </div>
+
+  <div class="rf"><span>HL-PROP-2026-ANT-02</span><span>19</span></div>
+</section>

@@ -8,6 +8,9 @@ import { cashflowRoutes } from './cashflow.routes';
 import { exportRoutes } from './export.routes';
 
 export async function financeModuleRoutes(app: FastifyInstance) {
+  app.addHook('preHandler', app.authenticate);
+  app.addHook('preHandler', app.requireApp('financas'));
+
   await app.register(financeRoutes, { prefix: '/transactions' });
   await app.register(budgetsRoutes, { prefix: '/budgets' });
   await app.register(dashboardRoutes, { prefix: '/dashboard' });

@@ -185,10 +185,44 @@ export async function platformRoutes(app: FastifyInstance) {
   app.post('/account-requests/:id/approve', ApplicationController.approveAccountRequest);
   app.post('/account-requests/:id/reject', ApplicationController.rejectAccountRequest);
 
+  app.get('/licensing/summary', ApplicationController.getLicensingSummary);
+
+  // Auditoria
   app.get('/audit-chain/verify', async (request, reply) => {
     const { tenantId } = request.query as { tenantId?: string };
     const result = await AuditService.verifyAuditChain(tenantId);
     return reply.status(200).send(result);
+  });
+
+  app.get('/audit/logs', async (request, reply) => {
+    const query = request.query as any;
+    const result = await AuditService.listLogs({
+      tenantId: query.tenantId,
+      module: query.module,
+      category: query.category,
+      action: query.action,
+      actorId: query.actorId,
+      resource: query.resource,
+      resourceId: query.resourceId,
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      limit: query.limit ? parseInt(query.limit, 10) : 50,
+      offset: query.offset ? parseInt(query.offset, 10) : 0
+    });
+    return reply.status(200).send(result);
+  });
+
+  app.get('/audit/dashboard', async (request, reply) => {
+    const { tenantId } = request.query as { tenantId?: string };
+    const metrics = await AuditService.getDashboardMetrics(tenantId);
+    return reply.status(200).send({ success: true, ...metrics });
+  });
+
+  app.get<{ Params: { resource: string; resourceId: string } }>('/audit/resource/:resource/:resourceId', async (request, reply) => {
+    const { resource, resourceId } = request.params;
+    const { tenantId } = request.query as { tenantId?: string };
+    const timeline = await AuditService.getResourceTimeline(resource, resourceId, tenantId);
+    return reply.status(200).send({ success: true, timeline });
   });
 
   // Módulos como Aplicativos — gestão por tenant

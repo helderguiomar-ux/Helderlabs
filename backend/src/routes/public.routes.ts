@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import bcrypt from 'bcrypt';
 import { prisma } from '../database/prisma/client';
 
 const PublicRegisterSchema = z.object({
@@ -55,8 +56,16 @@ export async function publicRoutes(app: FastifyInstance) {
       where: { email: body.email }
     });
 
-    // Generate 6-digit OTP
+    if (existing && existing.status === 'APPROVED') {
+      return reply.status(409).send({
+        error: 'ACCOUNT_ALREADY_APPROVED',
+        message: 'Já existe uma conta associada a este email — inicie sessão ou recupere o acesso.'
+      });
+    }
+
+    // Generate 6-digit OTP and hash it securely
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otpCode, 10);
     const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     let accountReq;
@@ -70,7 +79,7 @@ export async function publicRoutes(app: FastifyInstance) {
           companyName: body.companyName || existing.companyName,
           intendedModule: body.intendedModule || existing.intendedModule,
           status: 'PENDING',
-          otpHash: otpCode,
+          otpHash,
           otpExpiresAt,
           acceptedTermsAt: now,
           acceptedPrivacyAt: now,
@@ -88,7 +97,7 @@ export async function publicRoutes(app: FastifyInstance) {
           companyName: body.companyName,
           intendedModule: body.intendedModule,
           status: 'PENDING',
-          otpHash: otpCode,
+          otpHash,
           otpExpiresAt,
           acceptedTermsAt: now,
           acceptedPrivacyAt: now,
@@ -98,7 +107,7 @@ export async function publicRoutes(app: FastifyInstance) {
       });
     }
 
-    app.log.info({ email: body.email, otpCode }, '[PUBLIC REGISTER OTP] Código de verificação gerado');
+    app.log.info({ email: body.email, requestId: accountReq.id }, '[PUBLIC REGISTER OTP] Código de verificação gerado');
 
     return reply.status(200).send({
       success: true,

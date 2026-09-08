@@ -98,6 +98,14 @@ export function createFakePrismaClient() {
         });
         return { count };
       }
+    },
+
+    company: {
+      create: async ({ data }: any) => {
+        const company = { id: fakeId('comp'), createdAt: new Date(), ...data };
+        return company;
+      },
+      findMany: async ({ where }: any = {}) => []
     }
   };
 

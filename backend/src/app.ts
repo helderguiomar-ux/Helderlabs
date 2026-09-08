@@ -166,10 +166,22 @@ export function buildApp() {
   });
 
   app.addHook('onResponse', async (request, reply) => {
-    if (request.url.startsWith('/api/platform') && request.method !== 'GET') {
+    if (request.url.startsWith('/api/') && request.method !== 'GET' && request.url !== '/api/health') {
+      const pathParts = request.url.split('?')[0].split('/');
+      const moduleName = pathParts[2] || 'plataforma';
+      const isSecurity =
+        moduleName === 'auth' ||
+        request.url.includes('/impersonate') ||
+        request.url.includes('/roles') ||
+        reply.statusCode === 401 ||
+        reply.statusCode === 403;
+      const category = isSecurity ? 'SECURITY' : 'APPLICATION';
+
       await AuditService.audit({
-        action: `platform.${request.method.toLowerCase()}`,
-        resource: request.url,
+        action: `${moduleName}.${request.method.toLowerCase()}`,
+        module: moduleName,
+        category,
+        resource: request.url.split('?')[0],
         result: reply.statusCode < 400 ? 'SUCCESS' : 'FAILURE',
         tenantId: request.user?.tenantId,
         actorId: request.user?.sub,
@@ -178,7 +190,8 @@ export function buildApp() {
         onBehalfOfId: request.user?.onBehalfOfId,
         impersonationId: request.user?.impersonationId,
         requestId: request.id,
-        ipAddress: request.ip
+        ipAddress: request.ip,
+        userAgent: (request.headers['user-agent'] as string) || undefined
       });
     }
   });

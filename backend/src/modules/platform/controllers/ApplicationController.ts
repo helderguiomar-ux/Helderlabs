@@ -14,11 +14,23 @@ const CreateApplicationSchema = z.object({
   moduleId: z.string().min(1, 'moduleId é obrigatório'),
   tenantId: z.string().optional(),               // Super Admin pode especificar; outros usam o próprio
   status: z.enum(['DISABLED', 'TRIAL', 'ACTIVE', 'ARCHIVED']).default('TRIAL'),
+  plan: z.string().optional().default('pro'),
+  priceCents: z.number().int().optional().default(0),
+  billingPeriod: z.enum(['MONTHLY', 'ANNUAL', 'ONE_TIME']).optional().default('MONTHLY'),
+  currency: z.string().optional().default('EUR'),
+  discountPercent: z.number().min(0).max(100).optional().default(0),
+  billingNotes: z.string().optional().nullable(),
   config: z.record(z.unknown()).optional().default({})
 });
 
 const UpdateApplicationSchema = z.object({
   status: z.enum(['DISABLED', 'TRIAL', 'ACTIVE', 'ARCHIVED']).optional(),
+  plan: z.string().optional(),
+  priceCents: z.number().int().optional(),
+  billingPeriod: z.enum(['MONTHLY', 'ANNUAL', 'ONE_TIME']).optional(),
+  currency: z.string().optional(),
+  discountPercent: z.number().min(0).max(100).optional(),
+  billingNotes: z.string().optional().nullable(),
   config: z.record(z.unknown()).optional()
 });
 
@@ -137,7 +149,7 @@ export class ApplicationController {
         tenantId,
         status:    body.status,
         config:    (body.config as any) ?? {},
-        createdBy: user.id
+        createdBy: user.sub || user.id
       },
       include: { module: true, tenant: { select: { id: true, name: true } } }
     });
@@ -160,11 +172,17 @@ export class ApplicationController {
    */
   static async update(req: FastifyRequest, reply: FastifyReply) {
     const { applicationId } = req.params as { applicationId: string };
+    const user = req.user as any;
+    const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN';
     const body = UpdateApplicationSchema.parse(req.body);
 
     const app = await prisma.applicationInstance.findUnique({ where: { id: applicationId } });
     if (!app) {
       return reply.status(404).send({ error: 'APPLICATION_NOT_FOUND', message: 'Aplicativo não encontrado.' });
+    }
+
+    if (!isSuperAdmin && app.tenantId !== user.tenantId) {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Não tem permissão para alterar este aplicativo.' });
     }
 
     const updated = await prisma.applicationInstance.update({
@@ -188,10 +206,16 @@ export class ApplicationController {
    */
   static async remove(req: FastifyRequest, reply: FastifyReply) {
     const { applicationId } = req.params as { applicationId: string };
+    const user = req.user as any;
+    const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN';
 
     const app = await prisma.applicationInstance.findUnique({ where: { id: applicationId } });
     if (!app) {
       return reply.status(404).send({ error: 'APPLICATION_NOT_FOUND', message: 'Aplicativo não encontrado.' });
+    }
+
+    if (!isSuperAdmin && app.tenantId !== user.tenantId) {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Não tem permissão para remover este aplicativo.' });
     }
 
     // Soft-delete: mudar para ARCHIVED (preserva histórico)
@@ -595,6 +619,79 @@ export class ApplicationController {
     });
 
     return reply.send({ success: true, message: 'Pedido de conta rejeitado.', accountRequest: updated });
+  }
+
+  /**
+   * GET /api/platform/licensing/summary
+   * Retorna resumo de receitas recorrentes (MRR/ARR), licenças ativas, e distribuição de planos.
+   */
+  static async getLicensingSummary(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const apps = await prisma.applicationInstance.findMany({
+      where: { deletedAt: null },
+      include: {
+        module: true,
+        tenant: { select: { id: true, name: true, slug: true } }
+      }
+    });
+
+    let totalMrrCents = 0;
+    let activeLicenses = 0;
+    let trialLicenses = 0;
+    let suspendedLicenses = 0;
+    const modulesMrr: Record<string, { moduleName: string; count: number; mrrCents: number }> = {};
+
+    for (const app of apps) {
+      if (app.status === 'ACTIVE') {
+        activeLicenses++;
+        const rawPrice = app.priceCents || 0;
+        const discount = app.discountPercent || 0;
+        const netPrice = Math.round(rawPrice * (1 - discount / 100));
+
+        let appMrrCents = 0;
+        if (app.billingPeriod === 'MONTHLY') {
+          appMrrCents = netPrice;
+        } else if (app.billingPeriod === 'ANNUAL') {
+          appMrrCents = Math.round(netPrice / 12);
+        }
+
+        totalMrrCents += appMrrCents;
+
+        const modId = app.moduleId;
+        if (!modulesMrr[modId]) {
+          modulesMrr[modId] = {
+            moduleName: app.module.name,
+            count: 0,
+            mrrCents: 0
+          };
+        }
+        modulesMrr[modId].count++;
+        modulesMrr[modId].mrrCents += appMrrCents;
+      } else if (app.status === 'TRIAL') {
+        trialLicenses++;
+      } else if (app.status === 'DISABLED' || app.status === 'ARCHIVED') {
+        suspendedLicenses++;
+      }
+    }
+
+    const totalArrCents = totalMrrCents * 12;
+
+    return reply.send({
+      success: true,
+      summary: {
+        totalMrrCents,
+        totalArrCents,
+        activeLicenses,
+        trialLicenses,
+        suspendedLicenses,
+        totalLicenses: apps.length,
+        modulesDistribution: Object.values(modulesMrr)
+      }
+    });
   }
 }
 

@@ -553,24 +553,33 @@
   async function submitRequestAccess() {
     const name = document.getElementById('req-name').value.trim();
     const email = document.getElementById('req-email').value.trim();
-    const company = document.getElementById('req-company').value.trim();
+    const companyName = document.getElementById('req-company').value.trim();
     const phone = document.getElementById('req-phone').value.trim();
-    const message = document.getElementById('req-message').value.trim() || 'Solicitação de Acesso ao HelderLabs ERP';
+    const intendedModule = document.getElementById('req-message').value.trim() || 'all';
 
     if (!name || name.length < 2) return showError('Por favor introduza o seu nome.');
     if (!email || !email.includes('@')) return showError('Por favor introduza um email válido.');
 
     try {
-      const res = await fetch('/api/public/leads', {
+      const res = await fetch('/api/public/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, company, phone, message })
+        body: JSON.stringify({
+          name,
+          contactName: name,
+          email,
+          companyName,
+          phone,
+          intendedModule,
+          acceptedTerms: true,
+          acceptedPrivacy: true
+        })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Erro ao enviar pedido.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao enviar pedido.');
 
-      showSuccess('O seu pedido de acesso foi enviado com sucesso! A nossa equipa entrará em contacto brevemente.');
-      setTimeout(() => showStep('step-email'), 3000);
+      showSuccess('O seu pedido de acesso foi registado com sucesso! A nossa equipa de administração irá rever e aprovar a conta.');
+      setTimeout(() => showStep('step-email'), 3500);
     } catch (err) {
       showError(err.message);
     }

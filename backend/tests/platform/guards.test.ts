@@ -93,12 +93,12 @@ describe('Phase 3 Entitlement Guards (requireApp)', () => {
     }
   });
 
-  test('Submissão pública de leads via /api/crm/public/leads funciona sem autenticação', async () => {
+  test('Submissão pública de leads via /api/public/leads funciona sem autenticação', async () => {
     const app = buildApp();
 
     const res = await app.inject({
       method: 'POST',
-      url: '/api/crm/public/leads',
+      url: '/api/public/leads',
       payload: {
         name: 'Cliente Landing Page',
         company: 'Landing Page Corp',

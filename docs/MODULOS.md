@@ -1,7 +1,7 @@
-# Mapa Oficial de Módulos — HELDERLABS ERP v0.3.0
+# Mapa Oficial de Módulos — HELDERLABS ERP v0.4.0
 
 > **Mapa de Estado Real de Módulos (Sem Margem para Otimismo)**
-> Data: 2026-09-07 | Diretoria: `C:\Users\helde\Desktop\Dev\helderlabs-erp`
+> Data: 2026-09-08 | Versão: v0.4.0 | Diretoria: `C:\Users\helde\Desktop\Dev\helderlabs-erp`
 
 ---
 
@@ -9,64 +9,52 @@
 
 | Chave | Nome (PT / EN) | Estado Real | Rota de Entrada | Licenciável | Depende De |
 |---|---|---|---|---|---|
-| `financas` | Gestão Financeira / Financial Management | `beta` | `/app.html#financas` | **Sim** | `platform` |
-| `audit` | Registos de Auditoria / Activity & Audit Logs | `ativo` | `/app.html#audit` | **Sim** | `platform` |
-| `crm` | CRM & Oportunidades / CRM & Deals | `beta` | `/app.html#crm` | **Sim** | `platform` |
+| `financas` | Gestão Financeira / Financial Management | **`ativo`** | `/app.html#financas` | **Sim** | `platform` |
+| `audit` | Registos de Auditoria / Activity & Audit Logs | **`ativo`** | `/app.html#audit` | **Sim** | `platform` |
+| `crm` | CRM & Empresa 360º / CRM & Company 360 | **`ativo`** | `/app.html#crm` | **Sim** | `platform` |
 | `condominios` | Gestão de Condomínios / Condominium Mgmt | `em_construcao` | `/app.html#condominios` | **Não** | `platform` |
 | `rent_a_car` | Rent-a-Car & Frotas / Car Rental | `planeado` | `/app.html#rent_a_car` | **Não** | `platform` |
-| `super_admin` | Painel de Plataforma / Platform SuperAdmin | `ativo` | `/super-admin.html` | **Não** | Sistema |
+| `super_admin` | Painel de Plataforma / Platform SuperAdmin | **`ativo`** | `/super-admin.html` | **Não** | Sistema |
 
 ---
 
 ## Detalhe de Cada Módulo
 
-### 1. `financas` — Gestão Financeira v2
+### 1. `financas` — Gestão Financeira v0.4.0 (Consolidação Canónica)
 - **Chave**: `financas`
-- **Estado Real**: **`beta`** (O percurso principal funciona de ponta a ponta com dados reais PostgreSQL, inteiros de cêntimos e isolamento na app via `tenantScopedClient.ts`; em transição para verificação de RLS nativo com papel de BD não-owner).
-- **O que já funciona**:
-  - Movimentos (Receitas e Despesas) com soft delete (`deleted_at`), banner de Undo (10s) e atalhos de teclado.
-  - Contas Bancárias & Transferências internas excluídas do cálculo de receitas/despesas mensais.
-  - Orçamentos por Categoria com alertas em 3 níveis (80% aviso, 90% urgente, 100%+ excedido).
-  - Objetivos de Poupança (`goals`) com depósitos em tempo real.
-  - Dívidas e Passivos (`debts`) com calculador de prestação e modal de amortização.
-  - Relatórios de Evolução Mensal e Repartição por Categoria (Recharts).
-  - Exportação de Movimentos para CSV com codificação UTF-8 e registo em auditoria SHA256.
-- **O que falta**: Emissão direta de Faturas Certificadas SAF-T (planeado para v3).
+- **Estado Real**: **`ativo`** (Motor `FinanceCalcService` em cêntimos inteiros `amountCents`, isolamento multi-tenant estrito via `tenantScopedClient`, e projeção de tesouraria de 90 dias).
+- **O que funciona a 100%**:
+  - **Cockpit Financeiro (6 KPIs)**: Saldo Real em Caixa (com `openingBalanceCents` de contas), Receitas Realizadas, Despesas Realizadas, Resultado Líquido, Comprometido/Pendente, Saldo Disponível.
+  - **Projeção de Fluxo de Caixa a 90 dias**: Unificação determinística de transações agendadas (`PLANNED`) e regras recorrentes projetadas em memória, com deteção do ponto mínimo de tesouraria e gráfico SVG nativo.
+  - **Contas Financeiras & Caixa**: CRUD completo com soft-delete (`deletedAt`) e endpoint de restauro (`POST /:id/restore`).
+  - **Centros de Custo**: Estrutura em árvore hierárquica (`parentId`) e relatórios de afetação.
+  - **Categorias & Orçamentos**: Acompanhamento de execução orçamental mensal em tempo real com alertas visuais.
+  - **Transações & Anexos**: Filtros avançados, liquidação rápida (`PATCH /pay`), aprovação de despesas (`PATCH /approve`), anexos documentais, e exportação CSV com auditoria SHA-256.
+  - **Burn Rate & Runway**: Cálculo da média trimestral de queima de caixa e meses de autonomia financeira.
 
-### 2. `audit` — Registos de Auditoria SHA256
+### 2. `audit` — Sistema de Auditoria Interna & Rastreabilidade Transversal
 - **Chave**: `audit`
 - **Estado Real**: **`ativo`**
-- **O que já funciona**:
-  - Registo em tempo real de mutações financeiras, acessos e alterações de licença.
-  - Encadeamento sequencial de hashes SHA256 na tabela `audit_log`.
-  - Consolidação mensal de ficheiros JSONL com assinaturas `.sha256`.
-  - CLI de verificação de integridade (`npm run audit:verify`).
+- **O que funciona a 100%**:
+  - Registo transversal automático via Fastify Hook (`onResponse`) de todas as mutações (`POST`, `PUT`, `PATCH`, `DELETE`) em todos os módulos (`financas`, `crm`, `condominios`, `platform`, `auth`).
+  - Encadeamento sequencial de hashes SHA-256 imutáveis com deteção automática de adulterações (`AuditService.verifyAuditChain`).
+  - Computação automática de diffs JSON (`oldValue` vs `newValue`) e modal de inspeção antes/depois no frontend.
+  - Categorização em tempo real (`APPLICATION`, `SECURITY`, `DATABASE`, `USER`).
+  - Histórico de auditoria por recurso (`/api/platform/audit/resource/:resource/:resourceId`).
 
-### 3. `crm` — CRM & Oportunidades
+### 3. `crm` — CRM & Diretório Empresa 360º
 - **Chave**: `crm`
-- **Estado Real**: **`beta`**
-- **O que já funciona**:
-  - Entrada de leads a partir do formulário de diagnóstico da landing page (`POST /api/public/leads`).
-  - Listagem de oportunidades e fichas de cliente.
-- **O que falta**: Importação em massa de ficheiros CSV de contactos e integração com email automático.
+- **Estado Real**: **`ativo`**
+- **O que funciona a 100%**:
+  - **Ficha Empresa 360º (`Company`)**: Unificação de clientes, leads, fornecedores e parceiros com histórico transversal.
+  - **Cálculo de Completude Progressiva (0-100%)**: Avaliação em tempo real do perfil cadastral e fiscal da empresa.
+  - **Sub-recursos Estruturados**: Contactos com indicação de decisor/principal, Endereços múltiplos (Sede, Armazém, Faturação), Documentos com data de validade, Contratos e SLAs (com `monthlyValueCents`), e Relações societárias (Grupo/Filiais).
+  - **Compatibilidade Integral**: Preservação dos fluxos legados de Leads e Oportunidades (`POST /api/public/leads`, conversão de lead em oportunidade e ganho comercial).
 
-### 4. `condominios` — Gestão de Condomínios
-- **Chave**: `condominios`
-- **Estado Real**: **`em_construcao`**
-- **O que já funciona**:
-  - Ecrãs de lista de edifícios e frações no frontend.
-- **O que falta**: Emissão e liquidação automática de notas de cobrança de quotas e mapas de água.
-
-### 5. `rent_a_car` — Rent-a-Car & Frotas
-- **Chave**: `rent_a_car`
-- **Estado Real**: **`planeado`**
-- **O que já funciona**: Apenas a definição de entrada e conceito.
-- **O que falta**: Contratos de aluguer, disponibilidade de frota e inventário de danos.
-
-### 6. `super_admin` — Gestão de Plataforma
+### 4. `super_admin` & Plataforma
 - **Chave**: `super_admin`
 - **Estado Real**: **`ativo`**
-- **O que já funciona**:
-  - Ecrã de aprovação atómica de inscrições públicas (`/signup`).
-  - Atribuição e suspensão de licenças por módulo.
-  - Impersonation de utilizadores para suporte técnico com registo auditado.
+- **O que funciona a 100%**:
+  - Gestão e aprovação atómica de novos pedidos de conta com OTP seguro (bcrypt) e verificação RGPD.
+  - Licenciamento modular com cálculo de receita recorrente mensal (MRR) e anual (ARR) com suporte a descontos.
+  - Sessão de suporte técnico (Impersonation) com proteção de modo de leitura e registo auditado.

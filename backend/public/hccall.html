@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>HCCALL Telecom · HelderLabs</title>
+  <meta name="theme-color" content="#0d419f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/hccall.webmanifest">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/assets/css/app.css">
+  <style>
+    :root {
+      --brand: #0d419f;
+      --brand-hover: #1f6feb;
+      --brand-glow: rgba(13, 65, 159, 0.35);
+      --bg: #090d16;
+      --card-bg: #131b2e;
+      --card-border: #1f2d4d;
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --success: #238636;
+      --warning: #d29922;
+      --danger: #f85149;
+      --info: #58a6ff;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: 75px;
+      user-select: none;
+    }
+
+    /* Top Bar */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(19, 27, 46, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sync-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 12px;
+      background: rgba(35, 134, 54, 0.2);
+      color: #3fb950;
+      border: 1px solid rgba(35, 134, 54, 0.4);
+      font-weight: 600;
+    }
+
+    .sync-badge.pending {
+      background: rgba(210, 153, 34, 0.2);
+      color: var(--warning);
+      border-color: rgba(210, 153, 34, 0.4);
+    }
+
+    .sync-badge.offline {
+      background: rgba(248, 81, 73, 0.2);
+      color: var(--danger);
+      border-color: rgba(248, 81, 73, 0.4);
+    }
+
+    /* Content Area */
+    .main-container {
+      padding: 16px;
+      flex: 1;
+      max-width: 600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .view-pane { display: none; }
+    .view-pane.active { display: block; animation: fadeIn 0.15s ease-out; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* KPI Cards */
+    .kpi-block {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    }
+
+    .kpi-header {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kpi-value-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+
+    .kpi-sales-count {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .kpi-comm-total {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #3fb950;
+    }
+
+    .status-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .pill {
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+    }
+
+    /* Big Action Button (Thumb Zone) */
+    .btn-giant {
+      width: 100%;
+      min-height: 54px;
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 6px 20px var(--brand-glow);
+      cursor: pointer;
+      margin-top: 16px;
+      margin-bottom: 16px;
+      transition: background 0.15s, transform 0.05s;
+    }
+
+    .btn-giant:active {
+      transform: scale(0.98);
+      background: var(--brand-hover);
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      min-height: 46px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .form-control:focus {
+      border-color: var(--brand-hover);
+      box-shadow: 0 0 0 3px var(--brand-glow);
+    }
+
+    /* Sales List Items */
+    .sale-item {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .sale-item:active {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .sale-code {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--info);
+    }
+
+    .sale-client {
+      font-size: 0.85rem;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    .sale-service {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .sale-comm-badge {
+      text-align: right;
+    }
+
+    .comm-val {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #3fb950;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* Bottom Navigation Bar */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: rgba(19, 27, 46, 0.96);
+      backdrop-filter: blur(16px);
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 100;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .nav-btn {
+      flex: 1;
+      height: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .nav-btn.active {
+      color: #58a6ff;
+    }
+
+    .nav-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-sheet {
+      background: var(--card-bg);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid var(--card-border);
+      border-bottom: none;
+      width: 100%;
+      max-width: 600px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 20px 18px 30px;
+      animation: slideUp 0.2s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .modal-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+      line-height: 1;
+      padding: 4px;
+      cursor: pointer;
+    }
+
+    /* History Timeline */
+    .timeline-item {
+      border-left: 2px solid var(--card-border);
+      padding-left: 12px;
+      margin-left: 6px;
+      padding-bottom: 14px;
+      position: relative;
+    }
+
+    .timeline-dot {
+      position: absolute;
+      left: -6px;
+      top: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--brand-hover);
+    }
+
+    .timeline-time {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+
+    .timeline-text {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="top-header">
+    <div class="brand-title">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="#58a6ff"><path d="M12 1a9 9 0 0 0-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2a7 7 0 0 1 14 0v2h-4v8h3c1.66 0 3-1.34 3-3v-7a9 9 0 0 0-9-9z"/></svg>
+      <span>HCCALL Telecom</span>
+    </div>
+    <div id="syncStatusBadge" class="sync-badge">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
+      <span id="syncStatusText">Online</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+
+    <!-- 1. ECRÃ INÍCIO -->
+    <section id="view-home" class="view-pane active">
+      <!-- HOJE -->
+      <div class="kpi-block">
+        <div class="kpi-header">
+          <span>Hoje</span>
+          <span id="todayDateStr">--</span>
+        </div>
+        <div class="kpi-value-row">
+          <div>
+            <span class="kpi-sales-count" id="kpiTodayCount">0</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 4px;">vendas</span>
+          </div>
+          <div class="kpi-comm-total" id="kpiTodayComm">0,00 €</div>
+        </div>
+        <div class="status-pills" id="kpiTodayBreakdown">
+          <span class="pill">0 ativadas</span>
+          <span class="pill">0 pendentes</span>
+        </div>
+      </div>
+
+      <!-- ESTE MÊS -->
+      <div class="kpi-block" style="background: rgba(13, 65, 159, 0.12); border-color: rgba(31, 111, 235, 0.3);">
+        <div class="kpi-header">
+          <span>Este Mês</span>
+          <span id="monthNameStr">--</span>
+        </div>
+        <div class="kpi-value-row">
+          <div>
+            <span class="kpi-sales-count" id="kpiMonthCount">0</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 4px;">vendas</span>
+          </div>
+          <div class="kpi-comm-total" id="kpiMonthComm">0,00 €</div>
+        </div>
+      </div>
+
+      <!-- BOTÃO GIGANTE NOVA VENDA -->
+      <button class="btn-giant" onclick="app.showNewSale()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span>+ NOVA VENDA</span>
+      </button>
+
+      <!-- Últimas Vendas Recentes -->
+      <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+        Vendas Recentes
+      </div>
+      <div id="recentSalesList">
+        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">
+          A carregar registos...
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ECRÃ VENDAS (LISTA) -->
+    <section id="view-sales" class="view-pane">
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <input type="text" id="salesSearchInput" class="form-control" placeholder="Pesquisar por cliente, código ou serviço..." oninput="app.debounceSearchSales()">
+        <button class="form-control" style="width: auto; min-width: 46px; padding: 0 12px; background: rgba(255,255,255,0.08);" onclick="app.exportSalesCsv()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </button>
+      </div>
+
+      <div id="allSalesList">
+        <!-- Injetado dinamicamente -->
+      </div>
+    </section>
+
+    <!-- 3. ECRÃ CLIENTES -->
+    <section id="view-customers" class="view-pane">
+      <div style="margin-bottom: 12px;">
+        <input type="text" id="custSearchInput" class="form-control" placeholder="Pesquisar número de cliente ou nome..." oninput="app.debounceSearchCustomers()">
+      </div>
+      <div id="customersList">
+        <!-- Injetado dinamicamente -->
+      </div>
+    </section>
+
+    <!-- 4. ECRÃ CONFIGURAÇÃO -->
+    <section id="view-settings" class="view-pane">
+      <div class="kpi-block">
+        <div class="kpi-header">
+          <span>Serviços Telecom</span>
+          <button style="background:none; border:none; color:var(--info); font-weight:700; cursor:pointer;" onclick="app.openNewServiceModal()">+ Adicionar</button>
+        </div>
+        <div id="settingsServicesList" style="margin-top: 8px;"></div>
+      </div>
+
+      <div class="kpi-block">
+        <div class="kpi-header">
+          <span>Dinamizações & Campanhas</span>
+          <button style="background:none; border:none; color:var(--info); font-weight:700; cursor:pointer;" onclick="app.openNewPromotionModal()">+ Adicionar</button>
+        </div>
+        <div id="settingsPromotionsList" style="margin-top: 8px;"></div>
+      </div>
+
+      <div class="kpi-block">
+        <div class="kpi-header">
+          <span>Estados de Venda</span>
+        </div>
+        <div id="settingsStatusesList" style="margin-top: 8px;"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL NOVA VENDA (<20s) -->
+  <div id="newSaleModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-title-row">
+        <div class="modal-title">Registar Nova Venda</div>
+        <button class="btn-close" onclick="app.closeModal('newSaleModal')">&times;</button>
+      </div>
+
+      <form id="newSaleForm" onsubmit="app.handleSaveNewSale(event)">
+        <div class="form-group">
+          <label class="form-label">Número de Cliente *</label>
+          <input type="text" id="saleCustomerNumber" class="form-control" inputmode="numeric" placeholder="ex: 123456789" required onblur="app.lookupCustomer(this.value)">
+        </div>
+
+        <div class="form-group" id="optCustomerNameGroup" style="display:none;">
+          <label class="form-label">Nome do Cliente (Opcional)</label>
+          <input type="text" id="saleCustomerName" class="form-control" placeholder="Nome do cliente">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Serviço *</label>
+          <select id="saleServiceSelect" class="form-control" required onchange="app.filterPromotionsByService(this.value)">
+            <!-- Injetado dinamicamente -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Dinamização / Campanha</label>
+          <select id="salePromotionSelect" class="form-control" onchange="app.onPromotionSelected(this.value)">
+            <!-- Injetado dinamicamente -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Comissão Efetiva (€) *</label>
+          <input type="number" step="0.01" id="saleCommissionEur" class="form-control" placeholder="0.00" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Estado Inicial *</label>
+          <select id="saleStatusSelect" class="form-control" required>
+            <!-- Injetado dinamicamente -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input type="text" id="saleNotes" class="form-control" placeholder="Notas operacionais...">
+        </div>
+
+        <button type="submit" class="btn-giant" style="margin-top: 10px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
+          <span>GUARDAR VENDA</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DETALHE / HISTÓRICO DA VENDA -->
+  <div id="saleDetailModal" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-title-row">
+        <div>
+          <div class="modal-title" id="detailSaleCode">#00000</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);" id="detailSaleDate">--</div>
+        </div>
+        <button class="btn-close" onclick="app.closeModal('saleDetailModal')">&times;</button>
+      </div>
+
+      <div class="kpi-block" style="padding: 12px; margin-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Cliente</div>
+            <div style="font-weight: 700; font-size: 1rem;" id="detailCustomerNum">--</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 0.8rem; color: var(--text-muted);">Comissão</div>
+            <div style="font-weight: 800; font-size: 1.2rem; color: #3fb950;" id="detailCommission">0,00 €</div>
+          </div>
+        </div>
+        <div style="margin-top: 8px; font-size: 0.85rem; color: var(--text);" id="detailServicePromo">--</div>
+      </div>
+
+      <!-- Histórico de Alterações -->
+      <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em;">
+        Histórico de Alterações
+      </div>
+      <div id="saleHistoryTimeline"></div>
+
+      <button class="btn-giant" style="background: rgba(255,255,255,0.08); box-shadow:none; border: 1px solid var(--card-border);" onclick="app.openEditSaleModal()">
+        <span>Editar Venda</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation Bar -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="app.switchTab('home')">
+      <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      <span>Início</span>
+    </button>
+    <button class="nav-btn" onclick="app.switchTab('sales')">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+      <span>Vendas</span>
+    </button>
+    <button class="nav-btn" onclick="app.switchTab('customers')">
+      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+      <span>Clientes</span>
+    </button>
+    <button class="nav-btn" onclick="app.switchTab('settings')">
+      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+      <span>Ajustes</span>
+    </button>
+  </nav>
+
+  <!-- PWA & Application Script -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/hccall-sw.js').catch(() => {});
+    }
+
+    // =======================================================================
+    // INDEXEDDB OFFLINE ENGINE
+    // =======================================================================
+    const DB_NAME = 'hccall_local_db';
+    const DB_VERSION = 1;
+    let dbInstance = null;
+
+    function openLocalDb() {
+      return new Promise((resolve, reject) => {
+        if (dbInstance) return resolve(dbInstance);
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('offline_queue')) {
+            db.createObjectStore('offline_queue', { keyPath: 'clientUuid' });
+          }
+          if (!db.objectStoreNames.contains('cached_data')) {
+            db.createObjectStore('cached_data', { keyPath: 'key' });
+          }
+        };
+        req.onsuccess = () => { dbInstance = req.result; resolve(dbInstance); };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function queueOfflineOperation(op) {
+      const db = await openLocalDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('offline_queue', 'readwrite');
+        tx.objectStore('offline_queue').put(op);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+
+    async function getOfflineQueue() {
+      const db = await openLocalDb();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('offline_queue', 'readonly');
+        const req = tx.objectStore('offline_queue').getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function clearSyncedFromQueue(clientUuids) {
+      const db = await openLocalDb();
+      const tx = db.transaction('offline_queue', 'readwrite');
+      const store = tx.objectStore('offline_queue');
+      for (const id of clientUuids) store.delete(id);
+    }
+
+    // =======================================================================
+    // APPLICATION STATE & CONTROLLER
+    // =======================================================================
+    const app = {
+      services: [],
+      promotions: [],
+      statuses: [],
+      currentSaleDetail: null,
+
+      async init() {
+        this.updateOnlineStatus();
+        window.addEventListener('online', () => { this.updateOnlineStatus(); this.syncQueue(); });
+        window.addEventListener('offline', () => this.updateOnlineStatus());
+
+        await this.loadConfig();
+        await this.loadDashboard();
+        await this.loadRecentSales();
+        this.syncQueue();
+      },
+
+      updateOnlineStatus() {
+        const badge = document.getElementById('syncStatusBadge');
+        const txt = document.getElementById('syncStatusText');
+        if (navigator.onLine) {
+          badge.className = 'sync-badge';
+          txt.innerText = 'Online';
+        } else {
+          badge.className = 'sync-badge offline';
+          txt.innerText = 'Offline';
+        }
+      },
+
+      async getAuthToken() {
+        let token = localStorage.getItem('erp_token') || sessionStorage.getItem('erp_token');
+        if (!token) {
+          const cookieMatch = document.cookie.match(/erp_token=([^;]+)/);
+          if (cookieMatch) token = cookieMatch[1];
+        }
+        return token;
+      },
+
+      async apiFetch(url, options = {}) {
+        const token = await this.getAuthToken();
+        const headers = {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...options.headers
+        };
+
+        try {
+          const res = await fetch(url, { ...options, headers });
+          if (res.status === 401) {
+            window.location.href = '/login.html?redirect=/hccall.html';
+            return null;
+          }
+          return res;
+        } catch (err) {
+          return null; // Network error / offline
+        }
+      },
+
+      switchTab(tab) {
+        document.querySelectorAll('.view-pane').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+        const targetPane = document.getElementById(`view-${tab}`);
+        if (targetPane) targetPane.classList.add('active');
+
+        const btnIdx = ['home', 'sales', 'customers', 'settings'].indexOf(tab);
+        if (btnIdx >= 0) {
+          document.querySelectorAll('.nav-btn')[btnIdx]?.classList.add('active');
+        }
+
+        if (tab === 'home') { this.loadDashboard(); this.loadRecentSales(); }
+        else if (tab === 'sales') { this.loadAllSales(); }
+        else if (tab === 'customers') { this.loadCustomers(); }
+        else if (tab === 'settings') { this.loadSettingsView(); }
+      },
+
+      async loadConfig() {
+        const [resSvc, resPrm, resSts] = await Promise.all([
+          this.apiFetch('/api/hccall/services'),
+          this.apiFetch('/api/hccall/promotions'),
+          this.apiFetch('/api/hccall/statuses')
+        ]);
+
+        if (resSvc && resSvc.ok) this.services = (await resSvc.json()).services || [];
+        if (resPrm && resPrm.ok) this.promotions = (await resPrm.json()).promotions || [];
+        if (resSts && resSts.ok) this.statuses = (await resSts.json()).statuses || [];
+      },
+
+      async loadDashboard() {
+        const today = new Date();
+        document.getElementById('todayDateStr').innerText = today.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
+        document.getElementById('monthNameStr').innerText = today.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+
+        const res = await this.apiFetch('/api/hccall/dashboard');
+        if (res && res.ok) {
+          const data = await res.json();
+          document.getElementById('kpiTodayCount').innerText = data.today.count;
+          document.getElementById('kpiTodayComm').innerText = (data.today.totalCommissionCents / 100).toFixed(2) + ' €';
+
+          const breakdownHtml = Object.entries(data.today.statusBreakdown || {})
+            .map(([k, v]) => `<span class="pill">${v} ${k.toLowerCase()}</span>`).join('');
+          document.getElementById('kpiTodayBreakdown').innerHTML = breakdownHtml || '<span class="pill">Sem vendas hoje</span>';
+
+          document.getElementById('kpiMonthCount').innerText = data.thisMonth.count;
+          document.getElementById('kpiMonthComm').innerText = (data.thisMonth.totalCommissionCents / 100).toFixed(2) + ' €';
+        }
+      },
+
+      async loadRecentSales() {
+        const res = await this.apiFetch('/api/hccall/sales?limit=5');
+        const container = document.getElementById('recentSalesList');
+        if (!res || !res.ok) {
+          container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:10px;">Modo offline ativo</div>';
+          return;
+        }
+
+        const data = await res.json();
+        if (data.items.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:10px;">Nenhuma venda registada hoje</div>';
+          return;
+        }
+
+        container.innerHTML = data.items.map(s => `
+          <div class="sale-item" onclick="app.openSaleDetail('${s.id}')">
+            <div>
+              <div class="sale-code">${s.code}</div>
+              <div class="sale-client">${s.customerNumber}</div>
+              <div class="sale-service">${s.serviceName || 'Geral'} ${s.promotionName ? '· ' + s.promotionName : ''}</div>
+            </div>
+            <div class="sale-comm-badge">
+              <div class="comm-val">${(s.commissionCents / 100).toFixed(2)} €</div>
+              <span class="status-badge" style="background:${s.statusColor}22; color:${s.statusColor}">${s.statusLabel}</span>
+            </div>
+          </div>
+        `).join('');
+      },
+
+      showNewSale() {
+        // Populate services
+        const svcSel = document.getElementById('saleServiceSelect');
+        svcSel.innerHTML = this.services.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+        // Populate statuses
+        const stsSel = document.getElementById('saleStatusSelect');
+        stsSel.innerHTML = this.statuses.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+
+        // Populate promotions
+        this.filterPromotionsByService(svcSel.value);
+
+        document.getElementById('newSaleForm').reset();
+        document.getElementById('saleCommissionEur').value = '';
+        document.getElementById('newSaleModal').classList.add('active');
+        document.getElementById('saleCustomerNumber').focus();
+      },
+
+      filterPromotionsByService(serviceId) {
+        const prmSel = document.getElementById('salePromotionSelect');
+        const filtered = this.promotions.filter(p => !p.serviceId || p.serviceId === serviceId);
+        prmSel.innerHTML = '<option value="">Sem Dinamização</option>' +
+          filtered.map(p => `<option value="${p.id}" data-comm="${p.suggestedCommissionCents / 100}">${p.name} (+${(p.suggestedCommissionCents / 100).toFixed(2)} €)</option>`).join('');
+      },
+
+      onPromotionSelected(promoId) {
+        if (!promoId) return;
+        const opt = document.querySelector(`#salePromotionSelect option[value="${promoId}"]`);
+        if (opt && opt.dataset.comm) {
+          document.getElementById('saleCommissionEur').value = opt.dataset.comm;
+        }
+      },
+
+      async lookupCustomer(num) {
+        if (!num || num.length < 3) return;
+        const res = await this.apiFetch(`/api/hccall/customers?search=${encodeURIComponent(num)}&limit=1`);
+        if (res && res.ok) {
+          const data = await res.json();
+          if (data.items.length > 0) {
+            document.getElementById('optCustomerNameGroup').style.display = 'block';
+            document.getElementById('saleCustomerName').value = data.items[0].name || '';
+          }
+        }
+      },
+
+      async handleSaveNewSale(e) {
+        e.preventDefault();
+        const clientUuid = 'hccall-' + crypto.randomUUID();
+        const commEur = parseFloat(document.getElementById('saleCommissionEur').value || '0');
+        const commCents = Math.round(commEur * 100);
+
+        const payload = {
+          clientUuid,
+          customerNumber: document.getElementById('saleCustomerNumber').value.trim(),
+          customerName: document.getElementById('saleCustomerName').value.trim() || undefined,
+          serviceId: document.getElementById('saleServiceSelect').value || undefined,
+          promotionId: document.getElementById('salePromotionSelect').value || undefined,
+          commissionCents: commCents,
+          statusId: document.getElementById('saleStatusSelect').value || undefined,
+          notes: document.getElementById('saleNotes').value.trim() || undefined,
+          soldAt: new Date().toISOString()
+        };
+
+        // Try direct save
+        const res = await this.apiFetch('/api/hccall/sales', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        if (res && res.ok) {
+          this.closeModal('newSaleModal');
+          await this.loadDashboard();
+          await this.loadRecentSales();
+        } else {
+          // Store in offline queue
+          await queueOfflineOperation({
+            clientUuid,
+            action: 'CREATE_SALE',
+            payload,
+            occurredAt: new Date().toISOString()
+          });
+          const badge = document.getElementById('syncStatusBadge');
+          badge.className = 'sync-badge pending';
+          document.getElementById('syncStatusText').innerText = 'Fila Offline (1)';
+          this.closeModal('newSaleModal');
+          alert('Venda guardada localmente no telemóvel. Será sincronizada assim que houver rede.');
+        }
+      },
+
+      async syncQueue() {
+        const queue = await getOfflineQueue();
+        if (queue.length === 0) return;
+
+        const badge = document.getElementById('syncStatusBadge');
+        badge.className = 'sync-badge pending';
+        document.getElementById('syncStatusText').innerText = `A sincronizar (${queue.length})...`;
+
+        const res = await this.apiFetch('/api/hccall/sync', {
+          method: 'POST',
+          body: JSON.stringify({ operations: queue })
+        });
+
+        if (res && res.ok) {
+          const syncedUuids = queue.map(q => q.clientUuid);
+          await clearSyncedFromQueue(syncedUuids);
+          badge.className = 'sync-badge';
+          document.getElementById('syncStatusText').innerText = 'Online';
+          await this.loadDashboard();
+          await this.loadRecentSales();
+        }
+      },
+
+      async openSaleDetail(saleId) {
+        const res = await this.apiFetch(`/api/hccall/sales/${saleId}`);
+        if (!res || !res.ok) return;
+
+        const data = await res.json();
+        const sale = data.sale;
+        this.currentSaleDetail = sale;
+
+        document.getElementById('detailSaleCode').innerText = sale.code;
+        document.getElementById('detailSaleDate').innerText = new Date(sale.soldAt).toLocaleDateString('pt-PT');
+        document.getElementById('detailCustomerNum').innerText = sale.customerNumber;
+        document.getElementById('detailCommission').innerText = (sale.commissionCents / 100).toFixed(2) + ' €';
+        document.getElementById('detailServicePromo').innerText = `${sale.serviceName} ${sale.promotionName ? '· Dinamização: ' + sale.promotionName : ''}`;
+
+        const timeline = document.getElementById('saleHistoryTimeline');
+        timeline.innerHTML = (sale.changes || []).map(c => `
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-time">${new Date(c.changedAt).toLocaleString('pt-PT')}</div>
+            <div class="timeline-text"><strong>${c.field}:</strong> ${c.oldValue ? c.oldValue + ' → ' : ''}${c.newValue}</div>
+            ${c.reason ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Motivo: ${c.reason}</div>` : ''}
+          </div>
+        `).join('') || '<div style="font-size:0.8rem; color:var(--text-muted);">Sem alterações registadas.</div>';
+
+        document.getElementById('saleDetailModal').classList.add('active');
+      },
+
+      closeModal(id) {
+        document.getElementById(id)?.classList.remove('active');
+      },
+
+      async exportSalesCsv() {
+        window.open('/api/hccall/export', '_blank');
+      }
+    };
+
+    window.app = app;
+    window.addEventListener('DOMContentLoaded', () => app.init());
+  </script>
+</body>
+</html>

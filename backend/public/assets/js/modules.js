@@ -6,6 +6,70 @@
 
 window.MODULES_REGISTRY = [
   {
+    key: "sellmais",
+    name: { pt: "2SELLMAIS", en: "2SELLMAIS" },
+    blurb: { 
+      pt: "Gestão de inventário e comércio em segunda mão, velharias e antiguidades com catálogo público SSR", 
+      en: "Second-hand, vintage and antiques inventory & trading management with public SSR storefront" 
+    },
+    status: "ativo",
+    route: "/app.html#sellmais",
+    icon: "shopping-bag",
+    licensable: true,
+    ready: {
+      pt: [
+        "Ficha de artigo completa com atributos dinâmicos JSONB por tipo",
+        "Máquina de estados estrita (RASCUNHO -> DISPONIVEL -> RESERVADO -> VENDIDO -> ENTREGUE)",
+        "Materialização em tempo real de custos de restauro e margem real",
+        "Gestão de consignações e liquidações a comitentes",
+        "Publicação multi-canal com outbox assíncrona (OLX, Standvirtual, Wallapop, Vinted, Loja Própria)",
+        "Gestão de leilões com controlo estrito de concorrência e lances",
+        "Catálogo público SSR com dados estruturados JSON-LD e SEO"
+      ],
+      en: [
+        "Complete item record with validated dynamic JSONB attributes",
+        "Strict state machine (DRAFT -> AVAILABLE -> RESERVED -> SOLD -> DELIVERED)",
+        "Real-time cost materialization (restoration & real profit margin)",
+        "Consignment lifecycle and consignor settlements",
+        "Multi-channel outbox publishing (OLX, Standvirtual, Wallapop, Vinted, Web Store)",
+        "Auction management with strict concurrency control and live bidding",
+        "Public SSR storefront with JSON-LD structured data and SEO"
+      ]
+    },
+    missing: { pt: [], en: [] }
+  },
+  {
+    key: "hccall",
+    name: { pt: "HCCALL Telecom", en: "HCCALL Telecom" },
+    blurb: { 
+      pt: "Ferramenta operacional mobile-first para operadores de call center e lojas de telecomunicações", 
+      en: "Mobile-first operational tool for call center agents and telecom retail stores" 
+    },
+    status: "ativo",
+    route: "/hccall.html",
+    icon: "headset",
+    licensable: true,
+    ready: {
+      pt: [
+        "Registo rápido de vendas em menos de 20s (<8 toques)",
+        "Snapshot imutável de dinamizações e comissões efetivas",
+        "Histórico detalhado de alterações por venda",
+        "Funcionamento Offline-First com sincronização idempotente",
+        "Relatórios de comissões por estado de comissão (Previstas, Confirmadas, Pagas)",
+        "Exportação CSV e conformidade RGPD"
+      ],
+      en: [
+        "Fast sales entry in under 20s (<8 taps)",
+        "Immutable snapshot of promotions and effective commissions",
+        "Detailed audit change log per sale",
+        "Offline-First engine with idempotent synchronization",
+        "Commission reports by state (Forecast, Confirmed, Paid)",
+        "CSV export and GDPR compliance"
+      ]
+    },
+    missing: { pt: [], en: [] }
+  },
+  {
     key: "financas",
     name: { pt: "Gestão Financeira", en: "Financial Management" },
     blurb: { 

@@ -46,7 +46,7 @@ async function main() {
 
   // 1. Módulos disponíveis na plataforma
   console.log("A criar módulos da plataforma...");
-  const [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks] = await Promise.all([
+  const [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks, modHccall, modSellmais] = await Promise.all([
     prisma.module.create({
       data: { key: "crm", name: "CRM", description: "Gestão de Leads, Oportunidades e Clientes", icon: "users", color: "#0d419f", category: "Comercial", sortOrder: 10, isActive: true }
     }),
@@ -65,8 +65,14 @@ async function main() {
     prisma.module.create({
       data: { key: "tasks", name: "Projetos & Tarefas", description: "Gestão de tarefas e projetos", icon: "check-square", color: "#4b5563", category: "Operações", sortOrder: 60, isActive: false }
     }),
+    prisma.module.create({
+      data: { key: "hccall", name: "HCCALL Telecom", description: "Ferramenta operacional para operadores e lojas de telecomunicações", icon: "headset", color: "#0d419f", category: "Comercial", sortOrder: 70, isActive: true }
+    }),
+    prisma.module.create({
+      data: { key: "sellmais", name: "2SELLMAIS", description: "Gestão de inventário e comércio em segunda mão, velharias e antiguidades", icon: "shopping-bag", color: "#b45309", category: "Comercial", sortOrder: 80, isActive: true }
+    }),
   ]);
-  console.log("6 módulos criados.\n");
+  console.log("8 módulos criados.\n");
 
   const pwHash = await bcrypt.hash("admin1234", 10);
 
@@ -83,7 +89,7 @@ async function main() {
   const superAdminUser = await prisma.user.create({
     data: { tenantId: tenantPlatform.id, name: "Helder Guiomar (Super Admin)", email: "helderguiomar@gmail.com", passwordHash: pwHash, role: "SUPER_ADMIN", status: "ACTIVE", active: true, authProvider: "EMAIL" }
   });
-  const allModules = [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks];
+  const allModules = [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks, modHccall, modSellmais];
   for (const m of allModules) {
     const appInst = await prisma.applicationInstance.create({
       data: { moduleId: m.id, tenantId: tenantPlatform.id, status: "ACTIVE", config: { unlimited: true }, createdBy: superAdminUser.id }

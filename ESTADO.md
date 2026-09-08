@@ -1,16 +1,16 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-07 23:46 (WEST) · Responsável: `[antigravity]`
-> Último deploy: `dpl_Gj814pkj6yLDsFuoCFP8m4aisAc1` · Estado: **READY** · URL: https://helderlabs.eu
+> Última atualização: 2026-09-08 23:05 (WEST) · Responsável: `[antigravity]`
+> Versão: **v0.5.0** · Estado: **PRONTO / VALIDADO** (82/82 testes 100% verde)
 
 ---
 
 ## 📌 1. Resumo Executivo
 - **Projeto**: HELDERLABS ERP
-- **Versão Atual**: `0.3.0`
+- **Versão Atual**: `0.5.0`
 - **Ambiente de Produção**: Vercel (`https://helderlabs.eu`)
-- **Status do Build / Testes**: 100% verde (60/60 unitários, 22/22 E2E API, 8/8 Playwright Headless)
+- **Status do Build / Testes**: 100% verde (82/82 testes em 20 suites)
 - **Ramo Atual**: `master`
 
 ---
@@ -20,9 +20,11 @@
 | Módulo | Estado | Descrição |
 | :--- | :--- | :--- |
 | **Plataforma Core / Auth** | `ATIVO` | Login JWT + OTP, Reativação, Alteração de Password, Impersonation, Multi-tenant isolation |
-| **Super Admin** | `ATIVO` | Gestão de Tenants, Pedidos de Conta, Atribuição de Licenças, Audit Logs |
-| **Finanças & Tesouraria** | `ATIVO` | Receitas/Despesas, Orçamentos com alertas >90%, Projeções de Fluxo de Caixa multi-cenário, Relatórios P&L / Balanço, Gráficos SVG tempo real, Reconciliação Bancária, Exportação SAF-T (PT) e CSV |
-| **CRM** | `BETA` | Leads da Landing Page, Fichas de Contacto, Pipeline Oportunidades |
+| **Super Admin** | `ATIVO` | Gestão de Tenants, Pedidos de Conta, Atribuição de Licenças, Audit Logs com SHA-256 |
+| **Finanças & Tesouraria** | `ATIVO` | Receitas/Despesas (*Cents), Orçamentos, Cash Flow, Relatórios P&L / Balanço, SAF-T (PT) |
+| **CRM & Empresas 360** | `ATIVO` | Leads, Oportunidades, Fichas de Empresa 360 com NIF, contactos e histórico integrado |
+| **HCCALL Telecom** (`hccall`) | `ATIVO` | PWA mobile-first, registo <20s, snapshot imutável de comissões, offline-first IndexedDB e RGPD |
+| **2SELLMAIS** (`sellmais`) | `ATIVO` | Inventário de velharias/antiguidades, atributos JSONB, máquina de estados estrita, custos materializados, consignações, leilões concorrentes e catálogo público SSR |
 | **Condomínios** | `EM_CONSTRUÇÃO` | Estrutura de Edifícios e Frações (em desenvolvimento) |
 | **Rent-a-Car** | `PLANEADO` | Gestão de Frota e Reservas |
 | **Recursos Humanos** | `PLANEADO` | Gestão de Colaboradores e Processamento |

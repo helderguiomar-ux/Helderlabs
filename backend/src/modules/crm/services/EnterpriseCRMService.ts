@@ -235,7 +235,6 @@ export class EnterpriseCRMService {
         phone: data.phone || null,
         mobile: data.mobile || null,
         isPrimary: data.isPrimary || false,
-        decisionPower: data.decisionPower || 'INFLUENCER',
         notes: data.notes || null
       }
     });
@@ -252,9 +251,10 @@ export class EnterpriseCRMService {
       }
     }
 
+    const { decisionPower, ...validData } = data;
     return this.db.companyContact.update({
       where: { id: contactId },
-      data
+      data: validData
     });
   }
 
@@ -271,7 +271,9 @@ export class EnterpriseCRMService {
 
   public async addCompanyAddress(companyId: string, data: {
     type?: string;
-    street: string;
+    purpose?: string;
+    street?: string;
+    address?: string;
     city?: string;
     district?: string;
     postalCode?: string;
@@ -288,10 +290,9 @@ export class EnterpriseCRMService {
     return this.db.companyAddress.create({
       data: {
         companyId,
-        type: data.type || 'HQ',
-        street: data.street,
+        purpose: data.purpose || data.type || 'SEDE',
+        address: data.address || data.street || '',
         city: data.city || null,
-        district: data.district || null,
         postalCode: data.postalCode || null,
         country: data.country || 'Portugal',
         isDefault: data.isDefault || false
@@ -313,20 +314,21 @@ export class EnterpriseCRMService {
   public async addCompanyDocument(companyId: string, data: {
     name: string;
     category?: string;
-    fileUrl: string;
+    docType?: string;
+    fileUrl?: string;
     fileType?: string;
     size?: number;
     expiresAt?: Date | string;
+    expiryDate?: Date | string;
   }) {
     return this.db.companyDocument.create({
       data: {
         companyId,
         name: data.name,
-        category: data.category || 'OTHER',
-        fileUrl: data.fileUrl,
-        fileType: data.fileType || null,
-        size: data.size || null,
-        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
+        docType: data.docType || data.category || 'OTHER',
+        fileUrl: data.fileUrl || null,
+        expiryDate: data.expiryDate ? new Date(data.expiryDate) : (data.expiresAt ? new Date(data.expiresAt) : null),
+        status: 'VALID'
       }
     });
   }
@@ -355,10 +357,14 @@ export class EnterpriseCRMService {
   public async createContract(companyId: string, data: {
     contractNumber: string;
     title: string;
+    type?: string;
     status?: string;
+    valueCents?: number;
     monthlyValueCents?: number;
     annualValueCents?: number;
     totalValueCents?: number;
+    billingFrequency?: string;
+    autoRenew?: boolean;
     startDate: Date | string;
     endDate?: Date | string;
     renewalType?: string;
@@ -366,34 +372,43 @@ export class EnterpriseCRMService {
     documentUrl?: string;
     terms?: string;
   }) {
+    const valueCents = data.valueCents ?? data.monthlyValueCents ?? data.annualValueCents ?? data.totalValueCents ?? 0;
+    const autoRenew = data.autoRenew !== undefined ? data.autoRenew : (data.renewalType === 'AUTOMATIC' || data.renewalType === 'AUTO');
     return this.db.contract.create({
       data: {
         tenantId: this.tenantId,
         companyId,
         contractNumber: data.contractNumber,
         title: data.title,
+        type: data.type || 'SERVICE',
         status: data.status || 'ACTIVE',
-        monthlyValueCents: data.monthlyValueCents || null,
-        annualValueCents: data.annualValueCents || null,
-        totalValueCents: data.totalValueCents || null,
+        valueCents: Math.round(valueCents),
+        billingFrequency: data.billingFrequency || (data.monthlyValueCents ? 'MONTHLY' : (data.annualValueCents ? 'ANNUAL' : 'ONE_OFF')),
+        autoRenew,
         startDate: new Date(data.startDate),
         endDate: data.endDate ? new Date(data.endDate) : null,
-        renewalType: data.renewalType || 'MANUAL',
-        noticePeriodDays: data.noticePeriodDays || 30,
-        documentUrl: data.documentUrl || null,
-        terms: data.terms || null
+        documentUrl: data.documentUrl || null
       }
     });
   }
 
   public async updateContract(contractId: string, data: any) {
+    const updateData: any = { ...data };
+    if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
+    if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
+    if (updateData.monthlyValueCents !== undefined && updateData.valueCents === undefined) {
+      updateData.valueCents = updateData.monthlyValueCents;
+    }
+    delete updateData.monthlyValueCents;
+    delete updateData.annualValueCents;
+    delete updateData.totalValueCents;
+    delete updateData.renewalType;
+    delete updateData.noticePeriodDays;
+    delete updateData.terms;
+
     return this.db.contract.update({
       where: { id: contractId, tenantId: this.tenantId } as any,
-      data: {
-        ...data,
-        ...(data.startDate && { startDate: new Date(data.startDate) }),
-        ...(data.endDate && { endDate: new Date(data.endDate) })
-      }
+      data: updateData
     });
   }
 

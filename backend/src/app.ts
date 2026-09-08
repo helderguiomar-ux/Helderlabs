@@ -15,6 +15,9 @@ import { condominiosRoutes } from './modules/condominios/routes/condominios.rout
 import { financasRoutes } from './modules/financas/routes/financas.routes';
 import { financeModuleRoutes } from './modules/finance/routes/index';
 import { platformRoutes } from './modules/platform/routes/platform.routes';
+import { hccallRoutes } from './modules/hccall/routes/hccall.routes';
+import { sellmaisRoutes } from './modules/sellmais/routes/sellmais.routes';
+import { SellPublicCatalogService } from './modules/sellmais/services/SellPublicCatalogService';
 import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
 import { AuditService } from './modules/platform/services/AuditService';
@@ -218,6 +221,22 @@ export function buildApp() {
   app.register(condominiosRoutes, { prefix: '/api/condominios' });
   app.register(financasRoutes, { prefix: '/api/financas' });
   app.register(financeModuleRoutes, { prefix: '/api/finance' });
+  app.register(hccallRoutes, { prefix: '/api/hccall' });
+  app.register(sellmaisRoutes, { prefix: '/api/sellmais' });
+
+  // -------------------------------------------------------------------------
+  // Catálogo Público 2SELLMAIS (SSR com SEO e OpenGraph)
+  // -------------------------------------------------------------------------
+  app.get('/loja', async (request, reply) => {
+    const html = await SellPublicCatalogService.renderStorefrontHtml();
+    return reply.type('text/html').send(html);
+  });
+
+  app.get('/loja/artigo/:slug', async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    const { html, found } = await SellPublicCatalogService.renderItemHtml(slug);
+    return reply.status(found ? 200 : 404).type('text/html').send(html);
+  });
 
   const entitlementService = new EntitlementService();
   app.register(async (instance) => {

@@ -174,8 +174,19 @@ export class AuditService {
    * Verifica a integridade da cadeia de hashes para um tenant (ou global)
    */
   static async verifyAuditChain(tenantId?: string): Promise<{ valid: boolean; totalLogs: number; invalidAtId?: string; reason?: string }> {
+    if (!tenantId) {
+      const tenants = await prisma.tenant.findMany({ select: { id: true } });
+      let total = 0;
+      for (const t of tenants) {
+        const res = await this.verifyAuditChain(t.id);
+        if (!res.valid) return res;
+        total += res.totalLogs;
+      }
+      return { valid: true, totalLogs: total };
+    }
+
     const logs = await prisma.auditLog.findMany({
-      where: tenantId ? { tenantId } : undefined,
+      where: { tenantId },
       orderBy: { seq: 'asc' }
     });
 

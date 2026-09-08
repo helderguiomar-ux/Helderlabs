@@ -1392,3 +1392,521 @@ model ApplicationAssignment {
   @@index([deletedAt])
   @@map("application_assignments")
 }
+
+// ===========================================================================
+// HCCALL TELECOM — Modelos Operacionais (v0.5.0)
+// ===========================================================================
+
+model HccallCustomer {
+  id             String    @id @default(cuid())
+  tenantId       String
+  ownerUserId    String
+  customerNumber String
+  name           String?
+  phone          String?
+  notes          String?
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  contacts       HccallContact[]
+
+  @@unique([tenantId, customerNumber])
+  @@index([tenantId, ownerUserId])
+  @@index([tenantId, deletedAt])
+  @@map("hccall_customers")
+}
+
+model HccallService {
+  id          String    @id @default(cuid())
+  tenantId    String
+  ownerUserId String
+  name        String
+  color       String?
+  sortOrder   Int       @default(100)
+  active      Boolean   @default(true)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, active])
+  @@map("hccall_services")
+}
+
+model HccallPromotion {
+  id                       String    @id @default(cuid())
+  tenantId                 String
+  ownerUserId              String
+  name                     String
+  description              String?
+  serviceId                String?
+  suggestedCommissionCents Int       @default(0)
+  promoValueCents          Int?
+  startsAt                 DateTime? @db.Date
+  endsAt                   DateTime? @db.Date
+  active                   Boolean   @default(true)
+  notes                    String?
+  version                  Int       @default(1)
+  deletedAt                DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  @@index([tenantId, active])
+  @@index([tenantId, deletedAt])
+  @@map("hccall_promotions")
+}
+
+model HccallSaleStatus {
+  id              String    @id @default(cuid())
+  tenantId        String
+  key             String
+  label           String
+  color           String?
+  sortOrder       Int       @default(100)
+  isTerminal      Boolean   @default(false)
+  commissionState String    @default("FORECAST") // FORECAST | CONFIRMED | PAID | VOID
+  isSystem        Boolean   @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId, sortOrder])
+  @@map("hccall_sale_statuses")
+}
+
+model HccallSale {
+  id                String    @id @default(cuid())
+  tenantId          String
+  ownerUserId       String
+  code              String
+  clientUuid        String
+  customerId        String?
+  customerNumber    String
+  serviceId         String?
+  serviceName       String
+  promotionId       String?
+  promotionName     String?
+  promotionVersion  Int?
+  promotionSnapshot Json?
+  commissionCents   Int
+  saleValueCents    Int?
+  statusId          String
+  soldAt            DateTime  @db.Date
+  notes             String?
+  deletedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  changes           HccallSaleChange[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, clientUuid])
+  @@index([tenantId, ownerUserId, soldAt])
+  @@index([tenantId, statusId])
+  @@index([tenantId, deletedAt])
+  @@map("hccall_sales")
+}
+
+model HccallSaleChange {
+  id              String      @id @default(cuid())
+  tenantId        String
+  saleId          String
+  sale            HccallSale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  field           String
+  oldValue        String?
+  newValue        String?
+  reason          String?
+  changedByUserId String
+  changedAt       DateTime    @default(now())
+
+  @@index([tenantId, saleId, changedAt])
+  @@map("hccall_sale_changes")
+}
+
+model HccallContact {
+  id          String         @id @default(cuid())
+  tenantId    String
+  ownerUserId String
+  customerId  String
+  customer    HccallCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind        String         // CALL | STORE | MESSAGE | NOTE
+  summary     String
+  occurredAt  DateTime       @default(now())
+  deletedAt   DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@index([tenantId, customerId, occurredAt])
+  @@index([tenantId, deletedAt])
+  @@map("hccall_contacts")
+}
+
+model HccallCounter {
+  tenantId String
+  year     Int
+  scope    String    // "sale"
+  value    Int       @default(0)
+
+  @@id([tenantId, year, scope])
+  @@map("hccall_counters")
+}
+
+// ===========================================================================
+// 2SELLMAIS — Modelos de Gestão de Antiguidades & Inventário (v0.5.0)
+// ===========================================================================
+
+enum SellItemStatus {
+  DRAFT
+  AVAILABLE
+  RESERVED
+  IN_RESTORATION
+  IN_AUCTION
+  SOLD
+  RETURNED
+  UNAVAILABLE
+  WRITTEN_OFF
+}
+
+enum SellAcquisitionType {
+  PURCHASE
+  CONSIGNMENT
+  TRADE_IN
+  DONATION
+}
+
+model SellItemType {
+  id        String    @id @default(cuid())
+  tenantId  String
+  key       String    // "mobiliario" | "pintura" | "joia" | "relogio" | "vinil"
+  name      String
+  icon      String?
+  fields    Json      // [{ key, label, type, required, options[], unit, showInPublic }]
+  isSystem  Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  items     SellItem[]
+
+  @@unique([tenantId, key])
+  @@map("sell_item_types")
+}
+
+model SellItem {
+  id               String              @id @default(cuid())
+  tenantId         String
+  code             String
+  slug             String
+  typeId           String
+  type             SellItemType        @relation(fields: [typeId], references: [id])
+  title            String
+  shortDescription String?
+  description      String?
+  attributes       Json                @default("{}")
+  categoryId       String?
+  period           String?
+  style            String?
+  material         String?
+  maker            String?
+  conditionGrade   String?
+  conditionNotes   String?
+  dimensions       Json?
+  quantity         Int                 @default(1)
+  isUnique         Boolean             @default(true)
+  status           SellItemStatus      @default(DRAFT)
+  acquisitionType  SellAcquisitionType @default(PURCHASE)
+  acquisitionCents Int                 @default(0)
+  extraCostsCents  Int                 @default(0)
+  totalCostCents   Int                 @default(0)
+  askingPriceCents Int?
+  minPriceCents    Int?
+  soldPriceCents   Int?
+  supplierCompanyId String?
+  buyerCompanyId   String?
+  assignedUserId   String?
+  locationId       String?
+  publishedAt      DateTime?
+  availableSince   DateTime?
+  soldAt           DateTime?
+  tags             String[]            @default([])
+  internalNotes    String?
+  vatMarginScheme  Boolean             @default(false)
+  deletedAt        DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  costs            SellItemCost[]
+  media            SellItemMedia[]
+  provenance       SellProvenance?
+  restorations     SellRestoration[]
+  events           SellItemEvent[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, slug])
+  @@index([tenantId, status, availableSince])
+  @@index([tenantId, deletedAt])
+  @@map("sell_items")
+}
+
+model SellItemCost {
+  id                   String    @id @default(cuid())
+  tenantId             String
+  itemId               String
+  item                 SellItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  category             String    // TRANSPORT | RESTORATION | APPRAISAL | COMMISSION | TAX | OTHER
+  description          String
+  amountCents          Int
+  date                 DateTime  @db.Date
+  supplierCompanyId    String?
+  financeTransactionId String?
+  deletedAt            DateTime?
+  createdAt            DateTime  @default(now())
+
+  @@index([tenantId, itemId])
+  @@map("sell_item_costs")
+}
+
+model SellItemMedia {
+  id           String    @id @default(cuid())
+  tenantId     String
+  itemId       String
+  item         SellItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  url          String
+  storageKey   String
+  mimeType     String
+  sizeBytes    Int
+  checksumSha256 String
+  isCover      Boolean   @default(false)
+  sortOrder    Int       @default(100)
+  caption      String?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([tenantId, itemId])
+  @@map("sell_item_media")
+}
+
+model SellProvenance {
+  id          String   @id @default(cuid())
+  tenantId    String
+  itemId      String   @unique
+  item        SellItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  description String
+  confidence  String   @default("UNVERIFIED") // CONFIRMED | ESTIMATED | UNVERIFIED
+  isPublic    Boolean  @default(false)
+  documents   Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sell_provenances")
+}
+
+model SellRestoration {
+  id            String    @id @default(cuid())
+  tenantId      String
+  itemId        String
+  item          SellItem  @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  restorerName  String
+  description   String
+  costCents     Int       @default(0)
+  startedAt     DateTime? @db.Date
+  completedAt   DateTime? @db.Date
+  status        String    @default("IN_PROGRESS") // PLANNED | IN_PROGRESS | COMPLETED
+  beforeMediaId String?
+  afterMediaId  String?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([tenantId, itemId])
+  @@map("sell_restorations")
+}
+
+model SellLocation {
+  id          String    @id @default(cuid())
+  tenantId    String
+  parentId    String?
+  name        String
+  path        String    // Materialized: "Loja > Sala 2 > Zona B > Estante 4"
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([tenantId, parentId])
+  @@map("sell_locations")
+}
+
+model SellItemEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  itemId      String
+  item        SellItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  eventType   String   // CREATED | STATUS_CHANGE | PRICE_CHANGE | RESTORATION | LISTED | SOLD
+  fromState   String?
+  toState     String?
+  description String
+  actorUserId String
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, itemId, createdAt])
+  @@map("sell_item_events")
+}
+
+model SellConsignment {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  consignorCompanyId String
+  reference          String
+  startedAt          DateTime  @db.Date
+  endsAt             DateTime? @db.Date
+  commissionPercent  Int?      // Centésimas de % (3000 = 30.00%)
+  commissionFixedCents Int?
+  minPriceCents      Int?
+  status             String    @default("ACTIVE") // ACTIVE | SETTLED | RETURNED | CANCELLED
+  settlementNotes    String?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  items              SellConsignmentItem[]
+
+  @@unique([tenantId, reference])
+  @@map("sell_consignments")
+}
+
+model SellConsignmentItem {
+  id                   String          @id @default(cuid())
+  tenantId             String
+  consignmentId        String
+  consignment          SellConsignment @relation(fields: [consignmentId], references: [id], onDelete: Cascade)
+  itemId               String          @unique
+  agreedPriceCents     Int?
+  soldPriceCents       Int?
+  commissionCents      Int?
+  payoutCents          Int?
+  settledAt            DateTime?
+  financeTransactionId String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@map("sell_consignment_items")
+}
+
+model SellChannel {
+  id           String    @id @default(cuid())
+  tenantId     String
+  key          String    // "olx" | "standvirtual" | "1stdibs" | "ebay" | "website"
+  name         String
+  manualOnly   Boolean   @default(true)
+  config       Json?
+  active       Boolean   @default(true)
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([tenantId, key])
+  @@map("sell_channels")
+}
+
+model SellChannelListing {
+  id           String    @id @default(cuid())
+  tenantId     String
+  itemId       String
+  channelId    String
+  externalId   String?
+  status       String    @default("PENDING") // PENDING | PUBLISHED | FAILED | UNPUBLISHED
+  listingUrl   String?
+  lastSyncAt   DateTime?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([tenantId, itemId, channelId])
+  @@map("sell_channel_listings")
+}
+
+model SellChannelJob {
+  id             String    @id @default(cuid())
+  tenantId       String
+  idempotencyKey String
+  itemId         String
+  channelId      String
+  action         String    // PUBLISH | UPDATE | UNPUBLISH
+  payload        Json?
+  status         String    @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED
+  attempts       Int       @default(0)
+  lastError      String?
+  scheduledFor   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status, scheduledFor])
+  @@map("sell_channel_jobs")
+}
+
+model SellAuction {
+  id          String           @id @default(cuid())
+  tenantId    String
+  title       String
+  code        String
+  startsAt    DateTime
+  endsAt      DateTime
+  status      String           @default("SCHEDULED") // SCHEDULED | ACTIVE | CLOSED | CANCELLED
+  terms       String?
+  deletedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  lots        SellAuctionLot[]
+
+  @@unique([tenantId, code])
+  @@map("sell_auctions")
+}
+
+model SellAuctionLot {
+  id               String        @id @default(cuid())
+  tenantId         String
+  auctionId        String
+  auction          SellAuction   @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  itemId           String        @unique
+  lotNumber        Int
+  startingBidCents Int
+  reservePriceCents Int?         // NUNCA PÚBLICO
+  minIncrementCents Int          @default(500) // 5.00 EUR
+  currentBidCents  Int           @default(0)
+  winningBidId     String?
+  status           String        @default("PENDING") // PENDING | ACTIVE | SOLD | UNSOLD
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  bids             SellBid[]
+
+  @@unique([auctionId, lotNumber])
+  @@map("sell_auction_lots")
+}
+
+model SellBid {
+  id          String         @id @default(cuid())
+  tenantId    String
+  lotId       String
+  lot         SellAuctionLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  bidderId    String
+  amountCents Int
+  status      String         @default("VALID") // VALID | OUTBID | CANCELLED
+  createdAt   DateTime       @default(now())
+
+  @@index([tenantId, lotId, amountCents])
+  @@map("sell_bids")
+}
+
+model SellCounter {
+  tenantId String
+  year     Int
+  scope    String    // "item" | "auction"
+  value    Int       @default(0)
+
+  @@id([tenantId, year, scope])
+  @@map("sell_counters")
+}
+
+

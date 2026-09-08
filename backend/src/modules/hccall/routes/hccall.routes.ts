@@ -49,7 +49,9 @@ export async function hccallRoutes(app: FastifyInstance) {
     // DASHBOARD, RELATÓRIOS & EXPORTAÇÕES
     // -----------------------------------------------------------------------
     protectedApp.get('/dashboard', HccallController.getDashboard);
+    protectedApp.get('/reports/commissions', HccallController.getDashboard);
     protectedApp.get('/export', HccallController.exportSalesCsv);
+    protectedApp.get('/reports/export.csv', HccallController.exportSalesCsv);
 
     // -----------------------------------------------------------------------
     // SINCRONIZAÇÃO OFFLINE IDEMPOTENTE

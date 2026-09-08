@@ -142,7 +142,7 @@ export class AuditService {
     const limit = filters.limit || 50;
     const offset = filters.offset || 0;
 
-    const [total, logs] = await Promise.all([
+    const [total, rawLogs] = await Promise.all([
       prisma.auditLog.count({ where }),
       prisma.auditLog.findMany({
         where,
@@ -152,6 +152,11 @@ export class AuditService {
       })
     ]);
 
+    const logs = rawLogs.map(l => ({
+      ...l,
+      seq: typeof l.seq === 'bigint' ? Number(l.seq) : l.seq
+    }));
+
     return { total, limit, offset, logs };
   }
 
@@ -159,7 +164,7 @@ export class AuditService {
    * Get audit history for a specific entity (e.g. company, transaction, lead)
    */
   static async getResourceTimeline(resource: string, resourceId: string, tenantId?: string) {
-    return prisma.auditLog.findMany({
+    const rawLogs = await prisma.auditLog.findMany({
       where: {
         resource,
         resourceId,
@@ -168,6 +173,11 @@ export class AuditService {
       orderBy: { timestamp: 'desc' },
       take: 100
     });
+
+    return rawLogs.map(l => ({
+      ...l,
+      seq: typeof l.seq === 'bigint' ? Number(l.seq) : l.seq
+    }));
   }
 
   /**

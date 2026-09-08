@@ -49,8 +49,13 @@
       "destination": "/api/index"
     },
     {
+      "source": "/loja(.*)",
+      "destination": "/api/index"
+    },
+    {
       "source": "/(.*)",
       "destination": "/$1"
     }
+
   ]
 }

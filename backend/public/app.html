@@ -58,6 +58,14 @@
           <svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
           Auditoria SHA-256
         </button>
+        <button class="tab-btn" data-tab="sellmais" onclick="switchTab('sellmais')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          2SELLMAIS
+        </button>
+        <button class="tab-btn" data-tab="hccall" onclick="switchTab('hccall')">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+          HCCALL Telecom
+        </button>
         <button class="tab-btn" data-tab="condominios" onclick="switchTab('condominios')">
           <svg class="icon" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
           Condomínios
@@ -271,6 +279,82 @@
     </div>
 
     <!-- =====================================================================
+         PAINEL 2SELLMAIS (INVENTÁRIO, CUSTOS & LEILÕES)
+         ===================================================================== -->
+    <div id="panel-sellmais" class="tab-panel">
+      <div class="toolbar">
+        <div>
+          <h2 style="margin: 0; font-size: 18px; font-weight: 700;">2SELLMAIS — Inventário & Comércio em Segunda Mão</h2>
+          <span class="kpi-subtext">Gestão de velharias, peças vintage, materialização de custos e leilões</span>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn btn-primary" onclick="window.SellmaisModule.openCreateItemModal()">+ Novo Artigo</button>
+          <a href="/loja" target="_blank" class="btn">Ver Catálogo /loja ↗</a>
+        </div>
+      </div>
+
+      <!-- 4 Canonical KPIs -->
+      <div class="kpi-grid" id="sellmais-metrics-container">
+        <!-- Rendered by sellmais.js -->
+      </div>
+
+      <!-- Tabela de Inventário -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <h3 class="panel-title">Fichas de Inventário & Custos</h3>
+          <div class="toolbar-group">
+            <input type="text" placeholder="Filtrar por código ou título..." oninput="window.SellmaisModule.currentFilter.search = this.value; window.SellmaisModule.loadItems().then(() => window.SellmaisModule.renderItemsTable());">
+            <select id="sellmais-filter-type" onchange="window.SellmaisModule.currentFilter.typeId = this.value; window.SellmaisModule.loadItems().then(() => window.SellmaisModule.renderItemsTable());">
+              <option value="">Todos os Tipos</option>
+            </select>
+            <select onchange="window.SellmaisModule.currentFilter.status = this.value; window.SellmaisModule.loadItems().then(() => window.SellmaisModule.renderItemsTable());">
+              <option value="">Todos os Estados</option>
+              <option value="AVAILABLE">Disponíveis</option>
+              <option value="RESERVED">Reservados</option>
+              <option value="IN_RESTORATION">Em Restauro</option>
+              <option value="IN_AUCTION">Em Leilão</option>
+              <option value="SOLD">Vendidos</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Artigo / Categoria</th>
+                <th>Estado</th>
+                <th style="text-align: right;">Custo Total</th>
+                <th style="text-align: right;">PVP</th>
+                <th>Origem</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="sellmais-items-tbody">
+              <!-- Rendered by sellmais.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         PAINEL HCCALL TELECOM
+         ===================================================================== -->
+    <div id="panel-hccall" class="tab-panel">
+      <div class="panel-card" style="text-align: center; padding: 48px 24px;">
+        <svg class="icon" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--primary); margin-bottom: 16px;"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
+        <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700;">HCCALL Telecom — Operação Mobile-First</h2>
+        <p class="kpi-subtext" style="max-width: 500px; margin: 0 auto 24px;">Ferramenta de alta cadência desenhada para operadores de call center e lojas. Registo de vendas em menos de 20 segundos com suporte Offline-First.</p>
+        <div style="display: flex; justify-content: center; gap: 12px;">
+          <a href="/hccall.html" target="_blank" class="btn btn-primary" style="font-size: 15px; padding: 10px 20px;">Abrir Aplicação HCCALL PWA ↗</a>
+          <a href="/api/hccall/reports/export.csv" class="btn" style="font-size: 15px; padding: 10px 20px;">Exportar Relatório CSV</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
          PAINEL CONDOMÍNIOS
          ===================================================================== -->
     <div id="panel-condominios" class="tab-panel">
@@ -434,11 +518,191 @@
     </div>
   </div>
 
+  <!-- Modal Criar Artigo 2SELLMAIS -->
+  <div id="modal-create-sell-item" class="modal-overlay">
+    <div class="modal-content" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Novo Artigo de Inventário (2SELLMAIS)</h3>
+        <button class="btn btn-sm" onclick="window.SellmaisModule.closeModal('modal-create-sell-item')">Fechar</button>
+      </div>
+      <form onsubmit="window.SellmaisModule.submitCreateItem(event)">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Tipo de Artigo *</label>
+              <select name="typeId" id="sellmais-type-select" required onchange="window.SellmaisModule.onTypeChanged(this.value)">
+                <option value="">A carregar tipos...</option>
+              </select>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Título da Peça *</label>
+              <input type="text" name="title" required placeholder="Ex: Relógio de Bolso em Prata Séc. XIX">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Descrição Resumida</label>
+              <input type="text" name="shortDescription" placeholder="Ex: Exemplar raro com escape de âncora">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Descrição Completa</label>
+              <textarea name="description" rows="3" class="form-control" placeholder="Histórico, conservação e detalhes..."></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo de Entrada *</label>
+              <select name="acquisitionType">
+                <option value="PURCHASE">Compra Direta</option>
+                <option value="CONSIGNMENT">Consignação</option>
+                <option value="TRADE_IN">Retoma</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Custo Aquisição (€)</label>
+              <input type="number" step="0.01" min="0" name="acquisitionEur" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">PVP Pretendido (€) *</label>
+              <input type="number" step="0.01" min="0.01" name="askingPriceEur" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Preço Mínimo (€)</label>
+              <input type="number" step="0.01" min="0" name="minPriceEur" placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Estado de Conservação</label>
+              <select name="conditionGrade">
+                <option value="MINT">Mint / Perfeito</option>
+                <option value="EXCELLENT">Excelente</option>
+                <option value="VERY_GOOD" selected>Muito Bom</option>
+                <option value="GOOD">Bom</option>
+                <option value="FAIR">Razoável</option>
+                <option value="POOR">Necessita Restauro</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Época / Período</label>
+              <input type="text" name="period" placeholder="Ex: Século XIX, Art Déco">
+            </div>
+            <div class="form-group col-span-2" id="dynamic-fields-container">
+              <!-- Rendered dynamically based on type -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.SellmaisModule.closeModal('modal-create-sell-item')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Gravar Artigo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Adicionar Custo 2SELLMAIS -->
+  <div id="modal-add-cost" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Custo ao Artigo</h3>
+        <button class="btn btn-sm" onclick="window.SellmaisModule.closeModal('modal-add-cost')">Fechar</button>
+      </div>
+      <form onsubmit="window.SellmaisModule.submitAddCost(event)">
+        <input type="hidden" id="cost-item-id">
+        <div class="modal-body">
+          <div id="cost-item-title" style="font-weight:700; margin-bottom:12px; color:var(--primary);"></div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Categoria de Custo *</label>
+              <select name="category" required>
+                <option value="RESTORATION">Restauro / Conservação</option>
+                <option value="TRANSPORT">Transporte / Logística</option>
+                <option value="APPRAISAL">Peritagem / Certificação</option>
+                <option value="COMMISSION">Comissão / Intermediação</option>
+                <option value="OTHER">Outro Custo</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor em Euros (€) *</label>
+              <input type="number" step="0.01" min="0.01" name="amountEur" required placeholder="0.00">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Descrição da Intervenção *</label>
+              <input type="text" name="description" required placeholder="Ex: Substituição de vidro e polimento">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Prestador / Fornecedor</label>
+              <input type="text" name="supplierName" placeholder="Ex: Oficina Mestre Silva">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.SellmaisModule.closeModal('modal-add-cost')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Adicionar & Recalcular</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Transição de Estado 2SELLMAIS -->
+  <div id="modal-transition-state" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Transição de Estado do Artigo</h3>
+        <button class="btn btn-sm" onclick="window.SellmaisModule.closeModal('modal-transition-state')">Fechar</button>
+      </div>
+      <form onsubmit="window.SellmaisModule.submitTransition(event)">
+        <input type="hidden" id="trans-item-id">
+        <div class="modal-body">
+          <div id="trans-item-title" style="font-weight:700; margin-bottom:12px; color:var(--primary);"></div>
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Novo Estado *</label>
+              <select name="targetState" required>
+                <option value="AVAILABLE">AVAILABLE (Disponível para venda)</option>
+                <option value="RESERVED">RESERVED (Sinalizado / Reserva)</option>
+                <option value="IN_RESTORATION">IN_RESTORATION (Em intervenção)</option>
+                <option value="IN_AUCTION">IN_AUCTION (Loteado em leilão)</option>
+                <option value="SOLD">SOLD (Vendido)</option>
+                <option value="RETURNED">RETURNED (Devolvido ao stock)</option>
+                <option value="UNAVAILABLE">UNAVAILABLE (Indisponível)</option>
+              </select>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Preço Final de Venda (€) (Se Vendido)</label>
+              <input type="number" step="0.01" min="0" name="soldPriceEur" placeholder="0.00">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Comprador / Cliente</label>
+              <input type="text" name="buyerName" placeholder="Ex: Dr. Afonso Santos">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Motivo / Notas da Transição</label>
+              <input type="text" name="reason" placeholder="Ex: Venda em loja a pronto pagamento">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.SellmaisModule.closeModal('modal-transition-state')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Executar Transição</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Ficha de Artigo Detalhada -->
+  <div id="modal-item-detail" class="modal-overlay">
+    <div class="modal-content" style="max-width: 760px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Ficha Técnica & Financeira do Artigo</h3>
+        <button class="btn btn-sm" onclick="window.SellmaisModule.closeModal('modal-item-detail')">Fechar</button>
+      </div>
+      <div class="modal-body" id="item-detail-body">
+        <!-- Rendered by sellmais.js -->
+      </div>
+    </div>
+  </div>
+
   <!-- Modular Scripts -->
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
   <script src="/assets/js/crm.js"></script>
   <script src="/assets/js/audit.js"></script>
+  <script src="/assets/js/sellmais.js"></script>
 
   <script>
     // Tab switching logic
@@ -458,6 +722,8 @@
         window.CRMModule.init();
       } else if (tabId === 'audit' && window.AuditModule) {
         window.AuditModule.init();
+      } else if (tabId === 'sellmais' && window.SellmaisModule) {
+        window.SellmaisModule.init();
       }
     }
 

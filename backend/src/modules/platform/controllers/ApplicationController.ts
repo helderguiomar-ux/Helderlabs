@@ -4,7 +4,9 @@ import { z } from 'zod';
 import { signAuthToken } from '../../../plugins/authenticate';
 import { EntitlementService } from '../services/EntitlementService';
 import { AuditService } from '../services/AuditService';
+import { EmailService } from '../services/EmailService';
 import { seedFinancas } from '../../financas/services/seedFinancas';
+import { SYSTEM_MODULES, resolveCanonicalModuleKey, isModuleRegistered, getAllRegisteredModules } from '../../../config/modules';
 
 // ---------------------------------------------------------------------------
 // Schemas de validação
@@ -411,6 +413,20 @@ export class ApplicationController {
       return reply.status(404).send({ error: 'REQUEST_NOT_FOUND', message: 'Pedido de conta não encontrado.' });
     }
 
+    if (accountReq.status === 'APPROVED') {
+      return reply.status(400).send({
+        error: 'ACCOUNT_ALREADY_APPROVED',
+        message: 'Este pedido de conta já foi aprovado anteriormente.'
+      });
+    }
+
+    if (!accountReq.emailVerifiedAt) {
+      return reply.status(400).send({
+        error: 'EMAIL_NOT_VERIFIED',
+        message: 'O email deste pedido ainda não foi verificado pelo utilizador. Apenas pedidos com email validado podem ser aprovados.'
+      });
+    }
+
     const companyName = accountReq.companyName || accountReq.name || accountReq.contactName || accountReq.email.split('@')[0];
 
     const result = await prisma.$transaction(async (tx) => {
@@ -569,6 +585,12 @@ export class ApplicationController {
       result: 'SUCCESS'
     });
 
+    // Enviar email de notificação ao utilizador
+    const contactName = accountReq.contactName || accountReq.name || accountReq.email.split('@')[0];
+    await EmailService.sendAccountApprovedEmail(accountReq.email, contactName, undefined, {
+      tenantId: result.tenantId
+    });
+
     return reply.send({
       success: true,
       message: 'Pedido de conta aprovado com sucesso.',
@@ -693,5 +715,328 @@ export class ApplicationController {
       }
     });
   }
-}
 
+  /**
+   * GET /api/platform/tenants/:tenantId/licensing
+   * Retorna o estado completo de licenciamento da empresa para todos os módulos do catálogo
+   */
+  static async getTenantLicensing(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { tenantId } = req.params as { tenantId: string };
+
+    const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN';
+    if (!isSuperAdmin && user.tenantId !== tenantId) {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Sem permissão para consultar licenciamento deste tenant.' });
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        applications: {
+          where: { deletedAt: null },
+          include: {
+            module: true,
+            assignments: {
+              include: { user: { select: { id: true, name: true, email: true, role: true } } }
+            }
+          }
+        }
+      }
+    });
+
+    if (!tenant) {
+      return reply.status(404).send({ error: 'TENANT_NOT_FOUND', message: 'Empresa não encontrada.' });
+    }
+
+    const appByModuleKey = new Map<string, any>();
+    for (const app of tenant.applications) {
+      const canonicalKey = resolveCanonicalModuleKey(app.module.key);
+      appByModuleKey.set(canonicalKey, app);
+    }
+
+    let totalMonthlyCents = 0;
+    const modulesList = getAllRegisteredModules().map(def => {
+      const app = appByModuleKey.get(def.key);
+      const status = app ? app.status : 'UNLICENSED';
+      const rawPrice = app?.priceCents ?? 0;
+      const discount = app?.discountPercent ?? 0;
+      const netPrice = Math.round(rawPrice * (1 - discount / 100));
+
+      if (status === 'ACTIVE') {
+        let monthlyPortion = 0;
+        if (!app?.billingPeriod || app.billingPeriod === 'MONTHLY') {
+          monthlyPortion = netPrice;
+        } else if (app.billingPeriod === 'ANNUAL') {
+          monthlyPortion = Math.round(netPrice / 12);
+        }
+        totalMonthlyCents += monthlyPortion;
+      }
+
+      return {
+        moduleKey: def.key,
+        name: def.name,
+        description: def.description,
+        version: def.version,
+        color: def.color,
+        icon: def.icon,
+        applicationId: app?.id || null,
+        status,
+        plan: app?.plan || 'pro',
+        priceCents: rawPrice,
+        billingPeriod: app?.billingPeriod || 'MONTHLY',
+        currency: app?.currency || 'EUR',
+        discountPercent: discount,
+        billingNotes: app?.billingNotes || null,
+        validFrom: app?.validFrom || null,
+        validUntil: app?.validUntil || null,
+        graceDays: app?.graceDays ?? 7,
+        usersCount: app?.assignments?.length || 0,
+        assignments: app?.assignments?.map((a: any) => ({
+          userId: a.user.id,
+          userName: a.user.name || a.user.email,
+          userEmail: a.user.email,
+          roleInApp: a.roleInApp,
+          status: a.status
+        })) || []
+      };
+    });
+
+    return reply.send({
+      success: true,
+      tenantId: tenant.id,
+      tenantName: tenant.name,
+      entitlementsVersion: tenant.entitlementsVersion,
+      totalMonthlyCents,
+      modules: modulesList
+    });
+  }
+
+  /**
+   * PUT /api/platform/tenants/:tenantId/licensing/:moduleKey
+   * Atualiza ou cria licença de módulo para um tenant com invalidação imediata de cache
+   */
+  static async updateTenantLicensingModule(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas administradores de plataforma podem gerir licenciamento.' });
+    }
+
+    const { tenantId, moduleKey } = req.params as { tenantId: string; moduleKey: string };
+    const canonicalKey = resolveCanonicalModuleKey(moduleKey);
+
+    if (!isModuleRegistered(canonicalKey)) {
+      return reply.status(400).send({ error: 'INVALID_MODULE_KEY', message: `O módulo '${moduleKey}' não é reconhecido no sistema.` });
+    }
+
+    const schema = z.object({
+      status: z.enum(['ACTIVE', 'TRIAL', 'DISABLED', 'ARCHIVED']).default('ACTIVE'),
+      plan: z.string().optional().default('pro'),
+      priceCents: z.number().int().min(0).optional().default(0),
+      billingPeriod: z.enum(['MONTHLY', 'ANNUAL', 'ONE_TIME']).optional().default('MONTHLY'),
+      currency: z.string().optional().default('EUR'),
+      discountPercent: z.number().min(0).max(100).optional().default(0),
+      billingNotes: z.string().optional().nullable(),
+      validFrom: z.string().optional().nullable(),
+      validUntil: z.string().optional().nullable(),
+      graceDays: z.number().int().min(0).optional().default(7),
+      config: z.record(z.unknown()).optional().default({})
+    });
+
+    const body = schema.parse(req.body || {});
+
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant) {
+      return reply.status(404).send({ error: 'TENANT_NOT_FOUND', message: 'Empresa não encontrada.' });
+    }
+
+    const modDef = SYSTEM_MODULES[canonicalKey];
+    let mod = await prisma.module.findFirst({ where: { key: canonicalKey } });
+    if (!mod) {
+      mod = await prisma.module.create({
+        data: {
+          key: canonicalKey,
+          name: modDef?.name || canonicalKey.toUpperCase(),
+          description: modDef?.description,
+          isActive: true
+        }
+      });
+    }
+
+    const parseDate = (d?: string | null) => (d ? new Date(d) : null);
+
+    const appInstance = await prisma.applicationInstance.upsert({
+      where: { tenantId_moduleId: { tenantId, moduleId: mod.id } },
+      create: {
+        tenantId,
+        moduleId: mod.id,
+        status: body.status as any,
+        plan: body.plan,
+        priceCents: body.priceCents,
+        billingPeriod: body.billingPeriod,
+        currency: body.currency,
+        discountPercent: body.discountPercent,
+        billingNotes: body.billingNotes,
+        validFrom: parseDate(body.validFrom),
+        validUntil: parseDate(body.validUntil),
+        graceDays: body.graceDays,
+        config: body.config as any,
+        createdBy: user.sub
+      },
+      update: {
+        status: body.status as any,
+        plan: body.plan,
+        priceCents: body.priceCents,
+        billingPeriod: body.billingPeriod,
+        currency: body.currency,
+        discountPercent: body.discountPercent,
+        billingNotes: body.billingNotes,
+        validFrom: parseDate(body.validFrom),
+        validUntil: parseDate(body.validUntil),
+        graceDays: body.graceDays,
+        config: body.config as any
+      }
+    });
+
+    if (canonicalKey === 'finance' && body.status === 'ACTIVE') {
+      await seedFinancas(tenantId);
+    }
+
+    const updatedTenant = await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { entitlementsVersion: { increment: 1 } }
+    });
+
+    EntitlementService.invalidateCache(tenantId);
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      tenantId,
+      action: 'licensing.updated',
+      resource: 'ApplicationInstance',
+      resourceId: appInstance.id,
+      newValue: { moduleKey: canonicalKey, ...body },
+      result: 'SUCCESS'
+    });
+
+    return reply.send({
+      success: true,
+      message: `Licença do módulo '${canonicalKey}' atualizada com sucesso.`,
+      application: appInstance,
+      entitlementsVersion: updatedTenant.entitlementsVersion
+    });
+  }
+
+  /**
+   * DELETE /api/platform/tenants/:tenantId/licensing/:moduleKey
+   * Desativa a licença de um módulo para um tenant
+   */
+  static async disableTenantLicensingModule(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas administradores de plataforma podem desativar licenciamentos.' });
+    }
+
+    const { tenantId, moduleKey } = req.params as { tenantId: string; moduleKey: string };
+    const canonicalKey = resolveCanonicalModuleKey(moduleKey);
+
+    const mod = await prisma.module.findFirst({ where: { key: canonicalKey } });
+    if (!mod) {
+      return reply.status(404).send({ error: 'MODULE_NOT_FOUND', message: 'Módulo não encontrado.' });
+    }
+
+    const existingApp = await prisma.applicationInstance.findUnique({
+      where: { tenantId_moduleId: { tenantId, moduleId: mod.id } }
+    });
+
+    if (!existingApp) {
+      return reply.status(404).send({ error: 'APPLICATION_NOT_FOUND', message: 'Licença não existente para este tenant.' });
+    }
+
+    const updatedApp = await prisma.applicationInstance.update({
+      where: { id: existingApp.id },
+      data: { status: 'DISABLED' }
+    });
+
+    const updatedTenant = await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { entitlementsVersion: { increment: 1 } }
+    });
+
+    EntitlementService.invalidateCache(tenantId);
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      tenantId,
+      action: 'licensing.disabled',
+      resource: 'ApplicationInstance',
+      resourceId: updatedApp.id,
+      newValue: { moduleKey: canonicalKey, status: 'DISABLED' },
+      result: 'SUCCESS'
+    });
+
+    return reply.send({
+      success: true,
+      message: `Licença do módulo '${canonicalKey}' foi desativada com sucesso.`,
+      application: updatedApp,
+      entitlementsVersion: updatedTenant.entitlementsVersion
+    });
+  }
+
+  /**
+   * GET /api/platform/licensing/renewals
+   * Lista próximas renovações nos próximos X dias
+   */
+  static async getUpcomingRenewals(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const query = req.query as { days?: string };
+    const days = parseInt(query.days || '30', 10);
+
+    const now = new Date();
+    const future = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    const apps = await prisma.applicationInstance.findMany({
+      where: {
+        status: 'ACTIVE',
+        validUntil: {
+          gte: now,
+          lte: future
+        },
+        deletedAt: null
+      },
+      include: {
+        module: true,
+        tenant: { select: { id: true, name: true, slug: true, email: true } }
+      },
+      orderBy: { validUntil: 'asc' }
+    });
+
+    return reply.send({
+      success: true,
+      count: apps.length,
+      daysAhead: days,
+      renewals: apps.map(app => ({
+        applicationId: app.id,
+        tenantId: app.tenantId,
+        tenantName: app.tenant.name,
+        tenantSlug: app.tenant.slug,
+        tenantEmail: app.tenant.email,
+        moduleKey: resolveCanonicalModuleKey(app.module.key),
+        moduleName: app.module.name,
+        priceCents: app.priceCents,
+        currency: app.currency,
+        validUntil: app.validUntil,
+        graceDays: app.graceDays,
+        billingPeriod: app.billingPeriod
+      }))
+    });
+  }
+
+}

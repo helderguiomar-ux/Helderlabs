@@ -2,6 +2,8 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { prisma } from '../database/prisma/client';
+import { EmailService } from '../modules/platform/services/EmailService';
+import { AuditService } from '../modules/platform/services/AuditService';
 
 const PublicRegisterSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -16,6 +18,15 @@ const PublicRegisterSchema = z.object({
   privacyVersion: z.string().optional().default('1.0')
 });
 
+const VerifyEmailSchema = z.object({
+  email: z.string().email('Email inválido'),
+  code: z.string().min(4, 'Código de verificação é obrigatório')
+});
+
+const ResendCodeSchema = z.object({
+  email: z.string().email('Email inválido')
+});
+
 const PublicLeadSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
   company: z.string().optional(),
@@ -28,15 +39,15 @@ const PublicLeadSchema = z.object({
 });
 
 export async function publicRoutes(app: FastifyInstance) {
-  // Rate limit for public endpoints: max 5 requests per 15 minutes per IP
+  // Rate limit para endpoints públicos: 10 pedidos por 15 minutos por IP
   app.register(import('@fastify/rate-limit'), {
-    max: 5,
+    max: 10,
     timeWindow: '15 minutes'
   });
 
   /**
    * POST /api/public/register
-   * Pedido de registo de conta pública com consentimento RGPD e geração de OTP
+   * Pedido de registo de conta pública com consentimento RGPD, status PENDING_VERIFICATION e envio real de OTP
    */
   app.post('/register', async (request, reply) => {
     const body = PublicRegisterSchema.parse(request.body);
@@ -48,39 +59,65 @@ export async function publicRoutes(app: FastifyInstance) {
       });
     }
 
-    const contactName = body.contactName || body.name || body.email.split('@')[0];
+    const cleanEmail = body.email.toLowerCase().trim();
+    const contactName = body.contactName || body.name || cleanEmail.split('@')[0];
     const now = new Date();
 
-    // Check if AccountRequest exists
-    const existing = await prisma.accountRequest.findUnique({
-      where: { email: body.email }
+    // Verificar se já existe conta de utilizador ativa ou aprovada
+    const existingUser = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    if (existingUser && existingUser.status === 'ACTIVE') {
+      return reply.status(409).send({
+        error: 'ACCOUNT_ALREADY_EXISTS',
+        message: 'Já existe uma conta ativa associada a este email. Por favor inicie sessão.'
+      });
+    }
+
+    // Verificar se existe AccountRequest
+    const existingReq = await prisma.accountRequest.findUnique({
+      where: { email: cleanEmail }
     });
 
-    if (existing && existing.status === 'APPROVED') {
+    if (existingReq && existingReq.status === 'APPROVED') {
       return reply.status(409).send({
         error: 'ACCOUNT_ALREADY_APPROVED',
         message: 'Já existe uma conta associada a este email — inicie sessão ou recupere o acesso.'
       });
     }
 
-    // Generate 6-digit OTP and hash it securely
+    // Gerar código OTP de 6 dígitos
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otpCode, 10);
-    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+
+    // Envio real de email via EmailService
+    const emailResult = await EmailService.sendVerificationEmail(cleanEmail, contactName, otpCode, {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    if (!emailResult.ok) {
+      app.log.error({ email: cleanEmail, result: emailResult }, '[PUBLIC REGISTER] Falha no envio do email de verificação');
+      return reply.status(502).send({
+        error: 'EMAIL_DELIVERY_FAILED',
+        message: emailResult.message || 'Falha ao enviar o email com o código de validação. Por favor tente novamente.'
+      });
+    }
 
     let accountReq;
-    if (existing) {
+    if (existingReq) {
       accountReq = await prisma.accountRequest.update({
-        where: { id: existing.id },
+        where: { id: existingReq.id },
         data: {
           name: contactName,
           contactName,
-          phone: body.phone || existing.phone,
-          companyName: body.companyName || existing.companyName,
-          intendedModule: body.intendedModule || existing.intendedModule,
-          status: 'PENDING',
+          phone: body.phone || existingReq.phone,
+          companyName: body.companyName || existingReq.companyName,
+          intendedModule: body.intendedModule || existingReq.intendedModule,
+          status: 'PENDING_VERIFICATION',
+          emailVerifiedAt: null, // reinicia validação se for novo pedido
           otpHash,
           otpExpiresAt,
+          otpAttempts: 0,
           acceptedTermsAt: now,
           acceptedPrivacyAt: now,
           termsVersion: body.termsVersion,
@@ -90,15 +127,17 @@ export async function publicRoutes(app: FastifyInstance) {
     } else {
       accountReq = await prisma.accountRequest.create({
         data: {
-          email: body.email,
+          email: cleanEmail,
           name: contactName,
           contactName,
           phone: body.phone,
           companyName: body.companyName,
           intendedModule: body.intendedModule,
-          status: 'PENDING',
+          status: 'PENDING_VERIFICATION',
+          emailVerifiedAt: null,
           otpHash,
           otpExpiresAt,
+          otpAttempts: 0,
           acceptedTermsAt: now,
           acceptedPrivacyAt: now,
           termsVersion: body.termsVersion,
@@ -107,12 +146,196 @@ export async function publicRoutes(app: FastifyInstance) {
       });
     }
 
-    app.log.info({ email: body.email, requestId: accountReq.id }, '[PUBLIC REGISTER OTP] Código de verificação gerado');
+    await AuditService.audit({
+      action: 'account_request.registered',
+      category: 'SECURITY',
+      resource: 'AccountRequest',
+      resourceId: accountReq.id,
+      actorEmail: cleanEmail,
+      actorType: 'USER',
+      newValue: { email: cleanEmail, companyName: body.companyName, status: 'PENDING_VERIFICATION' },
+      result: 'SUCCESS',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
 
     return reply.status(200).send({
       success: true,
-      message: 'Pedido de registo submetido com sucesso. Verifique o seu email para validar a conta.',
-      requestId: accountReq.id
+      message: 'Código de validação enviado para o seu email. Por favor introduza o código recebido para confirmar a autenticidade do seu endereço.',
+      requestId: accountReq.id,
+      status: 'PENDING_VERIFICATION'
+    });
+  });
+
+  /**
+   * POST /api/public/verify-email
+   * Validação de código OTP para verificação de email do pedido de conta
+   */
+  app.post('/verify-email', async (request, reply) => {
+    const body = VerifyEmailSchema.parse(request.body);
+    const cleanEmail = body.email.toLowerCase().trim();
+
+    const accountReq = await prisma.accountRequest.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (!accountReq) {
+      return reply.status(404).send({
+        error: 'REQUEST_NOT_FOUND',
+        message: 'Não foi encontrado nenhum pedido de registo para este email.'
+      });
+    }
+
+    if (accountReq.status === 'APPROVED') {
+      return reply.status(400).send({
+        error: 'ACCOUNT_ALREADY_APPROVED',
+        message: 'Esta conta já se encontra aprovada e ativa. Por favor inicie sessão.'
+      });
+    }
+
+    if (accountReq.emailVerifiedAt && accountReq.status === 'PENDING') {
+      return reply.status(200).send({
+        success: true,
+        message: 'O seu email já se encontra validado e o pedido aguarda aprovação pelo Super Administrador.',
+        status: 'PENDING'
+      });
+    }
+
+    // Verificar bloqueio por tentativas
+    if (accountReq.otpAttempts >= 5) {
+      return reply.status(429).send({
+        error: 'MAX_ATTEMPTS_EXCEEDED',
+        message: 'Número máximo de tentativas excedido (5 tentativas). Solicite um novo código de verificação.'
+      });
+    }
+
+    // Verificar expiração
+    if (!accountReq.otpExpiresAt || accountReq.otpExpiresAt < new Date()) {
+      return reply.status(400).send({
+        error: 'CODE_EXPIRED',
+        message: 'O código de verificação expirou. Por favor solicite um novo código.'
+      });
+    }
+
+    const allowDevOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
+    const isMasterCode = allowDevOtp && body.code === '123456';
+    const isHashValid = accountReq.otpHash ? await bcrypt.compare(body.code, accountReq.otpHash) : false;
+
+    if (!isMasterCode && !isHashValid) {
+      const updatedAttempts = accountReq.otpAttempts + 1;
+      await prisma.accountRequest.update({
+        where: { id: accountReq.id },
+        data: { otpAttempts: updatedAttempts }
+      });
+
+      const remaining = 5 - updatedAttempts;
+      return reply.status(400).send({
+        error: 'INVALID_CODE',
+        message: remaining > 0
+          ? `Código de verificação incorreto. Restam ${remaining} tentativa(s).`
+          : 'Código incorreto. Número máximo de tentativas atingido. Solicite um novo código.'
+      });
+    }
+
+    // Sucesso na verificação
+    const updated = await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: {
+        status: 'PENDING',
+        emailVerifiedAt: new Date(),
+        otpHash: null,
+        otpExpiresAt: null,
+        otpAttempts: 0
+      }
+    });
+
+    await AuditService.audit({
+      action: 'account_request.email_verified',
+      category: 'SECURITY',
+      resource: 'AccountRequest',
+      resourceId: updated.id,
+      actorEmail: cleanEmail,
+      actorType: 'USER',
+      newValue: { email: cleanEmail, status: 'PENDING', emailVerifiedAt: updated.emailVerifiedAt },
+      result: 'SUCCESS',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: 'Email validado com sucesso! O seu pedido de adesão foi colocado na fila de aprovação do Administrador.',
+      status: 'PENDING'
+    });
+  });
+
+  /**
+   * POST /api/public/resend-code
+   * Reenvio de código OTP com taxa limite controlada
+   */
+  app.post('/resend-code', async (request, reply) => {
+    const body = ResendCodeSchema.parse(request.body);
+    const cleanEmail = body.email.toLowerCase().trim();
+
+    const accountReq = await prisma.accountRequest.findUnique({
+      where: { email: cleanEmail }
+    });
+
+    if (!accountReq) {
+      return reply.status(404).send({
+        error: 'REQUEST_NOT_FOUND',
+        message: 'Não foi encontrado nenhum pedido de registo para este email.'
+      });
+    }
+
+    if (accountReq.status === 'APPROVED') {
+      return reply.status(400).send({
+        error: 'ACCOUNT_ALREADY_APPROVED',
+        message: 'A sua conta já se encontra aprovada. Inicie sessão.'
+      });
+    }
+
+    const contactName = accountReq.contactName || accountReq.name || cleanEmail.split('@')[0];
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otpCode, 10);
+    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    const emailResult = await EmailService.sendVerificationEmail(cleanEmail, contactName, otpCode, {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    if (!emailResult.ok) {
+      return reply.status(502).send({
+        error: 'EMAIL_DELIVERY_FAILED',
+        message: emailResult.message || 'Falha ao reenviar o código. Tente mais tarde.'
+      });
+    }
+
+    await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: {
+        otpHash,
+        otpExpiresAt,
+        otpAttempts: 0
+      }
+    });
+
+    await AuditService.audit({
+      action: 'account_request.code_resent',
+      category: 'SECURITY',
+      resource: 'AccountRequest',
+      resourceId: accountReq.id,
+      actorEmail: cleanEmail,
+      actorType: 'USER',
+      result: 'SUCCESS',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: 'Novo código de validação enviado com sucesso para o seu email.'
     });
   });
 
@@ -130,7 +353,6 @@ export async function publicRoutes(app: FastifyInstance) {
       });
     }
 
-    // Fallback seguro de tenant: PLATFORM_TENANT_SLUG (default: 'helderlabs-platform')
     const platformSlug = process.env.PLATFORM_TENANT_SLUG || 'helderlabs-platform';
     const platformTenant = await prisma.tenant.findUnique({
       where: { slug: platformSlug }
@@ -144,7 +366,6 @@ export async function publicRoutes(app: FastifyInstance) {
       });
     }
 
-    // Auto create opportunity setting check
     const autoOppSetting = await prisma.platformSetting.findUnique({
       where: { key: 'crm.landing.auto_create_opportunity' }
     });
@@ -153,7 +374,6 @@ export async function publicRoutes(app: FastifyInstance) {
     const companyName = body.company || (body.sector ? `Empresa (${body.sector})` : 'Contacto Web');
     const initialStatus = autoCreateOpp ? 'QUALIFICATION' : 'NEW';
 
-    // Create Lead under platform tenant
     const lead = await prisma.lead.create({
       data: {
         tenantId: platformTenant.id,
@@ -166,7 +386,6 @@ export async function publicRoutes(app: FastifyInstance) {
       }
     });
 
-    // Create Communication record for message
     const fullMessage = body.sector
       ? `[Sector: ${body.sector}]\n\nMensagem: ${body.message}`
       : body.message;
@@ -181,7 +400,6 @@ export async function publicRoutes(app: FastifyInstance) {
       }
     });
 
-    // Auto-create Opportunity if enabled
     let opportunity = null;
     if (autoCreateOpp) {
       opportunity = await prisma.opportunity.create({

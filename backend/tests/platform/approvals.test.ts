@@ -13,6 +13,35 @@ describe('Account Requests Approval & Rejection Tests', () => {
     tenantId: 'platform-tenant'
   });
 
+  test('POST /api/platform/account-requests/:id/approve fails if email is not verified', async () => {
+    const email = `unverified.test.${Date.now()}@helderlabs.eu`;
+    const accountReq = await prisma.accountRequest.create({
+      data: {
+        email,
+        name: 'Carlos Não Verificado',
+        companyName: 'Sem Verificação Lda',
+        status: 'PENDING_VERIFICATION',
+        emailVerifiedAt: null
+      }
+    });
+
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/platform/account-requests/${accountReq.id}/approve`,
+      headers: { Authorization: `Bearer ${superAdminToken}` },
+      payload: {
+        role: 'TENANT_ADMIN',
+        modules: ['crm']
+      }
+    });
+
+    assert.strictEqual(res.statusCode, 400);
+    const body = JSON.parse(res.body);
+    assert.strictEqual(body.error, 'EMAIL_NOT_VERIFIED');
+
+    await prisma.accountRequest.delete({ where: { id: accountReq.id } });
+  });
+
   test('POST /api/platform/account-requests/:id/approve approves request in single transaction and seeds modules', async () => {
     const email = `approve.test.${Date.now()}@helderlabs.eu`;
     const accountReq = await prisma.accountRequest.create({
@@ -22,6 +51,7 @@ describe('Account Requests Approval & Rejection Tests', () => {
         companyName: 'Fonseca Tech Lda',
         intendedModule: 'financas',
         status: 'PENDING',
+        emailVerifiedAt: new Date(),
         acceptedTermsAt: new Date(),
         acceptedPrivacyAt: new Date()
       }

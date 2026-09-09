@@ -3,6 +3,7 @@ import { AppError } from '../../../utils/errors';
 import bcrypt from 'bcrypt';
 import { signAuthToken } from '../../../plugins/authenticate';
 import { prisma } from '../../../database/prisma/client';
+import { EmailService } from '../../platform/services/EmailService';
 
 export class AuthService {
   constructor() {}
@@ -93,15 +94,18 @@ export class AuthService {
   }
 
   async checkHasPassword(email: string) {
-    const cleanEmail = email.toLowerCase();
+    const cleanEmail = email.toLowerCase().trim();
     await this.ensureSuperAdminUser(cleanEmail);
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user) return false;
     return !!user.passwordHash;
   }
 
-  async sendOtp(email: string) {
-    const cleanEmail = email.toLowerCase();
+  /**
+   * Envia OTP para utilizadores existentes. NUNCA cria AccountRequest espúrios no login.
+   */
+  async sendOtp(email: string, meta?: { ipAddress?: string; userAgent?: string }) {
+    const cleanEmail = email.toLowerCase().trim();
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     const isSuperAdmin = cleanEmail === superAdminEmail;
 
@@ -115,81 +119,138 @@ export class AuthService {
 
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     
-    if (!user) {
-      await prisma.accountRequest.upsert({
-        where: { email: cleanEmail },
-        update: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 },
-        create: { email: cleanEmail, otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0, status: 'PENDING' }
-      });
-    } else {
+    if (user) {
       await prisma.user.update({
         where: { id: user.id },
         data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
       });
+
+      console.log(`[AUTH OTP] Código para utilizador registado ${cleanEmail}: ${code}`);
+
+      // Envio via EmailService centralizado
+      await EmailService.sendOtpEmail(cleanEmail, code, {
+        tenantId: user.tenantId,
+        actorId: user.id,
+        ipAddress: meta?.ipAddress,
+        userAgent: meta?.userAgent
+      });
+
+      return {
+        success: true,
+        message: 'Código de acesso enviado para o seu email.'
+      };
     }
 
-    console.log(`[AUTH OTP] Código para ${cleanEmail}: ${code}`);
-
-    if (process.env.RESEND_API_KEY) {
-      try {
-        const fromEmail = process.env.SMTP_FROM || 'HelderLabs ERP <noreply@helderlabs.eu>';
-        const response = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            from: fromEmail,
-            to: [cleanEmail],
-            subject: `O seu código de verificação HelderLabs ERP: ${code}`,
-            html: `
-              <div style="font-family: Arial, sans-serif; padding: 24px; color: #1f2937; max-width: 500px;">
-                <h2 style="color: #0d419f; margin-bottom: 16px;">HelderLabs ERP</h2>
-                <p>Recebemos um pedido de acesso para a sua conta.</p>
-                <p>O seu código de verificação é:</p>
-                <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #0d419f; margin: 20px 0;">
-                  ${code}
-                </div>
-                <p style="font-size: 12px; color: #6b7280;">Este código é válido por 15 minutos.</p>
-              </div>
-            `
-          })
+    // Se o utilizador não existe, verificar se há pedido pendente de registo
+    const pendingReq = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
+    if (pendingReq) {
+      if (pendingReq.status === 'PENDING_VERIFICATION') {
+        await prisma.accountRequest.update({
+          where: { id: pendingReq.id },
+          data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
         });
+        const contactName = pendingReq.contactName || pendingReq.name || cleanEmail.split('@')[0];
+        await EmailService.sendVerificationEmail(cleanEmail, contactName, code, meta);
+        return {
+          success: true,
+          message: 'Código de validação reenviado para o seu email.',
+          status: 'PENDING_VERIFICATION'
+        };
+      }
 
-        if (!response.ok) {
-          const errData = await response.json();
-          console.warn('[RESEND EMAIL FAIL]', errData);
-        } else {
-          console.log(`[RESEND EMAIL SUCCESS] Email enviado para ${cleanEmail}`);
-        }
-      } catch (err: any) {
-        console.error('[RESEND EMAIL ERROR]', err.message || err);
+      if (pendingReq.status === 'PENDING') {
+        return {
+          success: true,
+          message: 'O seu pedido de conta já se encontra verificado e aguarda aprovação pelo Administrador.',
+          status: 'PENDING_APPROVAL'
+        };
       }
     }
+
+    // Não criar AccountRequest espúrio! Responder de forma neutra para evitar enumeração de contas
+    console.log(`[AUTH OTP] Tentativa de OTP para email não registado: ${cleanEmail} (não gravado na BD)`);
+    return {
+      success: true,
+      message: 'Se a conta existir, enviámos um código de acesso para o seu email.'
+    };
   }
 
   async verifyOtp(email: string, code: string) {
-    const cleanEmail = email.toLowerCase();
+    const cleanEmail = email.toLowerCase().trim();
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     const isSuperAdmin = cleanEmail === superAdminEmail;
-    const allowDevOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
+    
+    // Master code 123456 estritamente bloqueado em produção
+    const isProduction = process.env.NODE_ENV === 'production';
+    const allowDevOtp = !isProduction && process.env.ALLOW_DEV_OTP === 'true';
     const isMasterCode = allowDevOtp && code === '123456';
 
     if (isSuperAdmin) {
       await this.ensureSuperAdminUser(cleanEmail);
-    } else {
-      const req = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
-      if (req) {
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
+
+    if (user) {
+      if (!user.otpHash || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
+        throw AppError.unauthorized('Código expirado ou inválido');
+      }
+
+      if (user.otpAttempts >= 5) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
+        });
+        throw AppError.unauthorized('Número máximo de tentativas excedido. Solicite um novo código.');
+      }
+
+      const isHashValid = await bcrypt.compare(code, user.otpHash);
+      const isValidUserCode = isMasterCode || isHashValid;
+
+      if (!isValidUserCode) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { otpAttempts: { increment: 1 } }
+        });
+        throw AppError.unauthorized('Código inválido');
+      }
+      
+      if (user.status === 'PENDING_APPROVAL' && !isSuperAdmin) {
+        return {
+          status: 'PENDING_APPROVAL',
+          message: 'A sua conta está a aguardar aprovação pelo Super Administrador.',
+          user: { email: user.email }
+        };
+      }
+
+      if (user.status === 'SUSPENDED') {
+        throw AppError.unauthorized('A sua conta está suspensa pelo Administrador');
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
+      });
+
+      const token = signAuthToken({
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        tenantId: user.tenantId
+      });
+
+      return { token, user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } };
+    }
+
+    // Se o utilizador não existe, verificar se há AccountRequest
+    const req = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
+    if (req) {
+      if (req.status === 'PENDING_VERIFICATION') {
         if (!req.otpExpiresAt || req.otpExpiresAt < new Date()) {
           throw AppError.unauthorized('Código expirado ou inválido');
         }
 
         if (req.otpAttempts >= 5) {
-          await prisma.accountRequest.update({
-            where: { id: req.id },
-            data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
-          });
           throw AppError.unauthorized('Número máximo de tentativas excedido. Solicite um novo código.');
         }
 
@@ -203,72 +264,39 @@ export class AuthService {
           });
           throw AppError.unauthorized('Código inválido');
         }
-        
+
+        await prisma.accountRequest.update({
+          where: { id: req.id },
+          data: {
+            status: 'PENDING',
+            emailVerifiedAt: new Date(),
+            otpHash: null,
+            otpExpiresAt: null,
+            otpAttempts: 0
+          }
+        });
+
         return {
           status: 'PENDING_APPROVAL',
-          message: 'O seu email foi verificado. A sua conta está a aguardar aprovação e atribuição de empresa pelo Super Administrador (helderguiomar@gmail.com).',
+          message: 'O seu email foi verificado. A sua conta está a aguardar aprovação e atribuição de empresa pelo Super Administrador.',
+          request: { email: req.email }
+        };
+      }
+
+      if (req.status === 'PENDING') {
+        return {
+          status: 'PENDING_APPROVAL',
+          message: 'O seu email já se encontra validado. A sua conta está a aguardar aprovação pelo Super Administrador.',
           request: { email: req.email }
         };
       }
     }
 
-    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
-    if (!user) {
-      throw AppError.unauthorized('Conta não encontrada ou código inválido');
-    }
-
-    if (!user.otpHash || !user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      throw AppError.unauthorized('Código expirado ou inválido');
-    }
-
-    if (user.otpAttempts >= 5) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
-      });
-      throw AppError.unauthorized('Número máximo de tentativas excedido. Solicite um novo código.');
-    }
-
-    const isHashValid = await bcrypt.compare(code, user.otpHash);
-    const isValidUserCode = isMasterCode || isHashValid;
-
-    if (!isValidUserCode) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { otpAttempts: { increment: 1 } }
-      });
-      throw AppError.unauthorized('Código inválido');
-    }
-    
-    if (user.status === 'PENDING_APPROVAL' && !isSuperAdmin) {
-      return {
-        status: 'PENDING_APPROVAL',
-        message: 'A sua conta está a aguardar aprovação pelo Super Administrador.',
-        user: { email: user.email }
-      };
-    }
-
-    if (user.status === 'SUSPENDED') {
-      throw AppError.unauthorized('A sua conta está suspensa pelo Administrador');
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { otpHash: null, otpExpiresAt: null, otpAttempts: 0 }
-    });
-
-    const token = signAuthToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      tenantId: user.tenantId
-    });
-
-    return { token, user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenantId } };
+    throw AppError.unauthorized('Conta não encontrada ou código inválido');
   }
 
   async loginWithPassword(email: string, pass: string) {
-    const cleanEmail = email.toLowerCase();
+    const cleanEmail = email.toLowerCase().trim();
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     const isSuperAdmin = cleanEmail === superAdminEmail;
 

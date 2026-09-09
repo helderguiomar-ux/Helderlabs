@@ -199,7 +199,7 @@ export class HccallController {
     const user = req.user as any;
     const { id } = req.params as { id: string };
     const db = forTenant(user.tenantId);
-    const sale = await HccallSaleService.getSaleById(db, user.tenantId, id);
+    const sale = await HccallSaleService.getSaleById(db, user.tenantId, user.sub, id);
     return reply.send({ success: true, sale });
   }
 

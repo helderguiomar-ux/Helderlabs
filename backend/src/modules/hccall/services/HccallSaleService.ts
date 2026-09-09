@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 export class HccallSaleService {
   /**
    * Creates a new sale with atomic code, locked commission and immutable promotion snapshot.
+   * Runs atomically inside a Prisma transaction.
    */
   static async createSale(
     db: any,
@@ -28,116 +29,123 @@ export class HccallSaleService {
   ) {
     const clientUuid = data.clientUuid || crypto.randomUUID();
 
-    // Check idempotency
-    const existing = await db.hccallSale.findUnique({
-      where: {
-        tenantId_clientUuid: {
-          tenantId,
-          clientUuid
+    const executeInTx = async (tx: any) => {
+      // Check idempotency
+      const existing = await tx.hccallSale.findUnique({
+        where: {
+          tenantId_clientUuid: {
+            tenantId,
+            clientUuid
+          }
         }
-      }
-    });
-    if (existing) {
-      return { sale: existing, isDuplicate: true };
-    }
-
-    // 1. Resolve Customer
-    const customer = await HccallCustomerService.findOrCreateCustomer(db, tenantId, userId, {
-      customerNumber: data.customerNumber,
-      name: data.customerName,
-      phone: data.customerPhone
-    });
-
-    // 2. Resolve Service
-    let serviceName = data.serviceName || 'Geral';
-    if (data.serviceId) {
-      const s = await db.hccallService.findUnique({ where: { id: data.serviceId } });
-      if (s) serviceName = s.name;
-    }
-
-    // 3. Resolve Promotion & Immutable Snapshot
-    let promotionName: string | null = null;
-    let promotionVersion: number | null = null;
-    let promotionSnapshot: any = null;
-    let effectiveCommissionCents = data.commissionCents ?? 0;
-
-    if (data.promotionId) {
-      const promo = await db.hccallPromotion.findUnique({ where: { id: data.promotionId } });
-      if (promo) {
-        promotionName = promo.name;
-        promotionVersion = promo.version;
-        promotionSnapshot = {
-          id: promo.id,
-          name: promo.name,
-          suggestedCommissionCents: promo.suggestedCommissionCents,
-          promoValueCents: promo.promoValueCents,
-          serviceId: promo.serviceId,
-          version: promo.version,
-          startsAt: promo.startsAt,
-          endsAt: promo.endsAt,
-          capturedAt: new Date().toISOString()
-        };
-
-        if (data.commissionCents === undefined) {
-          effectiveCommissionCents = promo.suggestedCommissionCents;
-        }
-      }
-    }
-
-    // 4. Resolve Status
-    let statusId = data.statusId;
-    if (!statusId) {
-      const defaultStatus = await db.hccallSaleStatus.findFirst({
-        where: { tenantId, key: 'registada', deletedAt: null }
-      }) || await db.hccallSaleStatus.findFirst({
-        where: { tenantId, deletedAt: null },
-        orderBy: { sortOrder: 'asc' }
       });
-      statusId = defaultStatus?.id || 'registada';
+      if (existing) {
+        return { sale: existing, isDuplicate: true };
+      }
+
+      // 1. Resolve Customer
+      const customer = await HccallCustomerService.findOrCreateCustomer(tx, tenantId, userId, {
+        customerNumber: data.customerNumber,
+        name: data.customerName,
+        phone: data.customerPhone
+      });
+
+      // 2. Resolve Service
+      let serviceName = data.serviceName || 'Geral';
+      if (data.serviceId) {
+        const s = await tx.hccallService.findUnique({ where: { id: data.serviceId } });
+        if (s) serviceName = s.name;
+      }
+
+      // 3. Resolve Promotion & Immutable Snapshot
+      let promotionName: string | null = null;
+      let promotionVersion: number | null = null;
+      let promotionSnapshot: any = null;
+      let effectiveCommissionCents = data.commissionCents ?? 0;
+
+      if (data.promotionId) {
+        const promo = await tx.hccallPromotion.findUnique({ where: { id: data.promotionId } });
+        if (promo) {
+          promotionName = promo.name;
+          promotionVersion = promo.version;
+          promotionSnapshot = {
+            id: promo.id,
+            name: promo.name,
+            suggestedCommissionCents: promo.suggestedCommissionCents,
+            promoValueCents: promo.promoValueCents,
+            serviceId: promo.serviceId,
+            version: promo.version,
+            startsAt: promo.startsAt,
+            endsAt: promo.endsAt,
+            capturedAt: new Date().toISOString()
+          };
+
+          if (data.commissionCents === undefined) {
+            effectiveCommissionCents = promo.suggestedCommissionCents;
+          }
+        }
+      }
+
+      // 4. Resolve Status
+      let statusId = data.statusId;
+      if (!statusId) {
+        const defaultStatus = await tx.hccallSaleStatus.findFirst({
+          where: { tenantId, key: 'registada', deletedAt: null }
+        }) || await tx.hccallSaleStatus.findFirst({
+          where: { tenantId, deletedAt: null },
+          orderBy: { sortOrder: 'asc' }
+        });
+        statusId = defaultStatus?.id || 'registada';
+      }
+
+      // 5. Generate Atomic Code
+      const code = await HccallCounterService.getNextSaleCode(tx, tenantId);
+
+      // 6. Persist Sale
+      const soldAt = data.soldAt ? new Date(data.soldAt) : new Date();
+
+      const sale = await tx.hccallSale.create({
+        data: {
+          tenantId,
+          ownerUserId: userId,
+          code,
+          clientUuid,
+          customerId: customer.id,
+          customerNumber: customer.customerNumber,
+          serviceId: data.serviceId || null,
+          serviceName,
+          promotionId: data.promotionId || null,
+          promotionName,
+          promotionVersion,
+          promotionSnapshot,
+          commissionCents: Math.round(effectiveCommissionCents),
+          saleValueCents: data.saleValueCents ? Math.round(data.saleValueCents) : null,
+          statusId,
+          soldAt,
+          notes: data.notes || null
+        }
+      });
+
+      // 7. Record initial Change event
+      await tx.hccallSaleChange.create({
+        data: {
+          tenantId,
+          saleId: sale.id,
+          field: 'CREATED',
+          oldValue: null,
+          newValue: `Venda ${sale.code} registada (${(sale.commissionCents / 100).toFixed(2)} €)`,
+          reason: 'Criação inicial da venda',
+          changedByUserId: userId
+        }
+      }).catch(() => {});
+
+      return { sale, isDuplicate: false };
+    };
+
+    if (typeof db.$transaction === 'function') {
+      return await db.$transaction(executeInTx);
     }
-
-    // 5. Generate Atomic Code
-    const code = await HccallCounterService.getNextSaleCode(db, tenantId);
-
-    // 6. Persist Sale
-    const soldAt = data.soldAt ? new Date(data.soldAt) : new Date();
-
-    const sale = await db.hccallSale.create({
-      data: {
-        tenantId,
-        ownerUserId: userId,
-        code,
-        clientUuid,
-        customerId: customer.id,
-        customerNumber: customer.customerNumber,
-        serviceId: data.serviceId || null,
-        serviceName,
-        promotionId: data.promotionId || null,
-        promotionName,
-        promotionVersion,
-        promotionSnapshot,
-        commissionCents: Math.round(effectiveCommissionCents),
-        saleValueCents: data.saleValueCents ? Math.round(data.saleValueCents) : null,
-        statusId,
-        soldAt,
-        notes: data.notes || null
-      }
-    });
-
-    // 7. Record initial Change event
-    await db.hccallSaleChange.create({
-      data: {
-        tenantId,
-        saleId: sale.id,
-        field: 'CREATED',
-        oldValue: null,
-        newValue: `Venda ${sale.code} registada (${(sale.commissionCents / 100).toFixed(2)} €)`,
-        reason: 'Criação inicial da venda',
-        changedByUserId: userId
-      }
-    }).catch(() => {});
-
-    return { sale, isDuplicate: false };
+    return await executeInTx(db);
   }
 
   /**
@@ -159,12 +167,18 @@ export class HccallSaleService {
       reason?: string;
     }
   ) {
+    const scope = await HccallScopeService.getVisibilityScope(db, tenantId, userId);
+
     const existing = await db.hccallSale.findUnique({
       where: { id: saleId }
     });
 
     if (!existing || existing.tenantId !== tenantId) {
       throw new Error('Venda não encontrada.');
+    }
+
+    if (scope.ownerUserId && existing.ownerUserId !== scope.ownerUserId) {
+      throw new Error('Não tem permissão para editar esta venda.');
     }
 
     const changes: Array<{ field: string; oldValue: string | null; newValue: string | null }> = [];
@@ -295,7 +309,9 @@ export class HccallSaleService {
     return updated;
   }
 
-  static async getSaleById(db: any, tenantId: string, id: string) {
+  static async getSaleById(db: any, tenantId: string, userId: string, id: string) {
+    const scope = await HccallScopeService.getVisibilityScope(db, tenantId, userId);
+
     const sale = await db.hccallSale.findUnique({
       where: { id },
       include: {
@@ -307,6 +323,10 @@ export class HccallSaleService {
 
     if (!sale || sale.tenantId !== tenantId) {
       throw new Error('Venda não encontrada.');
+    }
+
+    if (scope.ownerUserId && sale.ownerUserId !== scope.ownerUserId) {
+      throw new Error('Não tem permissão para visualizar esta venda.');
     }
 
     const status = await db.hccallSaleStatus.findUnique({ where: { id: sale.statusId } });
@@ -397,6 +417,17 @@ export class HccallSaleService {
   }
 
   static async deleteSale(db: any, tenantId: string, userId: string, id: string) {
+    const scope = await HccallScopeService.getVisibilityScope(db, tenantId, userId);
+    const existing = await db.hccallSale.findUnique({ where: { id } });
+
+    if (!existing || existing.tenantId !== tenantId) {
+      throw new Error('Venda não encontrada.');
+    }
+
+    if (scope.ownerUserId && existing.ownerUserId !== scope.ownerUserId) {
+      throw new Error('Não tem permissão para eliminar esta venda.');
+    }
+
     return db.hccallSale.update({
       where: { id },
       data: { deletedAt: new Date() }
@@ -404,6 +435,17 @@ export class HccallSaleService {
   }
 
   static async restoreSale(db: any, tenantId: string, userId: string, id: string) {
+    const scope = await HccallScopeService.getVisibilityScope(db, tenantId, userId);
+    const existing = await db.hccallSale.findUnique({ where: { id } });
+
+    if (!existing || existing.tenantId !== tenantId) {
+      throw new Error('Venda não encontrada.');
+    }
+
+    if (scope.ownerUserId && existing.ownerUserId !== scope.ownerUserId) {
+      throw new Error('Não tem permissão para restaurar esta venda.');
+    }
+
     return db.hccallSale.update({
       where: { id },
       data: { deletedAt: null }

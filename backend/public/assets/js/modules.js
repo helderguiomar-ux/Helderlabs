@@ -187,35 +187,11 @@ window.MODULES_REGISTRY = [
       ]
     }
   },
-  {
-    key: "rent_a_car",
-    name: { pt: "Rent-a-Car & Frotas", en: "Car Rental & Fleet" },
-    blurb: { 
-      pt: "Gestão de frota, reservas de veículos, contratos de aluguer e check-in/out", 
-      en: "Fleet management, vehicle reservations, rental contracts, and check-in/out" 
-    },
-    status: "planeado",
-    route: "/app.html#rent_a_car",
-    icon: "car",
-    licensable: false,
-    ready: { pt: [], en: [] },
-    missing: {
-      pt: [
-        "Calendário de disponibilidade de frota",
-        "Contratos digitais de aluguer de veículos",
-        "Inspeção visual de danos no check-in"
-      ],
-      en: [
-        "Fleet availability schedule calendar",
-        "Digital vehicle rental contracts",
-        "Visual damage inspection check-in"
-      ]
-    }
-  }
 ];
 
 window.getModuleByKey = function(key) {
-  return window.MODULES_REGISTRY.find(m => m.key === key);
+  if (key === 'finance') key = 'financas';
+  return window.MODULES_REGISTRY.find(m => m.key === key || (key === 'financas' && m.key === 'finance'));
 };
 
 window.renderIncompleteModuleScreen = function(containerEl, moduleKey, lang) {

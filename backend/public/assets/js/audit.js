@@ -21,10 +21,11 @@ window.AuditModule = {
 
   async loadInitialData() {
     try {
+      const fetchFn = window.apiFetch || fetch;
       const [dashRes, logsRes, integRes] = await Promise.all([
-        fetch('/api/platform/audit/dashboard').then(r => r.json()),
-        fetch('/api/platform/audit/logs?limit=50').then(r => r.json()),
-        fetch('/api/platform/audit-chain/verify').then(r => r.json())
+        fetchFn('/api/platform/audit/dashboard').then(r => r.json()),
+        fetchFn('/api/platform/audit/logs?limit=50').then(r => r.json()),
+        fetchFn('/api/platform/audit-chain/verify').then(r => r.json())
       ]);
 
       if (dashRes.success) {
@@ -195,7 +196,8 @@ window.AuditModule = {
 
   async reverifyChain() {
     try {
-      const integRes = await fetch('/api/platform/audit-chain/verify').then(r => r.json());
+      const fetchFn = window.apiFetch || fetch;
+      const integRes = await fetchFn('/api/platform/audit-chain/verify').then(r => r.json());
       this.integrity = integRes;
       this.renderIntegrityBanner();
       alert(integRes.valid ? 'Verificação concluída: Cadeia SHA-256 100% íntegra!' : 'Atenção: Adulteração detetada!');

@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EntitlementService, AppEntitlement } from '../modules/platform/services/EntitlementService';
+import { resolveCanonicalModuleKey } from '../config/modules';
 import { AppError } from '../utils/errors';
 
 declare module 'fastify' {
@@ -22,9 +23,9 @@ export default fp(async (app: FastifyInstance) => {
         throw AppError.unauthorized('Autenticação necessária.');
       }
 
+      const canonicalTarget = resolveCanonicalModuleKey(moduleKey);
       const manifest = await entitlementService.resolveForUser(request.user.sub, request.user.tenantId);
-      const targetKey = moduleKey === 'financas' ? 'finance' : (moduleKey === 'finance' ? 'financas' : moduleKey);
-      const appEnt = manifest.apps.find((a) => a.key === moduleKey || a.key === targetKey);
+      const appEnt = manifest.apps.find((a) => resolveCanonicalModuleKey(a.key) === canonicalTarget);
 
       if (!appEnt || appEnt.state === 'NONE' || appEnt.state === 'DISABLED') {
         throw new AppError('APP_NOT_LICENSED', `O módulo '${moduleKey}' não está licenciado para a sua empresa.`, 403);

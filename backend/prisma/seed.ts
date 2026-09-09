@@ -46,7 +46,7 @@ async function main() {
 
   // 1. Módulos disponíveis na plataforma
   console.log("A criar módulos da plataforma...");
-  const [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks, modHccall, modSellmais] = await Promise.all([
+  const [modCrm, modCondominios, modFinance, modHccall, modSellmais] = await Promise.all([
     prisma.module.create({
       data: { key: "crm", name: "CRM", description: "Gestão de Leads, Oportunidades e Clientes", icon: "users", color: "#0d419f", category: "Comercial", sortOrder: 10, isActive: true }
     }),
@@ -54,25 +54,16 @@ async function main() {
       data: { key: "condominios", name: "Condomínios", description: "Gestão de edifícios, frações e assembleias", icon: "building", color: "#2563eb", category: "Operações", sortOrder: 20, isActive: true }
     }),
     prisma.module.create({
-      data: { key: "finance", name: "Financeiro", description: "Contas a pagar/receber e tesouraria", icon: "wallet", color: "#059669", category: "Financeiro", sortOrder: 30, isActive: true }
+      data: { key: "finance", name: "Gestão Financeira", description: "Cockpit financeiro, contas a pagar/receber e tesouraria", icon: "wallet", color: "#059669", category: "Financeiro", sortOrder: 30, isActive: true }
     }),
     prisma.module.create({
-      data: { key: "invoicing", name: "Faturação", description: "Faturação e documentos fiscais", icon: "receipt", color: "#d97706", category: "Financeiro", sortOrder: 40, isActive: false }
+      data: { key: "hccall", name: "HCCALL Telecom", description: "Ferramenta operacional para operadores e lojas de telecomunicações", icon: "headset", color: "#0d419f", category: "Comercial", sortOrder: 40, isActive: true }
     }),
     prisma.module.create({
-      data: { key: "sales", name: "Vendas Pro", description: "Pipeline de vendas avançado", icon: "trending-up", color: "#7c3aed", category: "Comercial", sortOrder: 50, isActive: false }
-    }),
-    prisma.module.create({
-      data: { key: "tasks", name: "Projetos & Tarefas", description: "Gestão de tarefas e projetos", icon: "check-square", color: "#4b5563", category: "Operações", sortOrder: 60, isActive: false }
-    }),
-    prisma.module.create({
-      data: { key: "hccall", name: "HCCALL Telecom", description: "Ferramenta operacional para operadores e lojas de telecomunicações", icon: "headset", color: "#0d419f", category: "Comercial", sortOrder: 70, isActive: true }
-    }),
-    prisma.module.create({
-      data: { key: "sellmais", name: "2SELLMAIS", description: "Gestão de inventário e comércio em segunda mão, velharias e antiguidades", icon: "shopping-bag", color: "#b45309", category: "Comercial", sortOrder: 80, isActive: true }
+      data: { key: "sellmais", name: "2SELLMAIS", description: "Gestão de inventário e comércio em segunda mão, velharias e antiguidades", icon: "shopping-bag", color: "#b45309", category: "Comercial", sortOrder: 50, isActive: true }
     }),
   ]);
-  console.log("8 módulos criados.\n");
+  console.log("5 módulos canónicos criados.\n");
 
   const pwHash = await bcrypt.hash("admin1234", 10);
 

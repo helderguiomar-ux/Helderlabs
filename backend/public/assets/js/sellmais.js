@@ -27,7 +27,8 @@ window.SellmaisModule = {
 
   async loadTypes() {
     try {
-      const res = await fetch('/api/sellmais/types');
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn('/api/sellmais/types');
       const data = await res.json();
       if (data.success) {
         this.types = data.types || data.itemTypes || [];
@@ -45,7 +46,8 @@ window.SellmaisModule = {
       if (this.currentFilter.acquisitionType) params.append('acquisitionType', this.currentFilter.acquisitionType);
       if (this.currentFilter.search) params.append('search', this.currentFilter.search);
 
-      const res = await fetch(`/api/sellmais/items?${params.toString()}`);
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn(`/api/sellmais/items?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
         this.items = data.items || [];
@@ -57,7 +59,8 @@ window.SellmaisModule = {
 
   async loadValuation() {
     try {
-      const res = await fetch('/api/sellmais/valuation');
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn('/api/sellmais/valuation');
       const data = await res.json();
       if (data.success) {
         this.valuation = data;
@@ -271,7 +274,8 @@ window.SellmaisModule = {
     };
 
     try {
-      const res = await fetch('/api/sellmais/items', {
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn('/api/sellmais/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -314,7 +318,8 @@ window.SellmaisModule = {
     };
 
     try {
-      const res = await fetch(`/api/sellmais/items/${itemId}/costs`, {
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn(`/api/sellmais/items/${itemId}/costs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -360,7 +365,8 @@ window.SellmaisModule = {
     };
 
     try {
-      const res = await fetch(`/api/sellmais/items/${itemId}/transition`, {
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn(`/api/sellmais/items/${itemId}/transition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -381,7 +387,8 @@ window.SellmaisModule = {
 
   async openItemDetail(itemId) {
     try {
-      const res = await fetch(`/api/sellmais/items/${itemId}`);
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn(`/api/sellmais/items/${itemId}`);
       const data = await res.json();
       if (!data.success) return;
 

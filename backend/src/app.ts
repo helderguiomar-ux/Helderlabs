@@ -205,7 +205,7 @@ export function buildApp() {
       application: 'healthy',
       database: isDbReady ? 'ready' : 'unavailable',
       authentication: isDbReady ? 'healthy' : 'degraded',
-      version: process.env.VERSION || '1.0.0-consolidada',
+      version: process.env.VERSION || '1.0.0',
       environment: process.env.ENVIRONMENT || 'DEVELOPMENT'
     };
   });

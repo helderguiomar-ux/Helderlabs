@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
+  <!-- Anti-FOUC Inline Theme Loader -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('hl_theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HelderLabs ERP — Caderno de Engenharia</title>
@@ -698,6 +708,8 @@
   </div>
 
   <!-- Modular Scripts -->
+  <script src="/assets/js/theme.js"></script>
+<script src="/assets/js/api.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
   <script src="/assets/js/crm.js"></script>
@@ -729,7 +741,7 @@
 
     async function checkAuth() {
       try {
-        const res = await fetch('/api/me/workspace');
+        const res = await apiFetch('/api/me/workspace');
         if (!res.ok) {
           window.location.href = '/login.html';
           return;
@@ -743,13 +755,17 @@
     }
 
     function logout() {
-      fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-        window.location.href = '/login.html';
-      });
+      window.ERPAuth ? window.ERPAuth.logout() : (function() {
+        localStorage.clear();
+        sessionStorage.clear();
+        fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+          window.location.href = '/login.html';
+        });
+      })();
     }
 
     function endSupportSession() {
-      fetch('/api/platform/impersonate/end', { method: 'POST' }).finally(() => {
+      apiFetch('/api/platform/impersonate/end', { method: 'POST' }).finally(() => {
         window.location.href = '/super-admin.html';
       });
     }

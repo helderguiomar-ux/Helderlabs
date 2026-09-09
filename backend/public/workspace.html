@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-PT">
 <head>
+  <!-- Anti-FOUC Inline Theme Loader -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('hl_theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HelderLabs ERP — Workspace</title>
@@ -461,6 +471,8 @@
   </div>
 </div>
 
+<script src="/assets/js/theme.js"></script>
+<script src="/assets/js/api.js"></script>
 <script>
   let workspaceData = null;
 
@@ -477,15 +489,11 @@
     }
 
     try {
-      const res = await fetch('/api/me/workspace', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch('/api/me/workspace');
 
       if (!res.ok) {
         if (res.status === 401) {
-          localStorage.removeItem('erp_session');
-          localStorage.removeItem('hl_token');
-          localStorage.removeItem('auth_token');
+          window.ERPAuth ? window.ERPAuth.clearSession() : localStorage.clear();
           window.location.href = '/login.html';
           return;
         }
@@ -503,46 +511,65 @@
   }
 
   function renderWorkspace(data) {
+    if (!data) return;
+
+    const branding = data.branding || {};
+    const tenant = data.tenant || {};
+    const user = data.user || {};
+    const apps = Array.isArray(data.apps) ? data.apps : [];
+
     // Branding CSS variables
-    if (data.branding.primaryColor) {
-      document.documentElement.style.setProperty('--primary-color', data.branding.primaryColor);
+    if (branding.primaryColor) {
+      document.documentElement.style.setProperty('--primary-color', branding.primaryColor);
     }
 
     // Header info
-    document.getElementById('tenant-title').textContent = data.branding.displayName || data.tenant.name;
-    if (data.branding.logoUrl) {
+    const tenantTitleEl = document.getElementById('tenant-title');
+    if (tenantTitleEl) tenantTitleEl.textContent = branding.displayName || tenant.name || 'HelderLabs ERP';
+
+    if (branding.logoUrl) {
       const logoEl = document.getElementById('tenant-logo');
-      logoEl.src = data.branding.logoUrl;
-      logoEl.style.display = 'block';
+      if (logoEl) {
+        logoEl.src = branding.logoUrl;
+        logoEl.style.display = 'block';
+      }
     }
 
-    document.getElementById('welcome-message').textContent = `Bom dia, ${data.user.name.split(' ')[0]}`;
-    document.getElementById('user-name-display').textContent = data.user.name;
-    document.getElementById('user-role-display').textContent = data.user.role;
+    const userName = user.name || 'Utilizador';
+    const welcomeEl = document.getElementById('welcome-message');
+    if (welcomeEl) welcomeEl.textContent = `Bom dia, ${userName.split(' ')[0]}`;
 
-    if (['TENANT_OWNER', 'TENANT_ADMIN', 'SUPER_ADMIN'].includes(data.user.role)) {
-      document.getElementById('admin-settings-btn').style.display = 'block';
+    const userNameEl = document.getElementById('user-name-display');
+    if (userNameEl) userNameEl.textContent = userName;
+
+    const userRoleEl = document.getElementById('user-role-display');
+    if (userRoleEl) userRoleEl.textContent = user.role || 'Utilizador';
+
+    if (['TENANT_OWNER', 'TENANT_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
+      const adminBtn = document.getElementById('admin-settings-btn');
+      if (adminBtn) adminBtn.style.display = 'block';
     }
 
     // Render active vs upsell apps
     const activeGrid = document.getElementById('active-apps-grid');
     const upsellGrid = document.getElementById('upsell-apps-grid');
-    activeGrid.innerHTML = '';
-    upsellGrid.innerHTML = '';
+    if (activeGrid) activeGrid.innerHTML = '';
+    if (upsellGrid) upsellGrid.innerHTML = '';
 
     let hasUpsell = false;
 
-    data.apps.forEach(app => {
+    apps.forEach(app => {
       if (app.state === 'NONE' || app.state === 'DISABLED') {
         hasUpsell = true;
-        upsellGrid.appendChild(createAppCard(app, true));
+        if (upsellGrid) upsellGrid.appendChild(createAppCard(app, true));
       } else {
-        activeGrid.appendChild(createAppCard(app, false));
+        if (activeGrid) activeGrid.appendChild(createAppCard(app, false));
       }
     });
 
-    if (hasUpsell && data.branding.showUpsell) {
-      document.getElementById('upsell-section').style.display = 'block';
+    if (hasUpsell && branding.showUpsell) {
+      const upsellSec = document.getElementById('upsell-section');
+      if (upsellSec) upsellSec.style.display = 'block';
     }
   }
 
@@ -560,7 +587,7 @@
 
     let usageHtml = '';
     for (const [limitKey, limitVal] of Object.entries(app.limits || {})) {
-      const current = app.usage[limitKey] || 0;
+      const current = app.usage ? (app.usage[limitKey] || 0) : 0;
       const pct = Math.min(100, Math.round((current / limitVal) * 100));
       usageHtml += `
         <div class="usage-bar-container">
@@ -577,12 +604,12 @@
       <div>
         <div class="app-card-header">
           <div class="app-icon-badge" style="background-color: ${app.color || '#0d419f'};">
-            ${app.name.charAt(0)}
+            ${(app.name || 'A').charAt(0)}
           </div>
           <span class="status-badge ${badgeClass}">${badgeText}</span>
         </div>
-        <div class="app-title">${app.name}</div>
-        <div class="app-desc">Módulo corporativo ${app.name}</div>
+        <div class="app-title">${app.name || app.key}</div>
+        <div class="app-desc">Módulo corporativo ${app.name || app.key}</div>
       </div>
       <div>
         ${usageHtml}
@@ -600,8 +627,11 @@
     if (key === 'crm') window.location.href = '/app.html#/crm';
     else if (key === 'condominios') window.location.href = '/app.html#/condominios';
     else if (key === 'finance' || key === 'financas') window.location.href = '/app.html#/financas';
+    else if (key === 'hccall') window.location.href = '/hccall.html';
+    else if (key === 'sellmais') window.location.href = '/app.html#/sellmais';
     else alert(`O módulo '${key}' está em construção e estará disponível em breve.`);
   }
+
 
   async function requestAccess(key) {
     const userEmail = workspaceData?.user?.email || 'utilizador@empresa.pt';
@@ -763,12 +793,8 @@
     const token = session.token || localStorage.getItem('hl_token') || localStorage.getItem('auth_token');
 
     try {
-      const res = await fetch('/api/auth/set-password', {
+      const res = await apiFetch('/api/auth/set-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
         body: JSON.stringify({ password: p1 })
       });
       const data = await res.json();

@@ -1,6 +1,16 @@
 <!DOCTYPE html>
-<html lang="pt" data-theme="dark">
+<html lang="pt">
 <head>
+  <!-- Anti-FOUC Inline Theme Loader -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('hl_theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title id="meta-title">HELDERLABS | Informatizar não é coisa de empresa grande</title>
@@ -732,5 +742,6 @@
     }
   </script>
   <script src="/assets/js/connection-banner.js"></script>
+<script src="/assets/js/theme.js"></script>
 </body>
 </html>

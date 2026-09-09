@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
+  <!-- Anti-FOUC Inline Theme Loader -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('hl_theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>HCCALL Telecom · HelderLabs</title>
@@ -643,6 +653,8 @@
   </nav>
 
   <!-- PWA & Application Script -->
+  <script src="/assets/js/theme.js"></script>
+<script src="/assets/js/api.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/hccall-sw.js').catch(() => {});
@@ -733,7 +745,18 @@
       },
 
       async getAuthToken() {
-        let token = localStorage.getItem('erp_token') || sessionStorage.getItem('erp_token');
+        if (window.ERPAuth && typeof window.ERPAuth.getToken === 'function') {
+          const t = window.ERPAuth.getToken();
+          if (t) return t;
+        }
+        let token = localStorage.getItem('erp_session');
+        if (token) {
+          try {
+            const parsed = JSON.parse(token);
+            if (parsed && parsed.token) return parsed.token;
+          } catch (_) {}
+        }
+        token = localStorage.getItem('hl_token') || localStorage.getItem('auth_token') || localStorage.getItem('erp_token') || sessionStorage.getItem('erp_token');
         if (!token) {
           const cookieMatch = document.cookie.match(/erp_token=([^;]+)/);
           if (cookieMatch) token = cookieMatch[1];
@@ -742,6 +765,13 @@
       },
 
       async apiFetch(url, options = {}) {
+        if (window.apiFetch) {
+          try {
+            return await window.apiFetch(url, options);
+          } catch (err) {
+            return null;
+          }
+        }
         const token = await this.getAuthToken();
         const headers = {
           'Content-Type': 'application/json',

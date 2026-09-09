@@ -1,6 +1,16 @@
 <!DOCTYPE html>
-<html lang="pt" data-theme="dark">
+<html lang="pt">
 <head>
+  <!-- Anti-FOUC Inline Theme Loader -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('hl_theme');
+        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+        else if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Autenticação — HELDERLABS ERP</title>
@@ -542,6 +552,7 @@
     localStorage.setItem('erp_session', JSON.stringify(sessionObj));
     localStorage.setItem('hl_token', data.token);
     localStorage.setItem('auth_token', data.token);
+    localStorage.setItem('erp_token', data.token);
 
     if (data.user && (data.user.role === 'SUPER_ADMIN' || data.user.role === 'PLATFORM_ADMIN')) {
       window.location.href = '/super-admin.html';
@@ -586,5 +597,6 @@
   }
 </script>
 <script src="/assets/js/connection-banner.js"></script>
+<script src="/assets/js/theme.js"></script>
 </body>
 </html>

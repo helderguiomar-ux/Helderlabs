@@ -80,7 +80,7 @@ async function main() {
   const superAdminUser = await prisma.user.create({
     data: { tenantId: tenantPlatform.id, name: "Helder Guiomar (Super Admin)", email: "helderguiomar@gmail.com", passwordHash: pwHash, role: "SUPER_ADMIN", status: "ACTIVE", active: true, authProvider: "EMAIL" }
   });
-  const allModules = [modCrm, modCondominios, modFinance, modInvoicing, modSales, modTasks, modHccall, modSellmais];
+  const allModules = [modCrm, modCondominios, modFinance, modHccall, modSellmais];
   for (const m of allModules) {
     const appInst = await prisma.applicationInstance.create({
       data: { moduleId: m.id, tenantId: tenantPlatform.id, status: "ACTIVE", config: { unlimited: true }, createdBy: superAdminUser.id }

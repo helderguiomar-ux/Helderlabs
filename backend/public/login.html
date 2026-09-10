@@ -391,7 +391,7 @@
         body: JSON.stringify({ email })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao verificar email.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao verificar email.');
 
       if (data.hasPassword) {
         document.getElementById('pwd-email-display').innerText = email;
@@ -420,7 +420,7 @@
         body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Credenciais inválidas. Verifique o email e palavra-passe.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Credenciais inválidas. Verifique o email e palavra-passe.');
 
       handleLoginSuccess(data);
     } catch (err) {
@@ -443,7 +443,7 @@
         body: JSON.stringify({ email: currentEmail })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao enviar código OTP.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao enviar código OTP.');
 
       showStep('step-otp');
       showSuccess('Código enviado para ' + currentEmail);
@@ -501,7 +501,7 @@
         body: JSON.stringify({ email: currentEmail, code })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Código inválido ou expirado.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Código inválido ou expirado.');
 
       if (data.requiresPasswordSetup) {
         sessionToken = data.token;
@@ -532,7 +532,7 @@
         body: JSON.stringify({ password: p1 })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao definir palavra-passe.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao definir palavra-passe.');
 
       handleLoginSuccess(sessionData);
     } catch (err) {

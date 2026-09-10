@@ -132,6 +132,14 @@ export function buildApp() {
       });
     }
 
+    if (error.name === 'PrismaClientKnownRequestError' && (error as any).code === 'P2022') {
+      app.log.error({ err: error, reqId: request.id }, 'Prisma schema mismatch P2022');
+      return reply.status(503).send({
+        error: 'DATABASE_SCHEMA_UPDATING',
+        message: 'A base de dados de produção está a ser atualizada. Por favor tente dentro de breves instantes.'
+      });
+    }
+
     const statusCode = (error as any).statusCode ?? 500;
     const errorCode = (error as any).code ?? (statusCode >= 500 ? 'INTERNAL_ERROR' : 'REQUEST_ERROR');
     if (statusCode >= 500) {

@@ -32,6 +32,58 @@ export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
 
 let _dbReady = false;
 let _lastDbCheck = 0;
+let _schemaEnsured = false;
+
+export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void> {
+  if (_schemaEnsured) return;
+  const prismaClient = client || getOrCreateClient();
+  try {
+    // 1. Column users.roleId
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "roleId" TEXT;`);
+    
+    // 2. Column tenants.entitlementsVersion
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "entitlementsVersion" INTEGER NOT NULL DEFAULT 1;`);
+    
+    // 3. Table roles
+    await prismaClient.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "roles" (
+        "id" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "key" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "isSystem" BOOLEAN NOT NULL DEFAULT false,
+        "baseRole" "UserRole" NOT NULL DEFAULT 'USER',
+        "deletedAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "roles_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    
+    // 4. Index on roles
+    await prismaClient.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "roles_tenantId_key_key" ON "roles"("tenantId", "key");`);
+    
+    // 5. Table role_permission_links
+    await prismaClient.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "role_permission_links" (
+        "id" TEXT NOT NULL,
+        "roleId" TEXT NOT NULL,
+        "permissionName" TEXT NOT NULL,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "role_permission_links_pkey" PRIMARY KEY ("id")
+      );
+    `);
+    
+    // 6. Index on role_permission_links
+    await prismaClient.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "role_permission_links_roleId_permissionName_key" ON "role_permission_links"("roleId", "permissionName");`);
+
+    _schemaEnsured = true;
+  } catch (error: any) {
+    // Safe fallback: do not throw to allow queries to continue
+    console.warn('[DB SCHEMA ENSURE] Warning during runtime schema ensure:', error?.message || error);
+  }
+}
 
 // Export a health check function that doesn't crash
 export async function checkDatabaseReady(force = false): Promise<boolean> {
@@ -43,6 +95,7 @@ export async function checkDatabaseReady(force = false): Promise<boolean> {
   try {
     const client = getOrCreateClient();
     await client.$queryRawUnsafe('SELECT 1');
+    await ensureDatabaseSchema(client);
     _dbReady = true;
     _lastDbCheck = now;
     return true;

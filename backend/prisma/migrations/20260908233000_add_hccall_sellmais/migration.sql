@@ -439,22 +439,21 @@ CREATE TABLE IF NOT EXISTS "sell_bids" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "lotId" TEXT NOT NULL,
-    "bidderUserId" TEXT NOT NULL,
+    "bidderId" TEXT NOT NULL,
     "amountCents" INTEGER NOT NULL,
-    "placedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "status" TEXT NOT NULL DEFAULT 'ACCEPTED',
+    "status" TEXT NOT NULL DEFAULT 'VALID',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "sell_bids_pkey" PRIMARY KEY ("id")
 );
 
 CREATE TABLE IF NOT EXISTS "sell_counters" (
-    "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
-    "scope" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
-    "currentValue" INTEGER NOT NULL DEFAULT 0,
+    "scope" TEXT NOT NULL,
+    "value" INTEGER NOT NULL DEFAULT 0,
 
-    CONSTRAINT "sell_counters_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "sell_counters_pkey" PRIMARY KEY ("tenantId","year","scope")
 );
 
 -- ----------------------------------------------------------------------------

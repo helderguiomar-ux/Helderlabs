@@ -37,11 +37,11 @@ describe('Phase 0 Security Checks', () => {
     }
   });
 
-  test('6.º pedido consecutivo a /api/auth/login responde 429 (Rate Limit)', async () => {
+  test('16.º pedido consecutivo a /api/auth/login responde 429 (Rate Limit)', async () => {
     const app = buildApp();
     let lastStatusCode = 200;
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 16; i++) {
       const res = await app.inject({
         method: 'POST',
         url: '/api/auth/login',

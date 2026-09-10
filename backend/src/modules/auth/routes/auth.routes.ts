@@ -35,7 +35,7 @@ export async function authRoutes(app: FastifyInstance) {
   const isE2EDisabled = process.env.DISABLE_RATE_LIMIT === 'true';
   const isStrictRateLimited = (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test') && !isE2EDisabled;
   const strictRateLimit = isStrictRateLimited
-    ? { max: 5, timeWindow: '15 minutes' }
+    ? { max: 15, timeWindow: '15 minutes' }
     : { max: 1000, timeWindow: '15 minutes' };
 
   // Passo 2a: Enviar OTP

@@ -1,4 +1,4 @@
-﻿-- CreateEnum
+-- CreateEnum
 CREATE TYPE "FinanceKind" AS ENUM ('INCOME', 'EXPENSE');
 
 -- CreateEnum

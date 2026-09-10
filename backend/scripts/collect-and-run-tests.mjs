@@ -44,7 +44,7 @@ console.log(`A correr ${files.length} ficheiro(s) de teste:`);
 files.forEach((f) => console.log(`  - ${path.relative(process.cwd(), f)}`));
 console.log('');
 
-const result = spawnSync('npx', ['tsx', '--test', ...files], {
+const result = spawnSync('npx', ['tsx', '--test', '--test-concurrency=1', ...files], {
   stdio: 'inherit',
   shell: process.platform === 'win32'
 });

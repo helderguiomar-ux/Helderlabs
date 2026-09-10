@@ -59,7 +59,20 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_assignments" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
     
-    // 3. Table roles
+    // 4. Audit Log fields
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "module" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "category" TEXT DEFAULT 'APPLICATION';`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "actorEmail" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "actorType" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "description" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "diff" JSONB;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "sessionId" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "result" TEXT DEFAULT 'SUCCESS';`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "timestamp" TIMESTAMP(3) DEFAULT CURRENT_TIMESTAMP;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "prevHash" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "hash" TEXT;`);
+    
+    // 5. Table roles
     await prismaClient.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "roles" (
         "id" TEXT NOT NULL,

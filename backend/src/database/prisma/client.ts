@@ -50,6 +50,15 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "entitlementsVersion" INTEGER NOT NULL DEFAULT 1;`);
     
+    // 3. Application instance & assignment billing fields
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "priceCents" INTEGER DEFAULT 0;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "billingPeriod" TEXT DEFAULT 'MONTHLY';`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "currency" TEXT DEFAULT 'EUR';`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "discountPercent" DOUBLE PRECISION DEFAULT 0;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "billingNotes" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "application_assignments" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
+    
     // 3. Table roles
     await prismaClient.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "roles" (

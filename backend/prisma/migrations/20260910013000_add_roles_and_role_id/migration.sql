@@ -9,6 +9,15 @@ ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar" TEXT;
 ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "entitlementsVersion" INTEGER NOT NULL DEFAULT 1;
 
+ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "priceCents" INTEGER DEFAULT 0;
+ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "billingPeriod" TEXT DEFAULT 'MONTHLY';
+ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "currency" TEXT DEFAULT 'EUR';
+ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "discountPercent" DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "billingNotes" TEXT;
+ALTER TABLE "application_instances" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+
+ALTER TABLE "application_assignments" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+
 -- CreateTable
 CREATE TABLE IF NOT EXISTS "roles" (
     "id" TEXT NOT NULL,

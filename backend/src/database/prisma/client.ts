@@ -38,10 +38,16 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
   if (_schemaEnsured) return;
   const prismaClient = client || getOrCreateClient();
   try {
-    // 1. Column users.roleId
+    // 1. Column users fields
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "roleId" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "isOnline" BOOLEAN NOT NULL DEFAULT false;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "lastSeen" TIMESTAMP(3);`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "sessionToken" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "avatar" TEXT;`);
     
-    // 2. Column tenants.entitlementsVersion
+    // 2. Column tenants fields
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "entitlementsVersion" INTEGER NOT NULL DEFAULT 1;`);
     
     // 3. Table roles

@@ -48,6 +48,12 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/helderlabs_erp_test?schema=public"
 
+      - name: Seed Database for Integration Tests
+        run: cd backend && npx tsx prisma/seed.ts
+        env:
+          DATABASE_URL: "postgresql://postgres:postgrespassword@localhost:5432/helderlabs_erp_test?schema=public"
+          NODE_ENV: "development"
+
       - name: ESLint Check
         run: cd backend && npm run lint
 

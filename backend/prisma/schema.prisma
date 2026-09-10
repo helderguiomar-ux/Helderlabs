@@ -1476,30 +1476,161 @@ model HccallSaleStatus {
   @@map("hccall_sale_statuses")
 }
 
-model HccallSale {
+model HccallOrgContext {
   id                String    @id @default(cuid())
   tenantId          String
-  ownerUserId       String
-  code              String
-  clientUuid        String
-  customerId        String?
-  customerNumber    String
-  serviceId         String?
-  serviceName       String
-  promotionId       String?
-  promotionName     String?
-  promotionVersion  Int?
-  promotionSnapshot Json?
-  commissionCents   Int
-  saleValueCents    Int?
-  statusId          String
-  soldAt            DateTime  @db.Date
-  notes             String?
-  deletedAt         DateTime?
+  userId            String
+  companyName       String
+  workplace         String
+  jobRole           String
+  operationType     String    @default("CALL_CENTER") // LOJA | CALL_CENTER | EXTERNO | HIBRIDO
+  businessArea      String    @default("TELECOM")     // TELECOM | SEGUROS | ENERGIA | BANCA | RETALHO | OUTRO
+  periodStart       DateTime  @db.Date
+  periodEnd         DateTime? @db.Date
+  workingDaysConfig Json?
+  isCurrent         Boolean   @default(true)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  changes           HccallSaleChange[]
+  sales             HccallSale[]
+  objectives        HccallObjective[]
+
+  @@index([tenantId, userId, isCurrent])
+  @@map("hccall_org_contexts")
+}
+
+model HccallProduct {
+  id             String    @id @default(cuid())
+  tenantId       String
+  userId         String
+  sku            String?
+  name           String
+  category       String    @default("Geral")
+  baseValueCents Int       @default(0)
+  active         Boolean   @default(true)
+  sortOrder      Int       @default(100)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  saleItems      HccallSaleItem[]
+  conditions     HccallDynamizationCondition[]
+
+  @@unique([tenantId, userId, name])
+  @@index([tenantId, userId, active])
+  @@map("hccall_products")
+}
+
+model HccallDynamization {
+  id             String    @id @default(cuid())
+  tenantId       String
+  userId         String
+  name           String
+  description    String?
+  tierMode       String    @default("RETROACTIVE") // RETROACTIVE | MARGINAL | FLAT
+  startsAt       DateTime  @db.Date
+  endsAt         DateTime? @db.Date
+  active         Boolean   @default(true)
+  version        Int       @default(1)
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  rules          HccallDynamizationRule[]
+  tiers          HccallDynamizationTier[]
+  bonuses        HccallDynamizationBonus[]
+  conditions     HccallDynamizationCondition[]
+  sales          HccallSale[]
+
+  @@index([tenantId, userId, active])
+  @@map("hccall_dynamizations")
+}
+
+model HccallDynamizationRule {
+  id               String             @id @default(cuid())
+  tenantId         String
+  dynamizationId   String
+  dynamization     HccallDynamization @relation(fields: [dynamizationId], references: [id], onDelete: Cascade)
+  ruleType         String             // BASE_PER_SALE, TIERED, TARGET_BONUS
+  fixedAmountCents Int                @default(0)
+  config           Json?
+
+  @@index([tenantId, dynamizationId])
+  @@map("hccall_dynamization_rules")
+}
+
+model HccallDynamizationTier {
+  id              String             @id @default(cuid())
+  tenantId        String
+  dynamizationId  String
+  dynamization    HccallDynamization @relation(fields: [dynamizationId], references: [id], onDelete: Cascade)
+  minQuantity     Int
+  maxQuantity     Int?
+  unitAmountCents Int
+
+  @@index([tenantId, dynamizationId])
+  @@map("hccall_dynamization_tiers")
+}
+
+model HccallDynamizationBonus {
+  id               String             @id @default(cuid())
+  tenantId         String
+  dynamizationId   String
+  dynamization     HccallDynamization @relation(fields: [dynamizationId], references: [id], onDelete: Cascade)
+  thresholdCount   Int
+  bonusAmountCents Int
+
+  @@index([tenantId, dynamizationId])
+  @@map("hccall_dynamization_bonuses")
+}
+
+model HccallDynamizationCondition {
+  id                String             @id @default(cuid())
+  tenantId          String
+  dynamizationId    String
+  dynamization      HccallDynamization @relation(fields: [dynamizationId], references: [id], onDelete: Cascade)
+  productId         String?
+  product           HccallProduct?     @relation(fields: [productId], references: [id])
+  category          String?
+  minSaleValueCents Int?
+  channel           String?
+
+  @@index([tenantId, dynamizationId])
+  @@map("hccall_dynamization_conditions")
+}
+
+model HccallSale {
+  id                   String              @id @default(cuid())
+  tenantId             String
+  ownerUserId          String
+  orgContextId         String?
+  orgContext           HccallOrgContext?   @relation(fields: [orgContextId], references: [id])
+  code                 String
+  clientUuid           String
+  idempotencyKey       String?
+  customerId           String?
+  customerNumber       String
+  serviceId            String?
+  serviceName          String
+  promotionId          String?
+  promotionName        String?
+  promotionVersion     Int?
+  promotionSnapshot    Json?
+  dynamizationId       String?
+  dynamization         HccallDynamization? @relation(fields: [dynamizationId], references: [id])
+  dynamizationSnapshot Json?
+  commissionCents      Int
+  saleValueCents       Int?
+  statusId             String
+  soldAt               DateTime            @db.Date
+  notes                String?
+  deletedAt            DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  items                HccallSaleItem[]
+  commissionLines      HccallCommissionLine[]
+  changes              HccallSaleChange[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, clientUuid])
@@ -1507,6 +1638,118 @@ model HccallSale {
   @@index([tenantId, statusId])
   @@index([tenantId, deletedAt])
   @@map("hccall_sales")
+}
+
+model HccallSaleItem {
+  id              String        @id @default(cuid())
+  tenantId        String
+  saleId          String
+  sale            HccallSale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId       String
+  product         HccallProduct @relation(fields: [productId], references: [id])
+  quantity        Int           @default(1)
+  unitPriceCents  Int           @default(0)
+  totalPriceCents Int           @default(0)
+
+  @@index([tenantId, saleId])
+  @@map("hccall_sale_items")
+}
+
+model HccallCommission {
+  id               String                       @id @default(cuid())
+  tenantId         String
+  userId           String
+  periodStart      DateTime                     @db.Date
+  periodEnd        DateTime                     @db.Date
+  status           String                       @default("ESTIMATED") // ESTIMATED | VALIDATED | PAID | VOID
+  estimatedCents   Int                          @default(0)
+  validatedCents   Int?
+  paidCents        Int?
+  divergenceReason String?
+  lockedAt         DateTime?
+  createdAt        DateTime                     @default(now())
+  updatedAt        DateTime                     @updatedAt
+
+  lines            HccallCommissionLine[]
+  adjustments      HccallCommissionAdjustment[]
+
+  @@unique([tenantId, userId, periodStart, periodEnd])
+  @@index([tenantId, userId, status])
+  @@map("hccall_commissions")
+}
+
+model HccallCommissionLine {
+  id           String           @id @default(cuid())
+  tenantId     String
+  commissionId String
+  commission   HccallCommission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  saleId       String?
+  sale         HccallSale?      @relation(fields: [saleId], references: [id])
+  concept      String
+  amountCents  Int
+  ruleSnapshot Json
+  explanation  String
+
+  @@index([tenantId, commissionId])
+  @@map("hccall_commission_lines")
+}
+
+model HccallCommissionAdjustment {
+  id              String           @id @default(cuid())
+  tenantId        String
+  commissionId    String
+  commission      HccallCommission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  amountCents     Int
+  reason          String
+  createdByUserId String
+  createdAt       DateTime         @default(now())
+
+  @@index([tenantId, commissionId])
+  @@map("hccall_commission_adjustments")
+}
+
+model HccallObjective {
+  id           String            @id @default(cuid())
+  tenantId     String
+  userId       String
+  orgContextId String?
+  orgContext   HccallOrgContext? @relation(fields: [orgContextId], references: [id])
+  name         String
+  description  String?
+  type         String            // SALES_COUNT, REVENUE, PRODUCT_COUNT, CONVERSION, QUALITY, CAMPAIGN, COMMISSION, CUSTOM
+  targetValue  Int
+  unit         String            @default("vendas")
+  periodStart  DateTime          @db.Date
+  periodEnd    DateTime          @db.Date
+  currentValue Int               @default(0)
+  status       String            @default("ACTIVE")
+  productId    String?
+  deletedAt    DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([tenantId, userId, periodStart, periodEnd])
+  @@map("hccall_objectives")
+}
+
+model HccallAlert {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  code        String
+  severity    String   @default("INFO") // INFO | SUCCESS | WARNING | CRITICAL
+  title       String
+  message     String
+  actionLabel String?
+  actionUrl   String?
+  isDismissed Boolean  @default(false)
+  isRead      Boolean  @default(false)
+  fingerprint String
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, userId, fingerprint])
+  @@index([tenantId, userId, isDismissed])
+  @@map("hccall_alerts")
 }
 
 model HccallSaleChange {

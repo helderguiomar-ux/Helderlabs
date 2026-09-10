@@ -13,7 +13,7 @@
   </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>HCCALL Telecom · HelderLabs</title>
+  <title>HCCALL 2.0 · Personal Sales Control</title>
   <meta name="theme-color" content="#0d419f">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -813,15 +813,31 @@
       },
 
       async loadConfig() {
-        const [resSvc, resPrm, resSts] = await Promise.all([
-          this.apiFetch('/api/hccall/services'),
-          this.apiFetch('/api/hccall/promotions'),
-          this.apiFetch('/api/hccall/statuses')
+        const [resProd, resDyn, resObj, resPerf, resAlert] = await Promise.all([
+          this.apiFetch('/api/hccall/products'),
+          this.apiFetch('/api/hccall/dynamizations'),
+          this.apiFetch('/api/hccall/objectives'),
+          this.apiFetch('/api/hccall/performance'),
+          this.apiFetch('/api/hccall/alerts')
         ]);
 
-        if (resSvc && resSvc.ok) this.services = (await resSvc.json()).services || [];
-        if (resPrm && resPrm.ok) this.promotions = (await resPrm.json()).promotions || [];
-        if (resSts && resSts.ok) this.statuses = (await resSts.json()).statuses || [];
+        if (resProd && resProd.ok) this.products = (await resProd.json()).products || [];
+        if (resDyn && resDyn.ok) this.dynamizations = (await resDyn.json()).dynamizations || [];
+        if (resObj && resObj.ok) this.objectives = (await resObj.json()).objectives || [];
+        if (resPerf && resPerf.ok) this.performance = (await resPerf.json());
+        if (resAlert && resAlert.ok) this.alerts = (await resAlert.json()).alerts || [];
+
+        // Conectar Live SSE para Desktop Auto-Refresh
+        if (!this.eventSourceConnected) {
+          try {
+            const evt = new EventSource('/api/hccall/events');
+            evt.addEventListener('sale_created', () => {
+              this.loadDashboard();
+              this.loadRecentSales();
+            });
+            this.eventSourceConnected = true;
+          } catch (_) {}
+        }
       },
 
       async loadDashboard() {
@@ -829,18 +845,21 @@
         document.getElementById('todayDateStr').innerText = today.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
         document.getElementById('monthNameStr').innerText = today.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
 
-        const res = await this.apiFetch('/api/hccall/dashboard');
-        if (res && res.ok) {
-          const data = await res.json();
-          document.getElementById('kpiTodayCount').innerText = data.today.count;
-          document.getElementById('kpiTodayComm').innerText = (data.today.totalCommissionCents / 100).toFixed(2) + ' €';
+        const resPerf = await this.apiFetch('/api/hccall/performance');
+        if (resPerf && resPerf.ok) {
+          const p = await resPerf.json();
+          this.performance = p;
+          document.getElementById('kpiTodayCount').innerText = p.currentPeriod.salesCount;
+          document.getElementById('kpiTodayComm').innerText = (p.currentPeriod.commissionCents / 100).toFixed(2) + ' €';
 
-          const breakdownHtml = Object.entries(data.today.statusBreakdown || {})
-            .map(([k, v]) => `<span class="pill">${v} ${k.toLowerCase()}</span>`).join('');
-          document.getElementById('kpiTodayBreakdown').innerHTML = breakdownHtml || '<span class="pill">Sem vendas hoje</span>';
+          const growth = p.homologousPeriod.salesGrowthPct;
+          document.getElementById('kpiMonthCount').innerText = p.currentPeriod.salesCount;
+          document.getElementById('kpiMonthComm').innerText = (p.currentPeriod.commissionCents / 100).toFixed(2) + ' €';
 
-          document.getElementById('kpiMonthCount').innerText = data.thisMonth.count;
-          document.getElementById('kpiMonthComm').innerText = (data.thisMonth.totalCommissionCents / 100).toFixed(2) + ' €';
+          const calGrid = document.getElementById('kpiTodayBreakdown');
+          if (calGrid && p.highlights) {
+            calGrid.innerHTML = `<span class="pill">Melhor dia: ${p.highlights.bestDay?.count || 0} vendas</span> <span class="pill">Média: ${p.currentPeriod.dailyAverage}/dia</span>`;
+          }
         }
       },
 

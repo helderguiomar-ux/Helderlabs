@@ -71,14 +71,14 @@ export class HccallConfigService {
 
   static async createPromotion(db: any, tenantId: string, userId: string, data: {
     name: string;
-    description?: string;
-    serviceId?: string;
+    description?: string | null;
+    serviceId?: string | null;
     suggestedCommissionCents?: number;
-    promoValueCents?: number;
-    startsAt?: string | Date;
-    endsAt?: string | Date;
+    promoValueCents?: number | null;
+    startsAt?: string | Date | null;
+    endsAt?: string | Date | null;
     active?: boolean;
-    notes?: string;
+    notes?: string | null;
   }) {
     return db.hccallPromotion.create({
       data: {
@@ -100,14 +100,14 @@ export class HccallConfigService {
 
   static async updatePromotion(db: any, tenantId: string, id: string, data: {
     name?: string;
-    description?: string;
-    serviceId?: string;
+    description?: string | null;
+    serviceId?: string | null;
     suggestedCommissionCents?: number;
-    promoValueCents?: number;
-    startsAt?: string | Date;
-    endsAt?: string | Date;
+    promoValueCents?: number | null;
+    startsAt?: string | Date | null;
+    endsAt?: string | Date | null;
     active?: boolean;
-    notes?: string;
+    notes?: string | null;
   }) {
     const existing = await db.hccallPromotion.findUnique({ where: { id } });
     if (!existing) throw new Error('Dinamização não encontrada.');

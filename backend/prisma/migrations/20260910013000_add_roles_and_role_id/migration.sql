@@ -1859,6 +1859,17 @@ CREATE TABLE IF NOT EXISTS "hccall_sale_changes" (
     CONSTRAINT "hccall_sale_changes_pkey" PRIMARY KEY ("id")
 );
 
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_sale_changes' AND column_name = 'authorUserId') THEN
+        ALTER TABLE "hccall_sale_changes" ALTER COLUMN "authorUserId" DROP NOT NULL;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_sale_changes' AND column_name = 'fieldChanged') THEN
+        ALTER TABLE "hccall_sale_changes" ALTER COLUMN "fieldChanged" DROP NOT NULL;
+    END IF;
+EXCEPTION
+    WHEN others THEN null;
+END $$;
+
 ALTER TABLE "hccall_sale_changes" ADD COLUMN IF NOT EXISTS "id" TEXT ;
 ALTER TABLE "hccall_sale_changes" ADD COLUMN IF NOT EXISTS "tenantId" TEXT ;
 ALTER TABLE "hccall_sale_changes" ADD COLUMN IF NOT EXISTS "saleId" TEXT ;

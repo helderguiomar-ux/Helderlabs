@@ -124,13 +124,11 @@ CREATE TABLE IF NOT EXISTS "hccall_sale_changes" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
     "saleId" TEXT NOT NULL,
-    "authorUserId" TEXT NOT NULL,
-    "fieldChanged" TEXT NOT NULL,
+    "field" TEXT NOT NULL,
     "oldValue" TEXT,
     "newValue" TEXT,
-    "oldCommissionCents" INTEGER,
-    "newCommissionCents" INTEGER,
     "reason" TEXT,
+    "changedByUserId" TEXT NOT NULL,
     "changedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "hccall_sale_changes_pkey" PRIMARY KEY ("id")

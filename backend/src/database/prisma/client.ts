@@ -125,6 +125,20 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
       END $$;
     `);
 
+    // 8. Sale changes column alignment
+    await prismaClient.$executeRawUnsafe(`
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_sale_changes' AND column_name = 'authorUserId') THEN
+          ALTER TABLE "hccall_sale_changes" ALTER COLUMN "authorUserId" DROP NOT NULL;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_sale_changes' AND column_name = 'fieldChanged') THEN
+          ALTER TABLE "hccall_sale_changes" ALTER COLUMN "fieldChanged" DROP NOT NULL;
+        END IF;
+      EXCEPTION
+        WHEN others THEN null;
+      END $$;
+    `);
+
     _schemaEnsured = true;
   } catch (error: any) {
     // Safe fallback: do not throw to allow queries to continue

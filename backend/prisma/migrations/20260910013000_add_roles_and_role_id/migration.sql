@@ -1894,7 +1894,18 @@ ALTER TABLE "hccall_contacts" ADD COLUMN IF NOT EXISTS "occurredAt" TIMESTAMP(3)
 ALTER TABLE "hccall_contacts" ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
 ALTER TABLE "hccall_contacts" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
--- CreateTable
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_counters' AND column_name = 'id') THEN
+        ALTER TABLE "hccall_counters" DROP CONSTRAINT IF EXISTS "hccall_counters_pkey";
+        ALTER TABLE "hccall_counters" DROP COLUMN "id";
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_counters' AND column_name = 'currentValue') THEN
+        ALTER TABLE "hccall_counters" RENAME COLUMN "currentValue" TO "value";
+    END IF;
+EXCEPTION
+    WHEN others THEN null;
+END $$;
+
 CREATE TABLE IF NOT EXISTS "hccall_counters" (
     "tenantId" TEXT NOT NULL,
     "year" INTEGER NOT NULL,

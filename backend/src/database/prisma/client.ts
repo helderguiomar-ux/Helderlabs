@@ -106,6 +106,25 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
     // 6. Index on role_permission_links
     await prismaClient.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "role_permission_links_roleId_permissionName_key" ON "role_permission_links"("roleId", "permissionName");`);
 
+    // 7. Counter tables alignment
+    await prismaClient.$executeRawUnsafe(`
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_counters' AND column_name = 'id') THEN
+          ALTER TABLE "hccall_counters" DROP CONSTRAINT IF EXISTS "hccall_counters_pkey";
+          ALTER TABLE "hccall_counters" DROP COLUMN "id";
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hccall_counters' AND column_name = 'currentValue') THEN
+          ALTER TABLE "hccall_counters" RENAME COLUMN "currentValue" TO "value";
+        END IF;
+        ALTER TABLE "hccall_counters" ADD COLUMN IF NOT EXISTS "value" INTEGER NOT NULL DEFAULT 0;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'hccall_counters_pkey') THEN
+          ALTER TABLE "hccall_counters" ADD CONSTRAINT "hccall_counters_pkey" PRIMARY KEY ("tenantId", "year", "scope");
+        END IF;
+      EXCEPTION
+        WHEN others THEN null;
+      END $$;
+    `);
+
     _schemaEnsured = true;
   } catch (error: any) {
     // Safe fallback: do not throw to allow queries to continue

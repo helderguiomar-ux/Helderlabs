@@ -152,13 +152,12 @@ CREATE TABLE IF NOT EXISTS "hccall_contacts" (
 );
 
 CREATE TABLE IF NOT EXISTS "hccall_counters" (
-    "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
-    "scope" TEXT NOT NULL,
     "year" INTEGER NOT NULL,
-    "currentValue" INTEGER NOT NULL DEFAULT 0,
+    "scope" TEXT NOT NULL,
+    "value" INTEGER NOT NULL DEFAULT 0,
 
-    CONSTRAINT "hccall_counters_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "hccall_counters_pkey" PRIMARY KEY ("tenantId","year","scope")
 );
 
 -- ----------------------------------------------------------------------------

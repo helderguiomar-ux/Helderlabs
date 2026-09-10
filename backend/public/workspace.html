@@ -334,6 +334,7 @@
       <div id="user-name-display" class="user-name">Utilizador</div>
       <div id="user-role-display" class="user-role">Cargo</div>
     </div>
+    <button id="platform-core-btn" class="btn btn-primary" style="display: none;" onclick="window.location.href='/super-admin.html'">👑 Platform Core</button>
     <button id="admin-settings-btn" class="btn btn-outline" style="display: none;" onclick="openTenantAdminModal()">⚙️ Definições</button>
     <button class="btn btn-outline" onclick="openChangePasswordModal()">🔒 Alterar Password</button>
     <button class="btn btn-outline" onclick="logout()">Sair</button>
@@ -545,9 +546,14 @@
     const userRoleEl = document.getElementById('user-role-display');
     if (userRoleEl) userRoleEl.textContent = user.role || 'Utilizador';
 
+    if (['SUPER_ADMIN', 'PLATFORM_ADMIN'].includes(user.role)) {
+      const pBtn = document.getElementById('platform-core-btn');
+      if (pBtn) pBtn.style.display = 'inline-flex';
+    }
+
     if (['TENANT_OWNER', 'TENANT_ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       const adminBtn = document.getElementById('admin-settings-btn');
-      if (adminBtn) adminBtn.style.display = 'block';
+      if (adminBtn) adminBtn.style.display = 'inline-flex';
     }
 
     // Render active vs upsell apps

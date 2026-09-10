@@ -86,7 +86,11 @@ export class ApplicationController {
       applications: apps.map(app => ({
         id:           app.id,
         moduleId:     app.moduleId,
+        moduleKey:    app.module.key,
         moduleName:   app.module.name,
+        moduleIcon:   app.module.icon,
+        moduleColor:  app.module.color,
+        moduleCategory: app.module.category,
         moduleActive: app.module.isActive,
         tenantId:     app.tenantId,
         tenantName:   app.tenant.name,

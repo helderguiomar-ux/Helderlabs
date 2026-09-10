@@ -83,7 +83,9 @@
       </nav>
     </div>
 
-    <div class="session-field">
+    <div class="session-field" style="display:flex; align-items:center; gap:10px;">
+      <a id="app-platform-core-btn" href="/super-admin.html" class="btn btn-sm btn-primary" style="display:none; text-decoration:none;">👑 Platform Core</a>
+      <a href="/workspace.html" class="btn btn-sm" style="text-decoration:none;">🏢 Workspace</a>
       <div class="who">
         <div class="name" id="user-display-name">Utilizador</div>
         <div class="tenant" id="tenant-display-name">Empresa</div>
@@ -749,6 +751,10 @@
         const data = await res.json();
         document.getElementById('user-display-name').innerText = data.user?.name || data.user?.email || 'Utilizador';
         document.getElementById('tenant-display-name').innerText = data.tenant?.name || 'Empresa';
+        if (data.user?.role === 'SUPER_ADMIN' || data.user?.role === 'PLATFORM_ADMIN') {
+          const pcBtn = document.getElementById('app-platform-core-btn');
+          if (pcBtn) pcBtn.style.display = 'inline-flex';
+        }
       } catch (e) {
         console.warn('Workspace check failed, using local session');
       }

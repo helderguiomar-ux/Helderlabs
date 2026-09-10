@@ -115,18 +115,31 @@
       👑 Platform Core
     </div>
     <div class="nav">
+      <div style="padding: 6px 20px; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px;">Administração</div>
       <a href="#" class="nav-item active" onclick="switchTab('tenants', this); return false;">🏢 Gestão de Empresas</a>
       <a href="#" class="nav-item" onclick="switchTab('approvals', this); return false;">📋 Aprovações de Contas <span id="pending-badge" style="background:var(--red); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:4px; display:none;">0</span></a>
       <a href="#" class="nav-item" onclick="switchTab('applications', this); return false;">📦 Aplicativos & Licenciamento</a>
       <a href="#" class="nav-item" onclick="switchTab('users', this); return false;">👥 Utilizadores Online</a>
       <a href="#" class="nav-item" onclick="switchTab('monitoring', this); return false;">🔍 Monitorização</a>
       <a href="#" class="nav-item" onclick="switchTab('roles', this); return false;">🔐 Perfis e Permissões</a>
+
+      <div style="margin-top: 15px; padding: 6px 20px; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid var(--rule); padding-top: 12px;">Módulos & Aplicações</div>
+      <a href="/workspace.html" class="nav-item" style="color:var(--pen); font-weight:700;">🚀 Abrir Workspace</a>
+      <a href="/app.html#/financas" class="nav-item">💼 Gestão Financeira</a>
+      <a href="/app.html#/crm" class="nav-item">👥 CRM 360º</a>
+      <a href="/app.html#/condominios" class="nav-item">🏢 Condomínios</a>
+      <a href="/app.html#/sellmais" class="nav-item">🛍️ 2SELLMAIS</a>
+      <a href="/hccall.html" class="nav-item">📞 HCCALL Telecom</a>
+      <a href="/app.html#/audit" class="nav-item">🛡️ Auditoria SHA-256</a>
     </div>
   </div>
 
   <div class="main-content">
     <div class="topbar">
-      <div class="db-status">Base de Dados: ONLINE (PostgreSQL)</div>
+      <div style="display:flex; align-items:center; gap:16px;">
+        <div class="db-status">Base de Dados: ONLINE (PostgreSQL)</div>
+        <a href="/workspace.html" class="btn btn-blue" style="text-decoration:none; padding:5px 14px; font-size:12px;">🚀 Aceder aos Módulos</a>
+      </div>
       <div class="user-menu">
         <button class="btn-theme-toggle" data-theme-toggle onclick="ERPTheme.toggleTheme()">
           <span class="theme-icon">☀️</span> Tema
@@ -837,15 +850,48 @@
     try {
       const data = await api('/api/platform/impersonate', {
         method: 'POST',
-        body: { targetTenantId: tenantId, reason: 'Suporte de Plataforma Super Admin' }
+        body: { targetTenantId: tenantId, reason: 'Acesso de Gestão aos Módulos', writeEnabled: true }
       });
 
       const sessionCopy = Object.assign({}, session, { token: data.token });
       ERPAuth.setSession(sessionCopy);
-      window.location.href = '/app.html#/crm';
+      window.location.href = '/workspace.html';
     } catch(e) {
-      alert('Erro ao iniciar sessão de suporte: ' + e.message);
+      alert('Erro ao aceder à empresa: ' + e.message);
     }
+  }
+
+  async function openModuleForTenant(tenantId, moduleKey, moduleName) {
+    try {
+      const currentTenantId = session?.user?.tenantId;
+
+      if (currentTenantId && currentTenantId === tenantId) {
+        routeToModule(moduleKey || moduleName);
+        return;
+      }
+
+      const data = await api('/api/platform/impersonate', {
+        method: 'POST',
+        body: { targetTenantId: tenantId, reason: `Acesso operacional ao módulo ${moduleName || moduleKey}`, writeEnabled: true }
+      });
+
+      const sessionCopy = Object.assign({}, session, { token: data.token });
+      ERPAuth.setSession(sessionCopy);
+      routeToModule(moduleKey || moduleName);
+    } catch(e) {
+      alert('Erro ao abrir módulo: ' + e.message);
+    }
+  }
+
+  function routeToModule(target) {
+    const t = (target || '').toLowerCase();
+    if (t.includes('crm')) window.location.href = '/app.html#/crm';
+    else if (t.includes('condominio')) window.location.href = '/app.html#/condominios';
+    else if (t.includes('finan') || t.includes('finance')) window.location.href = '/app.html#/financas';
+    else if (t.includes('sellmais') || t.includes('2sellmais')) window.location.href = '/app.html#/sellmais';
+    else if (t.includes('hccall')) window.location.href = '/hccall.html';
+    else if (t.includes('audit')) window.location.href = '/app.html#/audit';
+    else window.location.href = '/workspace.html';
   }
 
   async function toggleTenantStatus(tenantId, currentStatus) {
@@ -879,9 +925,14 @@
             <p style="color: var(--ink); font-size:13.5px; margin:0 0 6px 0; font-weight:600;">🏢 ${app.tenantName}</p>
             <p style="color: var(--ink-2); font-size:12px; margin:0 0 15px 0;">👥 ${app.usersCount} utilizador(es) atribuído(s)</p>
           </div>
-          <button class="btn btn-secondary" style="width:100%; justify-content:center;" onclick="openTenantLicensingModal('${app.tenantId}', '${app.tenantName.replace(/'/g, "\\'")}')">
-            📜 Ficha de Licenciamento
-          </button>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-blue" style="flex:1; justify-content:center;" onclick="openModuleForTenant('${app.tenantId}', '${app.moduleKey || ''}', '${(app.moduleName || '').replace(/'/g, "\\'")}')">
+              🚀 Abrir Módulo
+            </button>
+            <button class="btn btn-secondary" style="flex:1; justify-content:center;" onclick="openTenantLicensingModal('${app.tenantId}', '${app.tenantName.replace(/'/g, "\\'")}')">
+              📜 Ficha
+            </button>
+          </div>
         </div>
       `).join('');
     } catch(e) {

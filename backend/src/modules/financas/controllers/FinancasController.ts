@@ -101,12 +101,40 @@ export class FinancasController {
     const user = req.user as any;
     const db = forTenant(user.tenantId);
 
-    const accounts = await db.financeAccount.findMany({
-      where: { deletedAt: null },
-      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }]
+    const [accounts, transactions] = await Promise.all([
+      db.financeAccount.findMany({
+        where: { deletedAt: null },
+        orderBy: [{ isDefault: 'desc' }, { name: 'asc' }]
+      }),
+      db.financeTransaction.findMany({
+        where: { tenantId: user.tenantId, deletedAt: null }
+      })
+    ]);
+
+    const liveAccounts = accounts.map((acc: any) => {
+      let balance = acc.openingBalanceCents || 0;
+      for (const t of transactions) {
+        const isPaid = t.status === 'PAID' || t.paidDate !== null;
+        if (!isPaid) continue;
+
+        if (t.type === 'TRANSFER') {
+          if (t.accountId === acc.id) balance -= t.amountCents;
+          if (t.transferToId === acc.id) balance += t.amountCents;
+        } else {
+          if (t.accountId === acc.id) {
+            if (t.kind === 'INCOME') balance += t.amountCents;
+            else if (t.kind === 'EXPENSE') balance -= t.amountCents;
+          }
+        }
+      }
+
+      return {
+        ...acc,
+        currentBalanceCents: balance
+      };
     });
 
-    return reply.send({ success: true, accounts });
+    return reply.send({ success: true, accounts: liveAccounts });
   }
 
   /** POST /api/financas/accounts */

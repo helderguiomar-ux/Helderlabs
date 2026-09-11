@@ -7,6 +7,9 @@ import { AuditService } from '../modules/platform/services/AuditService';
 
 const PublicRegisterSchema = z.object({
   email: z.string().email('Email inválido'),
+  emailConfirmation: z.string().email('Email de confirmação inválido').optional(),
+  password: z.string().min(4, 'A palavra-passe deve ter pelo menos 4 caracteres').optional(),
+  passwordConfirmation: z.string().optional(),
   name: z.string().optional(),
   contactName: z.string().optional(),
   phone: z.string().optional(),
@@ -60,6 +63,25 @@ export async function publicRoutes(app: FastifyInstance) {
     }
 
     const cleanEmail = body.email.toLowerCase().trim();
+
+    if (body.emailConfirmation && cleanEmail !== body.emailConfirmation.toLowerCase().trim()) {
+      return reply.status(400).send({
+        error: 'EMAILS_DO_NOT_MATCH',
+        message: 'O email e a confirmação de email não coincidem.'
+      });
+    }
+
+    let passwordHash: string | null = null;
+    if (body.password) {
+      if (body.passwordConfirmation && body.password !== body.passwordConfirmation) {
+        return reply.status(400).send({
+          error: 'PASSWORDS_DO_NOT_MATCH',
+          message: 'A palavra-passe e a confirmação de palavra-passe não coincidem.'
+        });
+      }
+      passwordHash = await bcrypt.hash(body.password, 10);
+    }
+
     const contactName = body.contactName || body.name || cleanEmail.split('@')[0];
     const now = new Date();
 
@@ -114,6 +136,7 @@ export async function publicRoutes(app: FastifyInstance) {
           companyName: body.companyName || existingReq.companyName,
           intendedModule: body.intendedModule || existingReq.intendedModule,
           status: 'PENDING_VERIFICATION',
+          passwordHash: passwordHash || existingReq.passwordHash,
           emailVerifiedAt: null, // reinicia validação se for novo pedido
           otpHash,
           otpExpiresAt,
@@ -133,6 +156,7 @@ export async function publicRoutes(app: FastifyInstance) {
           phone: body.phone,
           companyName: body.companyName,
           intendedModule: body.intendedModule,
+          passwordHash,
           status: 'PENDING_VERIFICATION',
           emailVerifiedAt: null,
           otpHash,

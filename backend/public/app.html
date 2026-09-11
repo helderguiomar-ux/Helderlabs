@@ -73,8 +73,8 @@
           2SELLMAIS
         </button>
         <button class="tab-btn" data-tab="hccall" onclick="switchTab('hccall')">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-          HCCALL Telecom
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          HCCALL 2.0
         </button>
         <button class="tab-btn" data-tab="condominios" onclick="switchTab('condominios')">
           <svg class="icon" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
@@ -352,16 +352,16 @@
     </div>
 
     <!-- =====================================================================
-         PAINEL HCCALL TELECOM
+         PAINEL HCCALL 2.0 (PERSONAL SALES CONTROL)
          ===================================================================== -->
     <div id="panel-hccall" class="tab-panel">
       <div class="panel-card" style="text-align: center; padding: 48px 24px;">
-        <svg class="icon" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--primary); margin-bottom: 16px;"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>
-        <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700;">HCCALL Telecom — Operação Mobile-First</h2>
-        <p class="kpi-subtext" style="max-width: 500px; margin: 0 auto 24px;">Ferramenta de alta cadência desenhada para operadores de call center e lojas. Registo de vendas em menos de 20 segundos com suporte Offline-First.</p>
-        <div style="display: flex; justify-content: center; gap: 12px;">
-          <a href="/hccall.html" target="_blank" class="btn btn-primary" style="font-size: 15px; padding: 10px 20px;">Abrir Aplicação HCCALL PWA ↗</a>
-          <a href="/api/hccall/reports/export.csv" class="btn" style="font-size: 15px; padding: 10px 20px;">Exportar Relatório CSV</a>
+        <svg class="icon" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--primary); margin-bottom: 16px;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 700;">HCCALL 2.0 — Controlo Pessoal de Performance Comercial</h2>
+        <p class="kpi-subtext" style="max-width: 550px; margin: 0 auto 24px;">Plataforma genérica multi-setor (loja, externo, call center, B2B/B2C, retalho, seguros, telecomunicações, energia e banca). Registo ultrarrápido (< 15s), simulação de comissões, motor de escalões puro e suporte Offline-First.</p>
+        <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+          <a href="/hccall.html" target="_blank" class="btn btn-primary" style="font-size: 15px; padding: 10px 20px;">Abrir Cockpit PWA (Mobile / Desktop) ↗</a>
+          <a href="/api/hccall/reports/export.csv" class="btn" style="font-size: 15px; padding: 10px 20px;">Exportar Vendas CSV</a>
         </div>
       </div>
     </div>
@@ -442,6 +442,74 @@
         <div class="modal-footer">
           <button type="button" class="btn" onclick="window.FinanceModule.closeModal('modal-create-transaction')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Gravar Transação</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Editar Transação -->
+  <div id="modal-edit-transaction" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Editar Transação</h3>
+        <button class="btn btn-sm" onclick="window.FinanceModule.closeModal('modal-edit-transaction')">Fechar</button>
+      </div>
+      <form id="form-edit-transaction" onsubmit="window.FinanceModule.submitEditTransaction(event)">
+        <input type="hidden" name="id" id="edit-tx-id">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Descrição *</label>
+              <input type="text" name="description" id="edit-tx-description" required placeholder="Ex: Fatura Fornecedor TI">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo *</label>
+              <select name="kind" id="edit-tx-kind" required>
+                <option value="EXPENSE">Despesa (Saída)</option>
+                <option value="INCOME">Receita (Entrada)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor em Euros (€) *</label>
+              <input type="number" step="0.01" min="0.01" name="amount" id="edit-tx-amount" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data de Vencimento *</label>
+              <input type="date" name="dueDate" id="edit-tx-duedate" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Estado</label>
+              <select name="status" id="edit-tx-status">
+                <option value="PLANNED">Agendado (Comprometido)</option>
+                <option value="PAID">Liquidado / Pago</option>
+                <option value="CANCELLED">Cancelado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Conta Financeira</label>
+              <select name="accountId" id="edit-select-modal-accounts">
+                <option value="">Selecione a Conta</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Categoria</label>
+              <select name="categoryId" id="edit-select-modal-categories">
+                <option value="">Selecione a Categoria</option>
+              </select>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Entidade / Contraparte</label>
+              <input type="text" name="counterpartyName" id="edit-tx-counterparty" placeholder="Ex: Empresa XYZ, Lda">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Notas</label>
+              <textarea name="notes" id="edit-tx-notes" rows="2" style="width: 100%; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px; color: var(--text-primary);"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.FinanceModule.closeModal('modal-edit-transaction')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Atualizar Transação</button>
         </div>
       </form>
     </div>

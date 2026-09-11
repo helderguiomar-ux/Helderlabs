@@ -1,5 +1,8 @@
 import { prisma } from '../../../database/prisma/client';
 import crypto from 'node:crypto';
+import { CanonicalJson } from './CanonicalJson';
+
+export const GENESIS_PREV_HASH = '0'.repeat(64);
 
 export type AuditLogInput = {
   action: string;
@@ -37,7 +40,7 @@ export class AuditService {
     const allKeys = new Set([...Object.keys(oldVal), ...Object.keys(newVal)]);
     for (const key of allKeys) {
       if (key === 'updatedAt' || key === 'createdAt' || key === 'passwordHash') continue;
-      if (JSON.stringify(oldVal[key]) !== JSON.stringify(newVal[key])) {
+      if (CanonicalJson.stringify(oldVal[key]) !== CanonicalJson.stringify(newVal[key])) {
         diff[key] = { before: oldVal[key], after: newVal[key] };
       }
     }
@@ -45,68 +48,110 @@ export class AuditService {
   }
 
   /**
-   * Grava um registo de auditoria com encadeamento de hash SHA-256 e computação automática de diff
+   * Gera o digest canónico em string com ordenação e formatação determinística
+   */
+  public static computeCanonicalDigest(fields: {
+    actorId?: string | null;
+    onBehalfOfId?: string | null;
+    tenantId?: string | null;
+    action: string;
+    resource?: string | null;
+    resourceId?: string | null;
+    oldValue?: any;
+    newValue?: any;
+    timestamp: Date;
+    prevHash: string;
+  }): string {
+    return [
+      fields.actorId || '',
+      fields.onBehalfOfId || '',
+      fields.tenantId || '',
+      fields.action,
+      fields.resource || '',
+      fields.resourceId || '',
+      CanonicalJson.stringify(fields.oldValue ?? null),
+      CanonicalJson.stringify(fields.newValue ?? null),
+      fields.timestamp.toISOString(),
+      fields.prevHash
+    ].join('|');
+  }
+
+  private static partitionQueues: Map<string, Promise<any>> = new Map();
+
+  /**
+   * Grava um registo de auditoria com encadeamento de hash SHA-256 canónico e computação de diff
+   * Garante atomicidade e sequenciação estrita de hashes por partição (tenant ou global).
    */
   static async audit(input: AuditLogInput): Promise<void> {
-    try {
-      const tenantId = input.tenantId || null;
+    const partitionKey = input.tenantId || '__global__';
+    const previousPromise = this.partitionQueues.get(partitionKey) || Promise.resolve();
 
-      // Obter o último registo deste tenant para obter prevHash
-      const lastLog = await prisma.auditLog.findFirst({
-        where: tenantId ? { tenantId } : undefined,
-        orderBy: { seq: 'desc' }
-      });
+    const writeTask = async () => {
+      try {
+        const tenantId = input.tenantId || null;
 
-      const prevHash = lastLog?.hash || '';
-      const timestamp = new Date();
+        // Obter o último registo desta partição (tenant ou global) para obter prevHash
+        const lastLog = await prisma.auditLog.findFirst({
+          where: { tenantId },
+          orderBy: { seq: 'desc' }
+        });
 
-      const computedDiff = input.diff || (input.oldValue && input.newValue ? this.computeDiff(input.oldValue, input.newValue) : null);
+        const prevHash = lastLog?.hash || GENESIS_PREV_HASH;
+        const timestamp = new Date();
 
-      const canonicalPayload = [
-        input.actorId || '',
-        input.onBehalfOfId || '',
-        tenantId || '',
-        input.action,
-        input.resource || '',
-        input.resourceId || '',
-        JSON.stringify(input.oldValue || null),
-        JSON.stringify(input.newValue || null),
-        timestamp.toISOString(),
-        prevHash
-      ].join('|');
+        const computedDiff = input.diff || (input.oldValue && input.newValue ? this.computeDiff(input.oldValue, input.newValue) : null);
 
-      const hash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
-
-      await prisma.auditLog.create({
-        data: {
-          actorId: input.actorId || null,
-          actorEmail: input.actorEmail || null,
-          actorType: input.actorType || 'USER',
-          onBehalfOfId: input.onBehalfOfId || null,
-          impersonationId: input.impersonationId || null,
-          sessionId: input.sessionId || null,
+        const canonicalPayload = this.computeCanonicalDigest({
+          actorId: input.actorId,
+          onBehalfOfId: input.onBehalfOfId,
           tenantId,
-          module: input.module || null,
-          category: input.category || 'APPLICATION',
           action: input.action,
-          resource: input.resource || null,
-          resourceId: input.resourceId || null,
-          description: input.description || null,
-          oldValue: input.oldValue ? (input.oldValue as any) : null,
-          newValue: input.newValue ? (input.newValue as any) : null,
-          diff: computedDiff ? (computedDiff as any) : null,
-          result: input.result || 'SUCCESS',
-          requestId: input.requestId || null,
-          ipAddress: input.ipAddress || null,
-          userAgent: input.userAgent || null,
+          resource: input.resource,
+          resourceId: input.resourceId,
+          oldValue: input.oldValue,
+          newValue: input.newValue,
           timestamp,
-          prevHash,
-          hash
-        }
-      });
-    } catch (err: any) {
-      console.error('[AUDIT ERROR] Falha ao gravar registo de auditoria:', err.message || err);
-    }
+          prevHash
+        });
+
+        const hash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
+
+        await prisma.auditLog.create({
+          data: {
+            actorId: input.actorId || null,
+            actorEmail: input.actorEmail || null,
+            actorType: input.actorType || 'USER',
+            onBehalfOfId: input.onBehalfOfId || null,
+            impersonationId: input.impersonationId || null,
+            sessionId: input.sessionId || null,
+            tenantId,
+            module: input.module || null,
+            category: input.category || 'APPLICATION',
+            action: input.action,
+            resource: input.resource || null,
+            resourceId: input.resourceId || null,
+            description: input.description || null,
+            oldValue: input.oldValue ? (input.oldValue as any) : null,
+            newValue: input.newValue ? (input.newValue as any) : null,
+            diff: computedDiff ? (computedDiff as any) : null,
+            result: input.result || 'SUCCESS',
+            requestId: input.requestId || null,
+            ipAddress: input.ipAddress || null,
+            userAgent: input.userAgent || null,
+            timestamp,
+            prevHash,
+            hash
+          }
+        });
+      } catch (err: any) {
+        console.error('[AUDIT ERROR] Falha ao gravar registo de auditoria:', err.message || err);
+      }
+    };
+
+    const currentPromise = previousPromise.then(writeTask, writeTask);
+    this.partitionQueues.set(partitionKey, currentPromise);
+
+    await currentPromise;
   }
 
   /**
@@ -181,61 +226,74 @@ export class AuditService {
   }
 
   /**
-   * Verifica a integridade da cadeia de hashes para um tenant (ou global)
+   * Verifica a integridade da cadeia de hashes para uma partição específica (tenant ou global)
    */
-  static async verifyAuditChain(tenantId?: string): Promise<{ valid: boolean; totalLogs: number; invalidAtId?: string; reason?: string }> {
-    if (!tenantId) {
-      const tenants = await prisma.tenant.findMany({ select: { id: true } });
-      let total = 0;
-      for (const t of tenants) {
-        const res = await this.verifyAuditChain(t.id);
-        if (!res.valid) return res;
-        total += res.totalLogs;
-      }
-      return { valid: true, totalLogs: total };
-    }
-
+  public static async verifyAuditChainForPartition(partitionTenantId: string | null): Promise<{ valid: boolean; totalLogs: number; invalidAtId?: string; reason?: string }> {
     const logs = await prisma.auditLog.findMany({
-      where: { tenantId },
+      where: { tenantId: partitionTenantId },
       orderBy: { seq: 'asc' }
     });
 
-    let expectedPrevHash = '';
+    if (logs.length === 0) {
+      return { valid: true, totalLogs: 0 };
+    }
+
+    let expectedPrevHash = GENESIS_PREV_HASH;
 
     for (let i = 0; i < logs.length; i++) {
       const log = logs[i];
 
-      if (log.prevHash !== expectedPrevHash) {
+      // Suporte para génese (64 zeros ou string vazia legada no primeiro registo)
+      const isGenesis = (i === 0) && (log.prevHash === '' || log.prevHash === GENESIS_PREV_HASH);
+      if (!isGenesis && log.prevHash !== expectedPrevHash) {
         return {
           valid: false,
           totalLogs: logs.length,
           invalidAtId: log.id,
-          reason: `Adulteração detetada em prevHash na linha seq=${log.seq.toString()}`
+          reason: `Adulteração detetada em prevHash na linha seq=${log.seq.toString()} (Esperado: ${expectedPrevHash}, Obtido: ${log.prevHash})`
         };
       }
 
-      const canonicalPayload = [
-        log.actorId || '',
-        log.onBehalfOfId || '',
-        log.tenantId || '',
-        log.action,
-        log.resource || '',
-        log.resourceId || '',
-        JSON.stringify(log.oldValue || null),
-        JSON.stringify(log.newValue || null),
-        log.timestamp.toISOString(),
-        log.prevHash || ''
-      ].join('|');
+      const canonicalPayload = this.computeCanonicalDigest({
+        actorId: log.actorId,
+        onBehalfOfId: log.onBehalfOfId,
+        tenantId: log.tenantId,
+        action: log.action,
+        resource: log.resource,
+        resourceId: log.resourceId,
+        oldValue: log.oldValue,
+        newValue: log.newValue,
+        timestamp: log.timestamp,
+        prevHash: log.prevHash || (i === 0 ? '' : expectedPrevHash)
+      });
 
       const computedHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
 
+      // Tentar tanto com prevHash exato como com o computedPayload
       if (log.hash !== computedHash) {
-        return {
-          valid: false,
-          totalLogs: logs.length,
-          invalidAtId: log.id,
-          reason: `Adulteração de payload detetada na linha seq=${log.seq.toString()}`
-        };
+        // Testar fallback para payload legado se for registo antigo
+        const legacyPayload = [
+          log.actorId || '',
+          log.onBehalfOfId || '',
+          log.tenantId || '',
+          log.action,
+          log.resource || '',
+          log.resourceId || '',
+          JSON.stringify(log.oldValue || null),
+          JSON.stringify(log.newValue || null),
+          log.timestamp.toISOString(),
+          log.prevHash || ''
+        ].join('|');
+        const legacyHash = crypto.createHash('sha256').update(legacyPayload).digest('hex');
+
+        if (log.hash !== legacyHash) {
+          return {
+            valid: false,
+            totalLogs: logs.length,
+            invalidAtId: log.id,
+            reason: `Adulteração de payload detetada na linha seq=${log.seq.toString()}`
+          };
+        }
       }
 
       expectedPrevHash = log.hash;
@@ -245,6 +303,89 @@ export class AuditService {
       valid: true,
       totalLogs: logs.length
     };
+  }
+
+  /**
+   * Verifica a integridade da cadeia de hashes para todos os tenants e partição global
+   */
+  static async verifyAuditChain(tenantId?: string): Promise<{ valid: boolean; totalLogs: number; invalidAtId?: string; reason?: string }> {
+    if (tenantId === undefined) {
+      const tenants = await prisma.tenant.findMany({ select: { id: true } });
+      let total = 0;
+
+      // Verificar partição global
+      const globalRes = await this.verifyAuditChainForPartition(null);
+      if (!globalRes.valid) return globalRes;
+      total += globalRes.totalLogs;
+
+      // Verificar cada tenant
+      for (const t of tenants) {
+        const res = await this.verifyAuditChainForPartition(t.id);
+        if (!res.valid) return res;
+        total += res.totalLogs;
+      }
+      return { valid: true, totalLogs: total };
+    }
+
+    return this.verifyAuditChainForPartition(tenantId);
+  }
+
+  /**
+   * Re-sela canonicamente a cadeia de um tenant gerando obrigatoriamente um evento auditável CHAIN_REPAIR
+   */
+  static async repairChain(tenantId: string | null, reason: string, superAdminId: string): Promise<{ repairedCount: number }> {
+    const logs = await prisma.auditLog.findMany({
+      where: { tenantId },
+      orderBy: { seq: 'asc' }
+    });
+
+    let currentPrevHash = GENESIS_PREV_HASH;
+    let repairedCount = 0;
+    const oldHashes: Record<string, string> = {};
+
+    for (const log of logs) {
+      oldHashes[log.id] = log.hash || '';
+      const canonicalPayload = this.computeCanonicalDigest({
+        actorId: log.actorId,
+        onBehalfOfId: log.onBehalfOfId,
+        tenantId: log.tenantId,
+        action: log.action,
+        resource: log.resource,
+        resourceId: log.resourceId,
+        oldValue: log.oldValue,
+        newValue: log.newValue,
+        timestamp: log.timestamp,
+        prevHash: currentPrevHash
+      });
+
+      const newHash = crypto.createHash('sha256').update(canonicalPayload).digest('hex');
+
+      await prisma.auditLog.update({
+        where: { id: log.id },
+        data: {
+          prevHash: currentPrevHash,
+          hash: newHash
+        }
+      });
+
+      currentPrevHash = newHash;
+      repairedCount++;
+    }
+
+    // Gravar evento formal CHAIN_REPAIR
+    await this.audit({
+      actorId: superAdminId,
+      actorType: 'SUPER_ADMIN',
+      tenantId: tenantId || undefined,
+      action: 'CHAIN_REPAIR',
+      resource: 'AuditChain',
+      description: `Re-selagem canónica da cadeia criptográfica: ${reason}`,
+      oldValue: { repairedCount, sampleOldHashes: Object.entries(oldHashes).slice(0, 5) },
+      newValue: { status: 'SEALED_CANONICAL', finalHash: currentPrevHash, timestamp: new Date().toISOString() },
+      result: 'SUCCESS'
+    });
+
+    return { repairedCount };
   }
 
   /**

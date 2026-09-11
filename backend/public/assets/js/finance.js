@@ -340,8 +340,58 @@ window.FinanceModule = {
     }
   },
 
+  populateSelectOptions(accountSelectId, categorySelectId, selectedAccountId, selectedCategoryId) {
+    const accSelect = document.getElementById(accountSelectId);
+    if (accSelect) {
+      accSelect.innerHTML = '<option value="">Selecione a Conta</option>' +
+        this.accounts.map(a => `<option value="${a.id}" ${a.id === selectedAccountId ? 'selected' : ''}>${a.name} (${this.formatEUR(a.currentBalanceCents)})</option>`).join('');
+    }
+    const catSelect = document.getElementById(categorySelectId);
+    if (catSelect) {
+      catSelect.innerHTML = '<option value="">Selecione a Categoria</option>' +
+        this.categories.map(c => `<option value="${c.id}" ${c.id === selectedCategoryId ? 'selected' : ''}>${c.name} (${c.kind === 'INCOME' ? 'Receita' : 'Despesa'})</option>`).join('');
+    }
+  },
+
   openCreateModal() {
+    this.populateSelectOptions('select-modal-accounts', 'select-modal-categories');
     const modal = document.getElementById('modal-create-transaction');
+    if (modal) {
+      modal.classList.add('show');
+    }
+  },
+
+  editTransaction(id) {
+    const tx = this.transactions.find(t => t.id === id);
+    if (!tx) {
+      alert('Transação não encontrada.');
+      return;
+    }
+
+    const editId = document.getElementById('edit-tx-id');
+    const editDesc = document.getElementById('edit-tx-description');
+    const editKind = document.getElementById('edit-tx-kind');
+    const editAmount = document.getElementById('edit-tx-amount');
+    const editDueDate = document.getElementById('edit-tx-duedate');
+    const editStatus = document.getElementById('edit-tx-status');
+    const editCounterparty = document.getElementById('edit-tx-counterparty');
+    const editNotes = document.getElementById('edit-tx-notes');
+
+    if (editId) editId.value = tx.id;
+    if (editDesc) editDesc.value = tx.description || '';
+    if (editKind) editKind.value = tx.kind || 'EXPENSE';
+    if (editAmount) editAmount.value = (tx.amountCents / 100).toFixed(2);
+    if (editDueDate) {
+      const d = tx.dueDate ? new Date(tx.dueDate).toISOString().split('T')[0] : '';
+      editDueDate.value = d;
+    }
+    if (editStatus) editStatus.value = tx.status || 'PLANNED';
+    if (editCounterparty) editCounterparty.value = tx.counterpartyName || '';
+    if (editNotes) editNotes.value = tx.notes || '';
+
+    this.populateSelectOptions('edit-select-modal-accounts', 'edit-select-modal-categories', tx.accountId, tx.categoryId);
+
+    const modal = document.getElementById('modal-edit-transaction');
     if (modal) {
       modal.classList.add('show');
     }
@@ -388,6 +438,45 @@ window.FinanceModule = {
       }
     } catch (err) {
       console.error('[SUBMIT TRANSACTION ERROR]', err);
+    }
+  },
+
+  async submitEditTransaction(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const id = formData.get('id');
+
+    if (!id) return;
+
+    const payload = {
+      description: formData.get('description'),
+      kind: formData.get('kind'),
+      amountCents: Math.round(parseFloat(formData.get('amount')) * 100),
+      dueDate: formData.get('dueDate'),
+      status: formData.get('status') || 'PLANNED',
+      accountId: formData.get('accountId') || null,
+      categoryId: formData.get('categoryId') || null,
+      counterpartyName: formData.get('counterpartyName') || null,
+      notes: formData.get('notes') || null
+    };
+
+    try {
+      const fetchFn = window.apiFetch || fetch;
+      const res = await fetchFn(`/api/financas/transactions/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        this.closeModal('modal-edit-transaction');
+        await this.init();
+      } else {
+        const errData = await res.json();
+        alert('Erro ao atualizar transação: ' + (errData.message || 'Verifique os dados.'));
+      }
+    } catch (err) {
+      console.error('[SUBMIT EDIT TRANSACTION ERROR]', err);
     }
   }
 };

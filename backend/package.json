@@ -28,6 +28,7 @@
         "test": "node scripts/collect-and-run-tests.mjs",
         "test:e2e": "node scripts/run-e2e-audit.mjs",
         "test:browser": "node scripts/test-e2e-browser.mjs",
+        "audit:verify": "tsx scripts/verify-audit-chain.ts",
         "seed": "npm run db:seed"
     },
     "dependencies": {

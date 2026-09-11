@@ -10,6 +10,7 @@ import { SellConsignmentService } from '../services/SellConsignmentService';
 import { SellChannelService } from '../services/SellChannelService';
 import { SellAuctionService } from '../services/SellAuctionService';
 import { SellAiService } from '../services/SellAiService';
+import { MediaStorageService } from '../services/MediaStorageService';
 
 
 // ===========================================================================
@@ -654,5 +655,51 @@ export class SellmaisController {
     const report = await SellItemService.getProfitabilityReport(db, user.tenantId);
     return reply.send({ success: true, ...report });
   }
+
+  // =========================================================================
+  // STORAGE CLOUDFLARE R2 & PRESIGNED URLS (D-16)
+  // =========================================================================
+
+  static async getPresignedMediaUrl(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const body = z.object({
+      itemId: z.string().optional(),
+      fileName: z.string().min(1),
+      contentType: z.string().min(1),
+      sizeBytes: z.number().int().positive().optional()
+    }).parse(req.body);
+
+    const result = await MediaStorageService.generatePresignedUploadUrl({
+      tenantId: user.tenantId,
+      userId: user.sub,
+      itemId: body.itemId,
+      fileName: body.fileName,
+      contentType: body.contentType,
+      sizeBytes: body.sizeBytes
+    });
+
+    return reply.send({ success: true, ...result });
+  }
+
+  // =========================================================================
+  // VERCEL CRON: ENCERRAMENTO ATÓMICO DE LEILÕES (B.3)
+  // =========================================================================
+
+  static async closePendingAuctions(req: FastifyRequest, reply: FastifyReply) {
+    const authHeader = req.headers['authorization'];
+    const cronSecret = process.env.CRON_SECRET || 'dev_cron_secret';
+    const isVercelCron = req.headers['x-vercel-cron'] === '1' || (authHeader && authHeader === `Bearer ${cronSecret}`);
+    const user = req.user as any;
+
+    // Permitido via Vercel Cron Secret ou Super Admin
+    if (!isVercelCron && (!user || (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN'))) {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Apenas crons autorizados ou administradores podem executar esta operação.' });
+    }
+
+    const tenantId = user?.tenantId;
+    const result = await SellAuctionService.closePendingAuctions(tenantId);
+    return reply.send({ success: true, ...result });
+  }
 }
+
 

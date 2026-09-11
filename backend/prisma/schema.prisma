@@ -775,6 +775,7 @@ model AccountRequest {
   email             String    @unique
   phone             String?
   intendedModule    String?
+  passwordHash      String?
   status            String    @default("PENDING")
   otpHash           String?
   otpExpiresAt      DateTime?

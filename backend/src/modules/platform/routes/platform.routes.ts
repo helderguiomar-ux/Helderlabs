@@ -7,6 +7,7 @@ import { AuditService } from '../services/AuditService';
 export async function platformRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (request, reply) => {
     await app.authenticate(request, reply);
+    if (reply.sent) return;
     if (request.user?.role !== 'SUPER_ADMIN' && request.user?.role !== 'PLATFORM_ADMIN') {
       return reply.status(403).send({ message: 'Acesso negado.' });
     }

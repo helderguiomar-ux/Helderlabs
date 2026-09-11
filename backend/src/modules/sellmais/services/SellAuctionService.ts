@@ -169,4 +169,70 @@ export class SellAuctionService {
       orderBy: { startsAt: 'desc' }
     });
   }
+
+  /**
+   * Closes all expired auctions atomically and settles winning lots.
+   * Invoked idempotently by Vercel Cron or background worker.
+   */
+  static async closePendingAuctions(tenantId?: string): Promise<{ closedAuctionsCount: number; settledLotsCount: number }> {
+    const now = new Date();
+    const where: any = {
+      endsAt: { lte: now },
+      status: { in: ['ACTIVE', 'SCHEDULED'] }
+    };
+    if (tenantId) where.tenantId = tenantId;
+
+    const expiredAuctions = await prisma.sellAuction.findMany({
+      where,
+      include: {
+        lots: true
+      }
+    });
+
+    let closedAuctionsCount = 0;
+    let settledLotsCount = 0;
+
+    for (const auction of expiredAuctions) {
+      await prisma.$transaction(async (tx) => {
+        for (const lot of auction.lots) {
+          const meetsReserve = lot.currentBidCents > 0 &&
+            (!lot.reservePriceCents || lot.currentBidCents >= lot.reservePriceCents);
+
+          if (meetsReserve && lot.winningBidId) {
+            await tx.sellAuctionLot.update({
+              where: { id: lot.id },
+              data: { status: 'SOLD' }
+            });
+            await tx.sellItem.update({
+              where: { id: lot.itemId },
+              data: {
+                status: 'SOLD',
+                soldPriceCents: lot.currentBidCents,
+                soldAt: now
+              }
+            });
+            settledLotsCount++;
+          } else {
+            await tx.sellAuctionLot.update({
+              where: { id: lot.id },
+              data: { status: 'UNSOLD' }
+            });
+            await tx.sellItem.update({
+              where: { id: lot.itemId },
+              data: { status: 'AVAILABLE' }
+            });
+          }
+        }
+
+        await tx.sellAuction.update({
+          where: { id: auction.id },
+          data: { status: 'CLOSED' }
+        });
+        closedAuctionsCount++;
+      });
+    }
+
+    return { closedAuctionsCount, settledLotsCount };
+  }
 }
+

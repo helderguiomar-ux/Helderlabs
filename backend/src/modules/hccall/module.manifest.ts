@@ -1,11 +1,11 @@
 export const manifest = {
   key: 'hccall',
-  name: 'HCCALL Telecom',
-  icon: 'headset',
+  name: 'HCCALL 2.0 (Personal Sales Control)',
+  icon: 'trending-up',
   color: '#0d419f',
   routePrefix: '/api/hccall',
   frontendEntry: '/hccall.html',
   permissions: ['hccall.use'],
-  features: ['offline', 'commissions', 'promotions'],
-  defaultLimits: { vendas: 50000, clientes: 20000 }
+  features: ['offline', 'commissions', 'dynamizations', 'objectives', 'performance', 'simulator'],
+  defaultLimits: { vendas: 100000, clientes: 50000 }
 };

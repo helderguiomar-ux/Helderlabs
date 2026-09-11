@@ -299,30 +299,64 @@
     <button class="btn-link" type="button" onclick="skipPassword()">Ignorar e entrar no Workspace</button>
   </div>
 
-  <!-- Step 5: Request Access (Solicitar Acesso) -->
+  <!-- Step 5: Request Access (Registo de Conta / Solicitar Acesso) -->
   <div id="step-request-access" class="step">
-    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Solicite uma demonstração ou conta de empresa para o HelderLabs ERP</p>
+    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Crie a sua conta ou solicite acesso para a sua empresa</p>
     <div class="input-group">
-      <label for="req-name">Nome Completo</label>
-      <input type="text" id="req-name" placeholder="O seu nome">
+      <label for="req-name">Nome Completo *</label>
+      <input type="text" id="req-name" placeholder="O seu nome completo" required>
     </div>
     <div class="input-group">
-      <label for="req-email">Email Corporativo</label>
-      <input type="email" id="req-email" placeholder="nome@empresa.pt">
+      <label for="req-email">Email Corporativo *</label>
+      <input type="email" id="req-email" placeholder="nome@empresa.pt" required autocomplete="username">
     </div>
     <div class="input-group">
-      <label for="req-company">Empresa / Organização</label>
-      <input type="text" id="req-company" placeholder="Nome da empresa">
+      <label for="req-email-confirm">Confirmar Email Corporativo *</label>
+      <input type="email" id="req-email-confirm" placeholder="Reintroduza o email corporativo" required>
+    </div>
+    <div class="input-group">
+      <label for="req-password">Palavra-passe *</label>
+      <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" id="req-password" placeholder="No mínimo 6 caracteres" autocomplete="new-password" style="padding-right: 40px;" required>
+        <button type="button" onclick="togglePasswordVisibility('req-password', this)" title="Mostrar/Ocultar" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--ink-3); padding: 4px; display: flex; align-items: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label for="req-password-confirm">Confirmar Palavra-passe *</label>
+      <div style="position: relative; display: flex; align-items: center;">
+        <input type="password" id="req-password-confirm" placeholder="Reintroduza a palavra-passe" autocomplete="new-password" style="padding-right: 40px;" required>
+        <button type="button" onclick="togglePasswordVisibility('req-password-confirm', this)" title="Mostrar/Ocultar" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--ink-3); padding: 4px; display: flex; align-items: center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label for="req-company">Empresa / Organização *</label>
+      <input type="text" id="req-company" placeholder="Nome da empresa ou projeto" required>
     </div>
     <div class="input-group">
       <label for="req-phone">Telefone de Contacto</label>
       <input type="tel" id="req-phone" placeholder="912 345 678">
     </div>
     <div class="input-group">
-      <label for="req-message">Mensagem / Módulos Pretendidos</label>
-      <input type="text" id="req-message" placeholder="Ex: CRM, Gestão de Condomínios, Finanças...">
+      <label for="req-message">Módulos Pretendidos</label>
+      <input type="text" id="req-message" placeholder="Ex: CRM, HCCALL 2.0, Finanças, Condomínios, 2SELLMAIS">
     </div>
-    <button class="btn" type="button" onclick="submitRequestAccess()">Enviar Pedido de Acesso</button>
+    <div style="margin-bottom: 16px; display: flex; align-items: flex-start; gap: 8px;">
+      <input type="checkbox" id="req-terms" checked required style="margin-top: 3px; cursor: pointer;">
+      <label for="req-terms" style="font-size: 0.8rem; color: var(--ink-2); cursor: pointer; line-height: 1.3;">
+        Li e aceito os <a href="#" style="color: var(--pen); text-decoration: underline;">Termos e Condições</a> e a <a href="#" style="color: var(--pen); text-decoration: underline;">Política de Privacidade (RGPD)</a>.
+      </label>
+    </div>
+    <button class="btn" type="button" onclick="submitRequestAccess()">Registar e Validar Email</button>
     <button class="btn-link" type="button" onclick="showStep('step-email')">← Voltar ao Login</button>
   </div>
 </div>
@@ -501,7 +535,21 @@
         body: JSON.stringify({ email: currentEmail, code })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Código inválido ou expirado.');
+      
+      // Se não for rota de login mas sim verificação de email de registo público
+      if (!res.ok) {
+        const publicRes = await fetch('/api/public/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: currentEmail, code })
+        });
+        const publicData = await publicRes.json();
+        if (!publicRes.ok) throw new Error(publicData.message || publicData.error || 'Código de verificação incorreto.');
+
+        showSuccess('✅ Email validado com sucesso! O seu pedido de conta aguarda aprovação pelo Administrador.');
+        setTimeout(() => showStep('step-email'), 3500);
+        return;
+      }
 
       if (data.requiresPasswordSetup) {
         sessionToken = data.token;
@@ -564,12 +612,21 @@
   async function submitRequestAccess() {
     const name = document.getElementById('req-name').value.trim();
     const email = document.getElementById('req-email').value.trim();
+    const emailConfirm = document.getElementById('req-email-confirm').value.trim();
+    const password = document.getElementById('req-password').value;
+    const passwordConfirm = document.getElementById('req-password-confirm').value;
     const companyName = document.getElementById('req-company').value.trim();
     const phone = document.getElementById('req-phone').value.trim();
     const intendedModule = document.getElementById('req-message').value.trim() || 'all';
+    const terms = document.getElementById('req-terms').checked;
 
-    if (!name || name.length < 2) return showError('Por favor introduza o seu nome.');
-    if (!email || !email.includes('@')) return showError('Por favor introduza um email válido.');
+    if (!name || name.length < 2) return showError('Por favor introduza o seu nome completo.');
+    if (!email || !email.includes('@')) return showError('Por favor introduza um email corporativo válido.');
+    if (email !== emailConfirm) return showError('O email e a confirmação de email não coincidem.');
+    if (!password || password.length < 4) return showError('A palavra-passe deve ter no mínimo 4 caracteres.');
+    if (password !== passwordConfirm) return showError('A palavra-passe e a confirmação não coincidem.');
+    if (!companyName) return showError('Por favor introduza o nome da sua empresa.');
+    if (!terms) return showError('Deverá aceitar os Termos e Condições e a Política de Privacidade.');
 
     try {
       const res = await fetch('/api/public/register', {
@@ -579,6 +636,9 @@
           name,
           contactName: name,
           email,
+          emailConfirmation: emailConfirm,
+          password,
+          passwordConfirmation: passwordConfirm,
           companyName,
           phone,
           intendedModule,
@@ -587,10 +647,12 @@
         })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao enviar pedido.');
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao enviar pedido de registo.');
 
-      showSuccess('O seu pedido de acesso foi registado com sucesso! A nossa equipa de administração irá rever e aprovar a conta.');
-      setTimeout(() => showStep('step-email'), 3500);
+      currentEmail = email;
+      showStep('step-otp');
+      showSuccess('Código de validação enviado para ' + email + '. Introduza o código para concluir o pedido.');
+      setupOtpInputs();
     } catch (err) {
       showError(err.message);
     }

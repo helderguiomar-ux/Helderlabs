@@ -9,7 +9,6 @@ import { PrismaClient } from '@prisma/client';
 //    precisar de um Prisma Client gerado — o `new PrismaClient()` real só
 //    corre se alguém aceder a uma propriedade do objeto `prisma`.
 declare global {
-  // eslint-disable-next-line no-var
   var __prisma: PrismaClient | undefined;
 }
 

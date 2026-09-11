@@ -21,6 +21,7 @@ import { SellPublicCatalogService } from './modules/sellmais/services/SellPublic
 import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
 import { AuditService } from './modules/platform/services/AuditService';
+import { VersionController } from './modules/platform/controllers/VersionController';
 
 export function buildApp() {
   const app = Fastify({
@@ -165,7 +166,7 @@ export function buildApp() {
   });
 
   app.addHook('onRequest', async (request, reply) => {
-    if (request.url.startsWith('/api/') && request.url !== '/api/health') {
+    if (request.url.startsWith('/api/') && request.url !== '/api/health' && request.url !== '/api/version') {
       const isDbReady = await checkDatabaseReady();
       if (!isDbReady) {
         return reply.status(503).send({
@@ -217,6 +218,8 @@ export function buildApp() {
       environment: process.env.ENVIRONMENT || 'DEVELOPMENT'
     };
   });
+
+  app.get('/api/version', VersionController.getVersion);
 
   app.get('/health', async (request, reply) => {
     reply.redirect('/api/health');

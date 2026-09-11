@@ -198,7 +198,7 @@ export class FinanceCalcService {
       where: {
         tenantId,
         deletedAt: null,
-        status: { in: ['PLANNED', 'PENDING'] },
+        status: 'PLANNED',
         dueDate: {
           gte: today,
           lte: endDate

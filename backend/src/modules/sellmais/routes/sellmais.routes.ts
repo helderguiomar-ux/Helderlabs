@@ -74,11 +74,12 @@ export async function sellmaisRoutes(app: FastifyInstance) {
     protectedApp.post('/lots/:lotId/bid', SellmaisController.placeBid);
 
     // -----------------------------------------------------------------------
-    // PROVENIÊNCIA, RESTAUROS & MEDIA (Fase 7)
+    // PROVENIÊNCIA, RESTAUROS & MEDIA (Fase 7 & D-16)
     // -----------------------------------------------------------------------
     protectedApp.post('/items/:id/provenance', SellmaisController.addProvenance);
     protectedApp.post('/items/:id/restorations', SellmaisController.addRestoration);
     protectedApp.post('/items/:id/media', SellmaisController.addMedia);
+    protectedApp.post('/media/presigned-url', SellmaisController.getPresignedMediaUrl);
     protectedApp.delete('/media/:mediaId', SellmaisController.deleteMedia);
 
     // -----------------------------------------------------------------------
@@ -95,5 +96,10 @@ export async function sellmaisRoutes(app: FastifyInstance) {
     protectedApp.get('/reports/alerts', SellmaisController.getAlerts);
     protectedApp.get('/reports/profitability', SellmaisController.getProfitabilityReport);
   });
+
+  // Vercel Cron Endpoint (Sem autenticação de utilizador, validado por CRON_SECRET)
+  app.post('/auctions/close-pending', SellmaisController.closePendingAuctions);
+  app.get('/auctions/close-pending', SellmaisController.closePendingAuctions);
 }
+
 

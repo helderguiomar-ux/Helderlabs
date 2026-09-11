@@ -483,7 +483,7 @@ tr:hover td {
   justify-content: center;
   padding: 20px;
 }
-.modal-overlay.show { display: flex; }
+.modal-overlay.show, .modal-overlay.active { display: flex; }
 
 .modal-content {
   background: var(--surface-1);

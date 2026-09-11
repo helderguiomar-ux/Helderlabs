@@ -1,4 +1,4 @@
-﻿/**
+/**
  * HCCALL 2.0 — Motor Puro de Cálculo de Comissões e Simulação Comercial
  *
  * REQUISITOS DE DESIGN:

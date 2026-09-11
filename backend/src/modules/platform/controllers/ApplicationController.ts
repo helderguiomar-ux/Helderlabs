@@ -485,6 +485,7 @@ export class ApplicationController {
             tenantId: targetTenantId,
             name: contactName,
             email: accountReq.email,
+            passwordHash: accountReq.passwordHash || null,
             role: body.role as any,
             status: 'ACTIVE',
             active: true,
@@ -498,7 +499,8 @@ export class ApplicationController {
             tenantId: targetTenantId,
             role: body.role as any,
             status: 'ACTIVE',
-            active: true
+            active: true,
+            ...(accountReq.passwordHash && !targetUser.passwordHash && { passwordHash: accountReq.passwordHash })
           }
         });
       }

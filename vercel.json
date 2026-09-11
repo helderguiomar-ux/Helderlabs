@@ -60,7 +60,7 @@
   "crons": [
     {
       "path": "/api/sellmais/auctions/close-pending",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }

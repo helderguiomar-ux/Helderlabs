@@ -31,14 +31,14 @@ posterior.
 
 | | |
 |:--|:--|
-| **Versão do código** | 1.3.0 (por commitar) |
-| **Versão em produção** | 1.1.0 · commit `f9bd32b` |
+| **Versão do código** | 1.3.0 · commit `051e6e6` |
+| **Versão em produção** | 1.3.0 · commit `051e6e6` |
 | **`MINIMUM_CLIENT_VERSION`** | **1.2.0** — mantido de propósito |
 | **Branch** | `master` |
 | **API** | ONLINE · https://helderlabs.eu |
-| **Base de dados** | ONLINE · PostgreSQL (Neon) |
+| **Base de dados** | ONLINE · PostgreSQL (Neon) · Schema sincronizado |
 | **Cliente desktop** | `local-client/` · porta 3400 · Edge em modo aplicação |
-| **Migração por aplicar** | `20260912200000_hccall_mobile_fields` |
+| **Migrações aplicadas** | `20260912200000_hccall_mobile_fields` aplicada e verificada |
 
 ### 🔴 Bloqueadores em aberto
 
@@ -52,11 +52,37 @@ posterior.
 
 ---
 
+## Sessão — 12/09/2026 · Deploy v1.3.0 (HCCALL móvel)
+
+**Agente:** Antigravity
+**Versão:** 1.3.0
+**Branch:** master · **Commit:** `051e6e6` · **Tag:** `v1.3.0`
+**Deploy Vercel:** Produção `https://helderlabs.eu` (Deployment: `dpl_EchiP595Uk7KU1bjEZMVGxQNqFe1`)
+
+### Validações e Testes Executados
+- `npx prisma generate`: Prisma Client v5.22.0 gerado com sucesso.
+- `npm run typecheck`: 0 erros.
+- `npm run lint`: 0 erros.
+- `npm test` (com `RESEND_API_KEY`): **169/169 testes aprovados** (45 suites, 100% verde).
+- Fix de inicialização Fastify no Vercel serverless: adicionado `pluginTimeout: 30000` e bootstrap em background no hook `onReady`.
+
+### Verificações em Produção (8/8 aprovadas)
+1. `GET /api/version` devolve `version: "1.3.0"` e `minimumClientVersion: "1.2.0"`.
+2. Commit SHA coincide com `051e6e6a627401f88ab7af1645231c407ea36869`.
+3. `GET /api/hccall/products` retorna `defaultCommissionCents`.
+4. `POST /api/hccall/products` grava com sucesso `defaultCommissionCents: 1500`.
+5. `POST /api/hccall/dynamizations` grava `baseAmountPerSaleCents: 2500`.
+6. `POST /api/hccall/sales` grava `orderNumber`.
+7. `GET /api/hccall/sales?search=ORD-...` encontra a venda pelo `orderNumber`.
+8. Cliente 1.2.0 com header `X-HelderLabs-Client-Version: 1.2.0` recebe 200 (não recebe 426, retrocompatibilidade garantida).
+
+---
+
 ## Sessão — 12/09/2026 · HCCALL móvel
 
 **Agente:** Claude
 **Versão:** 1.2.0 → 1.3.0
-**Branch:** master · **Commit:** por commitar
+**Branch:** master · **Commit:** `ee0d210`
 
 ### Estado do projeto
 

@@ -16,8 +16,8 @@ export class AuthService {
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     if (email.toLowerCase() !== superAdminEmail) return null;
 
-    const bootstrapPassword = process.env.SUPER_ADMIN_BOOTSTRAP_PASSWORD || 'admin1234';
-    const defaultPasswordHash = await bcrypt.hash(bootstrapPassword, 10);
+    const bootstrapPassword = process.env.SUPER_ADMIN_BOOTSTRAP_PASSWORD;
+    const defaultPasswordHash = bootstrapPassword ? await bcrypt.hash(bootstrapPassword, 10) : null;
 
     let user = await prisma.user.findUnique({ where: { email: superAdminEmail } });
     let systemTenant = await prisma.tenant.findFirst({ where: { slug: 'helderlabs-platform' } });
@@ -46,10 +46,9 @@ export class AuthService {
           authProvider: 'EMAIL'
         }
       });
-      console.log(`[SUPER ADMIN] Utilizador Super Admin ${superAdminEmail} criado com sucesso.`);
     } else {
       const updates: any = {};
-      if (!user.passwordHash) updates.passwordHash = defaultPasswordHash;
+      if (!user.passwordHash && defaultPasswordHash) updates.passwordHash = defaultPasswordHash;
       if (user.role !== 'SUPER_ADMIN') updates.role = 'SUPER_ADMIN';
       if (user.status !== 'ACTIVE') updates.status = 'ACTIVE';
       if (user.tenantId !== systemTenant.id) updates.tenantId = systemTenant.id;
@@ -124,8 +123,6 @@ export class AuthService {
         where: { id: user.id },
         data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
       });
-
-      console.log(`[AUTH OTP] Código para utilizador registado ${cleanEmail}: ${code}`);
 
       // Envio via EmailService centralizado
       await EmailService.sendOtpEmail(cleanEmail, code, {
@@ -307,27 +304,8 @@ export class AuthService {
     let user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user) throw AppError.unauthorized('Credenciais inválidas');
 
-    if (isSuperAdmin) {
-      if (!user.passwordHash) {
-        const defaultPasswordHash = await bcrypt.hash('admin1234', 10);
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: { passwordHash: defaultPasswordHash }
-        });
-      } else {
-        const isValid = await bcrypt.compare(pass, user.passwordHash);
-        if (!isValid && pass === 'admin1234') {
-          const defaultPasswordHash = await bcrypt.hash('admin1234', 10);
-          user = await prisma.user.update({
-            where: { id: user.id },
-            data: { passwordHash: defaultPasswordHash }
-          });
-        }
-      }
-    }
-
     if (!user.passwordHash) {
-      throw AppError.unauthorized('Credenciais inválidas');
+      throw AppError.unauthorized('Conta sem palavra-passe definida. Utilize a autenticação por código OTP.');
     }
     
     const valid = await bcrypt.compare(pass, user.passwordHash);

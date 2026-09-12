@@ -76,7 +76,7 @@ export function buildApp() {
         if (
           host === 'helderlabs.eu' ||
           host.endsWith('.helderlabs.eu') ||
-          host.endsWith('.vercel.app') ||
+          (host.startsWith('helderlabs-erp') && host.endsWith('.vercel.app')) ||
           host === 'localhost' ||
           host === '127.0.0.1'
         ) {

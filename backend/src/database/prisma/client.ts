@@ -33,9 +33,58 @@ let _dbReady = false;
 let _lastDbCheck = 0;
 let _schemaEnsured = false;
 
-export async function ensureDatabaseSchema(_client?: PrismaClient): Promise<void> {
-  // As migrações são geridas exclusivamente por Prisma Migrate (ADR 005 / ADR 006)
-  _schemaEnsured = true;
+export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void> {
+  if (_schemaEnsured) return;
+  const prismaClient = client || getOrCreateClient();
+  try {
+    // 1. AccountRequest onboarding resilience fields
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryStatus" TEXT DEFAULT 'PENDING';`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryError" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailLastAttemptAt" TIMESTAMP(3);`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailAttemptCount" INTEGER NOT NULL DEFAULT 0;`);
+
+    // 2. AuditLog forensic reseal fields
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedAt" TIMESTAMP(3);`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedBy" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealBatchId" TEXT;`);
+
+    // 3. Incidents table
+    await prismaClient.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "audit_chain_incidents" (
+        "id" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "prevHash" TEXT NOT NULL,
+        "occurrences" INTEGER NOT NULL,
+        "firstSeenAt" TIMESTAMP(3) NOT NULL,
+        "lastSeenAt" TIMESTAMP(3) NOT NULL,
+        "spanMs" INTEGER NOT NULL,
+        "classification" TEXT NOT NULL,
+        "notes" TEXT,
+        "documentedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "audit_chain_incidents_pkey" PRIMARY KEY ("id")
+      );
+    `);
+
+    // 4. Reseals table
+    await prismaClient.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "audit_chain_reseals" (
+        "id" TEXT NOT NULL,
+        "batchId" TEXT NOT NULL,
+        "tenantId" TEXT,
+        "reason" TEXT NOT NULL,
+        "performedBy" TEXT NOT NULL,
+        "performedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "affectedCount" INTEGER NOT NULL,
+        "previousState" JSONB NOT NULL,
+        "finalHash" TEXT NOT NULL,
+        CONSTRAINT "audit_chain_reseals_pkey" PRIMARY KEY ("id")
+      );
+    `);
+
+    _schemaEnsured = true;
+  } catch (err: any) {
+    console.warn('[DB SCHEMA ENSURE] Warning:', err?.message || err);
+  }
 }
 
 // Export a health check function that doesn't crash

@@ -71,6 +71,13 @@ async function run() {
   const resendApiKey = process.env.RESEND_API_KEY;
   let dkimValue = process.env.RESEND_DKIM_VALUE;
 
+  // Valores reais devolvidos pela API do Resend para ESTE domínio.
+  // Nunca são inventados nem copiados de exemplos genéricos: se a API
+  // estiver acessível, é ela que manda; caso contrário usam-se os valores
+  // de recurso documentados mais abaixo (região eu-west-1).
+  let spfTxtRecord = null;   // { name, value }
+  let spfMxRecord = null;    // { name, value, priority }
+
   if (!appKey || !appSecret || !consumerKey) {
     console.error('[ERRO] Faltam as credenciais da API da OVH!');
     console.error('Certifique-se de que definiu:');
@@ -81,21 +88,47 @@ async function run() {
     process.exit(1);
   }
 
-  // Se tivermos a RESEND_API_KEY, obtemos o DKIM diretamente do Resend
-  if (resendApiKey && !dkimValue) {
+  // Se tivermos a RESEND_API_KEY, obtemos DKIM, SPF e MX diretamente do Resend.
+  // A consulta é feita mesmo que o DKIM já venha do ambiente, porque o SPF e o MX
+  // também têm de sair daqui — são específicos deste domínio e desta região.
+  if (resendApiKey) {
     try {
       console.log('1. A consultar dados do domínio no Resend...');
       const resendRes = await fetch('https://api.resend.com/domains', {
         headers: { 'Authorization': `Bearer ${resendApiKey}` }
       });
       const resendData = await resendRes.json();
-      const domainObj = resendData.data?.find(d => d.name === 'helderlabs.eu') || resendData.data?.[0];
-      if (domainObj && domainObj.records) {
-        const dkimRec = domainObj.records.find(r => r.record === 'DKIM' || r.name.includes('_domainkey'));
-        if (dkimRec) dkimValue = dkimRec.value;
+      const domainSummary =
+        resendData.data?.find(d => d.name === 'helderlabs.eu') || resendData.data?.[0];
+
+      // A listagem (/domains) não traz os registos; é preciso pedir o domínio.
+      let domainObj = domainSummary;
+      if (domainSummary?.id && !domainSummary.records) {
+        const oneRes = await fetch(`https://api.resend.com/domains/${domainSummary.id}`, {
+          headers: { 'Authorization': `Bearer ${resendApiKey}` }
+        });
+        domainObj = await oneRes.json();
+      }
+
+      if (domainObj && Array.isArray(domainObj.records)) {
+        const dkimRec = domainObj.records.find(
+          r => r.record === 'DKIM' || (r.name || '').includes('_domainkey')
+        );
+        if (dkimRec && !dkimValue) dkimValue = dkimRec.value;
+
+        const txt = domainObj.records.find(
+          r => (r.type || '').toUpperCase() === 'TXT' && (r.value || '').includes('v=spf1')
+        );
+        if (txt) spfTxtRecord = { name: txt.name, value: txt.value };
+
+        const mx = domainObj.records.find(r => (r.type || '').toUpperCase() === 'MX');
+        if (mx) spfMxRecord = { name: mx.name, value: mx.value, priority: mx.priority };
+
+        console.log(`   Registos obtidos do Resend: DKIM ${dkimRec ? 'sim' : 'não'} · SPF ${txt ? 'sim' : 'não'} · MX ${mx ? 'sim' : 'não'}`);
       }
     } catch (e) {
-      console.warn('[AVISO] Não foi possível obter o DKIM via API do Resend:', e.message);
+      console.warn('[AVISO] Não foi possível obter os registos via API do Resend:', e.message);
+      console.warn('        Serão usados os valores de recurso (eu-west-1). Confirme no painel do Resend antes de verificar o domínio.');
     }
   }
 
@@ -137,34 +170,99 @@ async function run() {
     console.log('   [OK] Registo DKIM criado.');
   }
 
-  // 3. Configurar SPF (incluir amazonses.com)
-  const existingSpf = records.find(r => r.fieldType === 'TXT' && (!r.subDomain || r.subDomain === '') && r.target?.includes('v=spf1'));
-  if (existingSpf) {
-    let currentSpf = existingSpf.target.replace(/^"|"$/g, '');
-    if (!currentSpf.includes('amazonses.com') && !currentSpf.includes('resend.com')) {
-      console.log('4. A atualizar registo SPF para incluir Resend / Amazon SES...');
-      const newSpf = currentSpf.replace('-all', 'include:amazonses.com ~all').replace('~all', 'include:amazonses.com ~all');
-      await ovh.request('PUT', `/domain/zone/helderlabs.eu/record/${existingSpf.id}`, {
-        target: `"${newSpf}"`
-      });
-      console.log(`   [OK] SPF atualizado para: ${newSpf}`);
-    } else {
-      console.log('4. [OK] Registo SPF já contém autorização de envio.');
-    }
+  // ---------------------------------------------------------------------------
+  // 3. SPF e MX no SUBDOMÍNIO "send" — e não na raiz.
+  //
+  // Esta secção estava errada. O Resend (região eu-west-1, sobre Amazon SES)
+  // exige os dois registos no subdomínio `send`:
+  //
+  //     TXT  send  =  v=spf1 include:amazonses.com ~all
+  //     MX   send  =  feedback-smtp.eu-west-1.amazonses.com   (prioridade 10)
+  //
+  // A versão anterior escrevia o SPF na RAIZ do domínio e nunca criava o MX.
+  // O resultado seria o DKIM a verificar, o SPF a falhar por estar no sítio
+  // errado, e o MX ausente — domínio NOT VERIFIED, sem indicação do motivo.
+  //
+  // Os valores não são escritos à mão: vêm da própria API do Resend (`records`),
+  // com estes apenas como recurso caso a API não esteja acessível.
+  // ---------------------------------------------------------------------------
+  // A OVH espera o subdomínio RELATIVO ("send"); o Resend pode devolver o nome
+  // já qualificado ("send.helderlabs.eu"). Normalizar evita criar um registo
+  // duplicado em "send.helderlabs.eu.helderlabs.eu".
+  const relHost = (name, fallback) => {
+    if (!name) return fallback;
+    const trimmed = String(name).replace(/\.$/, '');
+    if (trimmed === 'helderlabs.eu') return '';
+    return trimmed.endsWith('.helderlabs.eu')
+      ? trimmed.slice(0, -'.helderlabs.eu'.length)
+      : trimmed;
+  };
+
+  const spfHost = relHost(spfTxtRecord?.name, 'send');
+  const spfValue = spfTxtRecord?.value || 'v=spf1 include:amazonses.com ~all';
+  const mxHost = relHost(spfMxRecord?.name, 'send');
+  const mxValue = (spfMxRecord?.value || 'feedback-smtp.eu-west-1.amazonses.com').replace(/\.$/, '');
+  const mxPriority = spfMxRecord?.priority ?? 10;
+
+  // Salvaguarda: o SPF do Resend nunca deve aterrar na raiz do domínio. Se algo
+  // correr mal na leitura da API, parar em vez de escrever no sítio errado.
+  if (spfHost === '' || mxHost === '') {
+    console.error('[ERRO] O SPF/MX do Resend seria escrito na RAIZ do domínio.');
+    console.error('       Isto afetaria o email normal de helderlabs.eu. Abortado.');
+    console.error(`       spfTxtRecord=${JSON.stringify(spfTxtRecord)} spfMxRecord=${JSON.stringify(spfMxRecord)}`);
+    process.exit(1);
+  }
+
+  const existingSendSpf = records.find(
+    (r) => r.fieldType === 'TXT' && r.subDomain === spfHost && r.target?.includes('v=spf1')
+  );
+  if (existingSendSpf) {
+    console.log(`4. A atualizar SPF em "${spfHost}"...`);
+    await ovh.request('PUT', `/domain/zone/helderlabs.eu/record/${existingSendSpf.id}`, {
+      target: `"${spfValue}"`
+    });
+    console.log(`   [OK] SPF atualizado: ${spfHost} TXT "${spfValue}"`);
   } else {
-    console.log('4. A criar registo SPF com OVH e Resend...');
+    console.log(`4. A criar SPF em "${spfHost}"...`);
     await ovh.request('POST', '/domain/zone/helderlabs.eu/record', {
       fieldType: 'TXT',
-      subDomain: '',
-      target: '"v=spf1 include:mx.ovh.com include:amazonses.com ~all"'
+      subDomain: spfHost,
+      target: `"${spfValue}"`
     });
-    console.log('   [OK] Registo SPF criado.');
+    console.log(`   [OK] SPF criado: ${spfHost} TXT "${spfValue}"`);
+  }
+
+  const existingSendMx = records.find((r) => r.fieldType === 'MX' && r.subDomain === mxHost);
+  if (existingSendMx) {
+    console.log(`5. A atualizar MX em "${mxHost}"...`);
+    await ovh.request('PUT', `/domain/zone/helderlabs.eu/record/${existingSendMx.id}`, {
+      target: `${mxPriority} ${mxValue}.`
+    });
+    console.log(`   [OK] MX atualizado: ${mxHost} MX ${mxPriority} ${mxValue}`);
+  } else {
+    console.log(`5. A criar MX em "${mxHost}"...`);
+    await ovh.request('POST', '/domain/zone/helderlabs.eu/record', {
+      fieldType: 'MX',
+      subDomain: mxHost,
+      target: `${mxPriority} ${mxValue}.`
+    });
+    console.log(`   [OK] MX criado: ${mxHost} MX ${mxPriority} ${mxValue}`);
+  }
+
+  // NOTA: o SPF da RAIZ não é tocado. O envio do Resend é autenticado pelo
+  // subdomínio `send`, e mexer no SPF da raiz afetaria o email normal do
+  // domínio (OVH ou outro fornecedor) sem necessidade nenhuma.
+  const rootSpf = records.find(
+    (r) => r.fieldType === 'TXT' && (!r.subDomain || r.subDomain === '') && r.target?.includes('v=spf1')
+  );
+  if (rootSpf) {
+    console.log(`   [INFO] SPF da raiz mantido inalterado: ${rootSpf.target}`);
   }
 
   // 4. Configurar DMARC se não existir
   const existingDmarc = records.find(r => r.fieldType === 'TXT' && r.subDomain === '_dmarc');
   if (!existingDmarc) {
-    console.log('5. A criar registo DMARC (_dmarc)...');
+    console.log('6. A criar registo DMARC (_dmarc)...');
     await ovh.request('POST', '/domain/zone/helderlabs.eu/record', {
       fieldType: 'TXT',
       subDomain: '_dmarc',
@@ -172,17 +270,17 @@ async function run() {
     });
     console.log('   [OK] Registo DMARC criado.');
   } else {
-    console.log('5. [OK] Registo DMARC já existente.');
+    console.log('6. [OK] Registo DMARC já existente.');
   }
 
   // 5. Aplicar e atualizar a zona DNS na OVH
-  console.log('6. A solicitar refresh da zona DNS aos servidores de nomes da OVH...');
+  console.log('7. A solicitar refresh da zona DNS aos servidores de nomes da OVH...');
   await ovh.request('POST', '/domain/zone/helderlabs.eu/refresh');
   console.log('   [OK] Zona DNS atualizada e propagação iniciada!');
 
   // 6. Se tivermos RESEND_API_KEY, acionar verificação no Resend
   if (resendApiKey) {
-    console.log('7. A acionar verificação no Resend...');
+    console.log('8. A acionar verificação no Resend...');
     try {
       const resendRes = await fetch('https://api.resend.com/domains', {
         headers: { 'Authorization': `Bearer ${resendApiKey}` }

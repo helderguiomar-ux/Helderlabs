@@ -1,18 +1,18 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-12 19:35 (WEST) · Responsável: `[antigravity]`
-> Versão: **v1.2.0 — Licenciamento Global Centrado na Empresa, Validação de Email Obrigatória via Resend (24h) e Licenças Vitalícias Ativas.**
-> Testes: **169 / 169 testes verdes (100% de sucesso).**
+> Última atualização: 2026-09-12 21:28 (WEST) · Responsável: `[antigravity]`
+> Versão: **v1.4.0 — Infraestrutura Central de Email Transacional Resend (helderlabs.eu VERIFIED), Prova de Entrega Externa Confirmada e Qualidade 100% Verde.**
+> Testes: **187 / 187 testes verdes (100% de sucesso).**
 
 ---
 
 ## 📌 1. Resumo Executivo
 - **Projeto**: HELDERLABS ERP
-- **Versão Atual**: `1.2.0`
+- **Versão Atual**: `1.4.0`
 - **Ambiente de Produção**: Vercel (`https://helderlabs.eu`) & Base de Dados Online Neon PostgreSQL
 - **Arquitetura**: Aplicação Web e Cliente Desktop ligam ambos exclusivamente à mesma API Online e Base de Dados Online Neon.
-- **Licenciamento Global**: Gestão centrada na **Empresa (Tenant)**, 4 cartões de métricas reais no topo, suporte a **Licenças Vitalícias** (`ATIVA · VITALÍCIA (∞)` sem expiração e excluídas de contagem a 30d), e **Regra de Segurança de Email Validado** (apenas utilizadores com email validado via Resend no prazo de 24h podem receber atribuição de licença de módulo).
+- **Infraestrutura de Email**: Domínio `helderlabs.eu` verificado no Resend (DKIM, SPF, MX, DMARC), motor centralizado `EmailService` em toda a plataforma, e prova de entrega externa para `helder@mail.com` validada com `last_event = delivered`.
 - **Ramo Atual**: `master`
 
 ---

@@ -509,7 +509,12 @@ export class ApplicationController {
             role: body.role as any,
             status: 'ACTIVE',
             active: true,
-            authProvider: 'EMAIL'
+            authProvider: 'EMAIL',
+            // A posse da caixa de correio já foi provada por código OTP no
+            // pedido de acesso. Sem esta linha, essa prova ficava presa em
+            // `account_requests` e o utilizador recém-criado nascia por
+            // verificar — obrigado a validar outra vez o mesmo endereço.
+            emailVerifiedAt: accountReq.emailVerifiedAt ?? null
           }
         });
       } else {

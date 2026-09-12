@@ -84,12 +84,17 @@ describe('Bloco 0.2 — Auditoria Transversal Estrutural & Reflexão de Rotas', 
 
     assert.ok([200, 201].includes(res.statusCode), `Status deve ser sucesso, obtido: ${res.statusCode}`);
 
-    // 3. Verificar que o log de auditoria foi gerado com todos os metadados
-    const afterLogs = await prisma.auditLog.findMany({
-      where: { tenantId },
-      orderBy: { seq: 'desc' },
-      take: 5
-    });
+    // 3. Verificar que o log de auditoria foi gerado com todos os metadados (aguardar flush assíncrono do onResponse)
+    let afterLogs: any[] = [];
+    for (let i = 0; i < 20; i++) {
+      afterLogs = await prisma.auditLog.findMany({
+        where: { tenantId },
+        orderBy: { seq: 'desc' },
+        take: 5
+      });
+      if (afterLogs.length > beforeCount) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
 
     assert.ok(afterLogs.length > beforeCount, 'A mutação DEVE gerar registo de auditoria automaticamente no hook');
     
@@ -113,11 +118,16 @@ describe('Bloco 0.2 — Auditoria Transversal Estrutural & Reflexão de Rotas', 
     assert.equal(res.statusCode, 401);
 
     // O hook deve registar a tentativa falhada de segurança
-    const securityLogs = await prisma.auditLog.findMany({
-      where: { category: 'SECURITY', result: 'FAILURE' },
-      orderBy: { seq: 'desc' },
-      take: 1
-    });
+    let securityLogs: any[] = [];
+    for (let i = 0; i < 20; i++) {
+      securityLogs = await prisma.auditLog.findMany({
+        where: { category: 'SECURITY', result: 'FAILURE' },
+        orderBy: { seq: 'desc' },
+        take: 1
+      });
+      if (securityLogs.length > 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
 
     assert.ok(securityLogs.length > 0, 'Falha de segurança DEVE ser auditada com category=SECURITY');
   });

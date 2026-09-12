@@ -2,6 +2,20 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.4.0] - 2026-09-12
+
+### ✉️ Infraestrutura Central de Email Transacional & Domínio
+- **Verificação de Domínio no Resend**: Domínio `helderlabs.eu` com registos DKIM (`resend._domainkey`), SPF (`send`), MX (`send`) e DMARC (`_dmarc`) verificados e operacionais.
+- **Motor Centralizado `EmailService`**: Unificação transversal de todos os envios de email da plataforma (autenticação, validação de email, OTP, magic link, password reset, welcome, convites, licenciamento, faturação e segurança).
+- **Segurança & Idempotência**: Idempotência garantida com hashes SHA-256 de 64 caracteres, rate limiting por destinatário, sanitização e escape estrito de HTML e suporte bilingue (PT/EN).
+- **Prova de Entrega Externa**: Validação com entrega confirmada (`last_event: delivered`) para destinatário externo fora do domínio da conta.
+
+## [v1.3.0] - 2026-09-12
+
+### 📱 HCCALL Móvel & Estabilização de Performance
+- **Modo Móvel HCCALL**: Layout responsivo otimizado para ecrãs táteis, navegação inferior contextual e tabelas adaptativas.
+- **Cold Start & Conectividade**: Resolução do bloqueio 503 na Vercel através de verificações assíncronas e leves do PostgreSQL Neon.
+
 ## [v0.3.0] - 2026-09-06
 
 ### 💳 Módulo de Finanças & Pessoais

@@ -1,6 +1,6 @@
 {
   "name": "helderlabs-erp-backend",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "HelderLabs ERP - backend modular (CRM, Condomínios, Finanças, Plataforma)",
   "main": "dist/server.js",

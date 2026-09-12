@@ -6,7 +6,7 @@
  * usava o literal '1.0.0' e VersionController devolvia schemaVersion '1.0.0'
  * fixo no código. Passa a existir aqui, e os package.json acompanham.
  */
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 
 /**
  * Versão mínima de cliente aceite pela API.
@@ -20,12 +20,12 @@ export const APP_VERSION = '1.3.0';
  * transforma isto num incómodo e ensina os utilizadores a ignorá-lo.
  */
 export const MINIMUM_CLIENT_VERSION = '1.2.0';
-// MANTIDO EM 1.2.0 DE PROPÓSITO na v1.3.0.
+// MANTIDO EM 1.2.0 DE PROPÓSITO na v1.4.0.
 //
 // O cliente desktop é distribuído por `git pull`, não por deploy. Um cliente
 // que ainda esteja na 1.2.0 continua a funcionar: as alterações desta versão
-// são ADITIVAS — três colunas novas com valor por omissão, três campos novos
-// opcionais no Zod. A API antiga e a nova aceitam os mesmos pedidos.
+// são ADITIVAS — dois endpoints novos de plataforma, nenhuma alteração de
+// contrato. A API antiga e a nova aceitam os mesmos pedidos.
 //
 // Subir este valor trancaria à porta o cliente que o Hélder tem a correr
 // neste momento. Só sobe quando existir uma incompatibilidade real.

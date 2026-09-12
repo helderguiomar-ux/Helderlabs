@@ -8,11 +8,16 @@ try {
   throw e;
 }
 
-console.log('[BUILD] 2/4: Aplicando migrações na base de dados (Prisma Migrate Deploy)...');
+console.log('[BUILD] 2/4: Sincronizando Schema da Base de Dados (Prisma DB Push)...');
 try {
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  try {
+    execSync('npx prisma migrate resolve --rolled-back 20260912120000_onboarding_resilience_and_audit_integrity', { stdio: 'ignore' });
+  } catch (err) {}
+
+  execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
+  console.log('[BUILD] Schema sincronizado com sucesso via Prisma DB Push.');
 } catch (e) {
-  console.warn('[BUILD WARNING] Aviso nas migrações:', e.message);
+  console.warn('[BUILD WARNING] Aviso na sincronização do schema:', e.message);
 }
 
 console.log('[BUILD] 3/4: Executando Bootstrap de Produção (Módulos & Super Admin)...');

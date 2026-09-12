@@ -40,7 +40,8 @@ export function buildApp() {
     //      utilizadores — um único cliente podia esgotá-lo para toda a gente,
     //      e o limite por IP não protegia contra nada.
     // -------------------------------------------------------------------------
-    trustProxy: true
+    trustProxy: true,
+    pluginTimeout: 30000
   });
 
   // Helmet — Cabeçalhos de Segurança & CSP
@@ -302,11 +303,9 @@ export function buildApp() {
   // caminhos não autenticados — provocando N+1 escritas por pedido público
   // (P95 medido de 9,8 s) e servindo de vetor de negação de serviço.
   app.addHook('onReady', async () => {
-    try {
-      await new AuthService().ensureSuperAdminBootstrap();
-    } catch (err) {
+    new AuthService().ensureSuperAdminBootstrap().catch((err) => {
       app.log.error({ err }, '[BOOTSTRAP] Falha ao garantir o utilizador super-admin');
-    }
+    });
   });
 
   app.get('/api/health', async () => {

@@ -4,6 +4,46 @@
 
 ---
 
+## 2026-09-11 · [Execução em Lote · Origem Não Determinável]
+
+### 🎯 Evento
+Re-selagem em lote da cadeia criptográfica de auditoria (`CHAIN_REPAIR`).
+
+### 🔍 Factos Registados
+1. **Execução de 34 operações `CHAIN_REPAIR`**:
+   - Às `2026-09-11T00:53:56Z`, foi executado o script `backend/scripts/repair-audit-chain.ts` contra a base de dados.
+   - Foram recalculados e sobrescritos todos os valores de `hash` e `prevHash` em 19 partições (partição global e 18 tenants), cobrindo o histórico de 1.974 registos.
+   - **Impacto Forense**: A re-selagem eliminou o erro criptográfico visível na UI (*"falha na cadeia criptográfica SHA-256, adulteração detetada em prevHash na linha seq=1"*), mas substituiu os hashes originais sem preservar o histórico completo dos hashes antigos (armazenando apenas amostras de 5 itens no payload).
+
+---
+
+## 2026-09-12 · [antigravity] — Sessão de Auditoria Adversarial & Bloco 0
+
+### 🎯 Objetivo
+Auditoria adversarial independente do repositório, medições reais de desempenho em produção, verificação estrita da cadeia SHA-256, fronteiras do motor de comissões HCCALL, e aplicação imediata do Bloco 0 de Segurança.
+
+### 🔍 Ações Efetuadas
+1. **Auditoria & Resolução do Bloco 0-A (Segurança Imediata)**:
+   - Eliminada a backdoor de sobrescrita de password `admin1234` em `AuthService.loginWithPassword`.
+   - Removido o valor de password por omissão (`SUPER_ADMIN_BOOTSTRAP_PASSWORD || 'admin1234'`); o bootstrap requer variável explícita.
+   - Eliminada a emissão de códigos OTP em texto limpo via `console.log` em `AuthService.sendOtp`.
+   - Restrito o CORS em `src/app.ts` (eliminado `*.vercel.app` genérico; restrito aos domínios do projeto).
+2. **Resolução do Bloco 0-B (Limpeza Estrutural)**:
+   - Eliminadas as pastas órfãs `src/modules/invoicing/`, `src/modules/sales/` e `src/modules/tasks/` (contendo apenas `README.md`).
+3. **Medições Reais de Desempenho**:
+   - Identificado e quantificado o gargalo no login/check-email do super-admin (**P95 de 9,8 s**) decorrente do `ensureSuperAdminUser` a efetuar escritas na BD em caminhos pré-auth.
+   - Medido o desempenho interno autenticado dos controllers reais: `/api/me/workspace` (8 ms), `/api/financas/dashboard` (17 ms), `/api/hccall/dashboard` (10 ms), `/api/platform/audit/logs` (10 ms).
+4. **Verificação do Motor de Comissões HCCALL (§3.8)**:
+   - 12 testes de fronteira executados com sucesso (quantidade zero, negativa, limiares exatos, divergência retroativo vs marginal, idempotência e determinismo 100/100).
+5. **Decisões D1 a D5 Estruturadas**:
+   - D1: Confirmada consolidação em `financas` e eliminação de `finance` (stubs de reconciliação e SAF-T não serão portados).
+   - D2: Registo integral, marca permanente e alerta na UI para qualquer futura re-selagem.
+   - D3: Condomínios mantido como `DORMANT` sem apagar código.
+   - D4: Modo `TEAM` do `HccallScopeService` restrito a papéis de supervisão.
+   - D5: Registada decisão de produto sobre bónus cumulativos vs. milestone.rk de governança `AGENTS.md`.
+
+---
+
 ## 2026-09-08 · [antigravity]
 
 ### 🎯 Objetivo

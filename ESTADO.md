@@ -1,16 +1,17 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-08 23:05 (WEST) · Responsável: `[antigravity]`
-> Versão: **v0.5.0** · Estado: **PRONTO / VALIDADO** (82/82 testes 100% verde)
+> Última atualização: 2026-09-12 15:45 (WEST) · Responsável: `[antigravity]`
+> Versão: **v0.5.1-audit** · Estado: **NÃO PRONTO / BLOQUEADORES IDENTIFICADOS** (Bloco 0 de Segurança concluído; Onboarding e DNS pendentes)
 
 ---
 
 ## 📌 1. Resumo Executivo
 - **Projeto**: HELDERLABS ERP
-- **Versão Atual**: `0.5.0`
+- **Versão Atual**: `0.5.1-audit`
 - **Ambiente de Produção**: Vercel (`https://helderlabs.eu`)
-- **Status do Build / Testes**: 100% verde (82/82 testes em 20 suites)
+- **Status de Segurança**: Bloco 0 aplicado (Backdoor `admin1234` eliminada, OTP em logs removido, CORS restrito, módulos mortos eliminados).
+- **Bloqueadores Ativos**: Registo público bloqueado por DNS do Resend e persistência pós-envio (AUTH-03); Concorrência na cadeia SHA-256 no Vercel (AUD-01).
 - **Ramo Atual**: `master`
 
 ---

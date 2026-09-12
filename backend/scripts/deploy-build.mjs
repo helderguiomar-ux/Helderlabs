@@ -1,7 +1,6 @@
 import { execSync } from 'child_process';
-import { PrismaClient } from '@prisma/client';
 
-console.log('[BUILD] 1/4: Executando Prisma Generate...');
+console.log('[BUILD] 1/3: Executando Prisma Generate...');
 try {
   execSync('npx prisma generate', { stdio: 'inherit' });
 } catch (e) {
@@ -9,62 +8,14 @@ try {
   throw e;
 }
 
-console.log('[BUILD] 2/4: Sincronizando Schema da Base de Dados (Prisma DB Push)...');
-try {
-  const prisma = new PrismaClient();
-  try {
-    console.log('[BUILD] A reparar NULLs legados e colunas em falta no PostgreSQL...');
-    const queries = [
-      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerifiedAt" TIMESTAMP(3)',
-      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationToken" TEXT',
-      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationExpiresAt" TIMESTAMP(3)',
-      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryStatus" TEXT DEFAULT \'PENDING\'',
-      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryError" TEXT',
-      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailLastAttemptAt" TIMESTAMP(3)',
-      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailAttemptCount" INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "prevHash" TEXT',
-      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "hash" TEXT',
-      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedAt" TIMESTAMP(3)',
-      'ALTER TABLE "hccall_products" ADD COLUMN IF NOT EXISTS "defaultCommissionCents" INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE "hccall_dynamizations" ADD COLUMN IF NOT EXISTS "baseAmountPerSaleCents" INTEGER NOT NULL DEFAULT 0',
-      'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "orderNumber" TEXT',
-      'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionName" TEXT',
-      'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionVersion" INTEGER',
-      'CREATE INDEX IF NOT EXISTS "hccall_sales_tenant_order_idx" ON "hccall_sales" ("tenantId", "orderNumber")',
-      'UPDATE "audit_logs" SET "prevHash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "prevHash" IS NULL',
-      'UPDATE "audit_logs" SET "hash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "hash" IS NULL'
-    ];
-    for (const q of queries) {
-      try {
-        await prisma.$executeRawUnsafe(q);
-      } catch (err) {
-        console.warn('[BUILD SQL WARN]', q.slice(0, 30), err.message);
-      }
-    }
-  } catch (sqlErr) {
-    console.warn('[BUILD WARNING] Aviso no SQL prévio:', sqlErr.message);
-  } finally {
-    await prisma.$disconnect();
-  }
-
-  try {
-    execSync('npx prisma migrate resolve --rolled-back 20260912120000_onboarding_resilience_and_audit_integrity', { stdio: 'ignore' });
-  } catch (err) {}
-
-  execSync('npx prisma db push --accept-data-loss', { stdio: 'inherit' });
-  console.log('[BUILD] Schema sincronizado com sucesso via Prisma DB Push.');
-} catch (e) {
-  console.warn('[BUILD WARNING] Aviso na sincronização do schema:', e.message);
-}
-
-console.log('[BUILD] 3/4: Executando Bootstrap de Produção (Módulos & Super Admin)...');
+console.log('[BUILD] 2/3: Executando Bootstrap de Produção (Módulos & Super Admin)...');
 try {
   execSync('npx tsx scripts/prod-bootstrap.ts', { stdio: 'inherit' });
 } catch (e) {
   console.warn('[BUILD WARNING] Aviso no bootstrap:', e.message);
 }
 
-console.log('[BUILD] 4/4: Compilando TypeScript...');
+console.log('[BUILD] 3/3: Compilando TypeScript...');
 try {
   execSync('npx tsc -p tsconfig.json', { stdio: 'inherit' });
 } catch (e) {

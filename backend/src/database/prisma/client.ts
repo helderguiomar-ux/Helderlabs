@@ -110,20 +110,18 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
 export async function checkDatabaseReady(force = false): Promise<boolean> {
   const now = Date.now();
   if (!force && _dbReady && now - _lastDbCheck < 30000) {
-    return true; // Cache health check for 30s if it was ready
+    return true; // Cache successful health check for 30s
   }
   
   try {
     const client = getOrCreateClient();
     await client.$queryRawUnsafe('SELECT 1');
-    await ensureDatabaseSchema(client);
     _dbReady = true;
     _lastDbCheck = now;
     return true;
   } catch (error: any) {
     _dbReady = false;
-    _lastDbCheck = now;
-    // Do not throw, just return false if it's in recovery or unavailable
+    _lastDbCheck = 0; // Don't cache failure so subsequent requests can recover immediately
     return false;
   }
 }

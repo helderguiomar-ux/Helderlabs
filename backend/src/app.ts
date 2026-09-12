@@ -248,17 +248,7 @@ export function buildApp() {
     index: 'index.html'
   });
 
-  app.addHook('onRequest', async (request, reply) => {
-    if (request.url.startsWith('/api/') && request.url !== '/api/health' && request.url !== '/api/version') {
-      const isDbReady = await checkDatabaseReady();
-      if (!isDbReady) {
-        return reply.status(503).send({
-          error: 'DATABASE_UNAVAILABLE',
-          message: 'O serviço está temporariamente indisponível. A base de dados está em inicialização ou recuperação.'
-        });
-      }
-    }
-  });
+
 
   app.addHook('onResponse', async (request, reply) => {
     if (

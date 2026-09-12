@@ -145,10 +145,10 @@
     }
   }
 
-  let isCheckingHealth = false;
+  let consecutiveFailures = 0;
 
-  async function checkServerHealth() {
-    if (isCheckingHealth) return;
+  async function checkServerHealth(isRetry = false) {
+    if (isCheckingHealth && !isRetry) return;
     isCheckingHealth = true;
 
     const healthUrl = getHealthEndpointUrl();
@@ -159,7 +159,7 @@
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const res = await fetch(healthUrl, {
         method: 'GET',
@@ -171,6 +171,7 @@
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
         const dbReady = data.database === 'ready' || data.database === 'healthy' || data.database === 'connected' || data.status === 'ok';
+        consecutiveFailures = 0;
 
         if (dot) {
           dot.style.background = dbReady ? '#22c55e' : '#eab308';
@@ -188,6 +189,13 @@
         throw new Error(`HTTP ${res.status}`);
       }
     } catch (err) {
+      consecutiveFailures++;
+      if (!isRetry && consecutiveFailures < 2) {
+        isCheckingHealth = false;
+        setTimeout(() => checkServerHealth(true), 1500);
+        return;
+      }
+
       if (dot) {
         dot.style.background = '#ef4444';
         dot.style.boxShadow = '0 0 6px #ef4444';

@@ -261,15 +261,16 @@ export function buildApp() {
     ) {
       const pathParts = request.url.split('?')[0].split('/');
       const moduleName = pathParts[2] || 'plataforma';
+      if (moduleName === 'auth') return; // As rotas de auth realizam a sua própria auditoria detalhada com auditAuthAttempt
+
       const isSecurity =
-        moduleName === 'auth' ||
         request.url.includes('/impersonate') ||
         request.url.includes('/roles') ||
         reply.statusCode === 401 ||
         reply.statusCode === 403;
       const category = isSecurity ? 'SECURITY' : 'APPLICATION';
 
-      await AuditService.audit({
+      AuditService.audit({
         action: `${moduleName}.${request.method.toLowerCase()}`,
         module: moduleName,
         category,
@@ -284,6 +285,8 @@ export function buildApp() {
         requestId: request.id,
         ipAddress: request.ip,
         userAgent: (request.headers['user-agent'] as string) || undefined
+      }).catch((err) => {
+        app.log.warn({ err }, '[AUDIT] Falha ao registar auditoria em onResponse');
       });
     }
   });

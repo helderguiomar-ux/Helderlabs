@@ -877,6 +877,13 @@ export class ApplicationController {
         }
       }
 
+      const totalMonthlyCents = activeApps.reduce((acc, a) => {
+        const raw = a.priceCents || 0;
+        const discount = a.discountPercent || 0;
+        const net = Math.round(raw * (1 - discount / 100));
+        return acc + (a.billingPeriod === 'MONTHLY' ? net : Math.round(net / 12));
+      }, 0);
+
       return {
         id: t.id,
         name: t.name,
@@ -886,6 +893,7 @@ export class ApplicationController {
         status: t.status,
         createdAt: t.createdAt,
         userCount: t._count.users,
+        totalMonthlyCents,
         users: t.users.map(u => ({
           id: u.id,
           name: u.name,
@@ -895,21 +903,27 @@ export class ApplicationController {
           isEmailVerified: Boolean(u.emailVerifiedAt)
         })),
         activeModulesCount: activeApps.length,
+        activeModules: modulesList,
         modules: modulesList,
+        isLifetimeOnly: hasOnlyLifetime && activeApps.length > 0,
         isAllLifetime: hasOnlyLifetime && activeApps.length > 0,
+        nextRenewalDate: nextRenewal ? nextRenewal.toISOString() : null,
         nextRenewal: nextRenewal ? nextRenewal.toISOString() : null
       };
     });
 
+    const metricsData = {
+      totalTenants,
+      activeModulesCount,
+      trialCount,
+      renewals30DaysCount,
+      lifetimeLicensesCount
+    };
+
     return reply.send({
       success: true,
-      stats: {
-        totalTenants,
-        activeModulesCount,
-        trialCount,
-        renewals30DaysCount,
-        lifetimeLicensesCount
-      },
+      metrics: metricsData,
+      stats: metricsData,
       companies
     });
   }

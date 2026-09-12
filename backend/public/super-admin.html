@@ -622,10 +622,11 @@
       const data = await api('/api/platform/licensing/dashboard');
       
       // Preencher os 4 Cards de Métricas Reais
-      document.getElementById('stat-total-tenants').textContent = data.metrics.totalTenants ?? 0;
-      document.getElementById('stat-active-modules').textContent = data.metrics.activeModulesCount ?? 0;
-      document.getElementById('stat-trial-modules').textContent = data.metrics.trialCount ?? 0;
-      document.getElementById('stat-renewals-30d').textContent = data.metrics.renewals30DaysCount ?? 0;
+      const stats = data.metrics || data.stats || {};
+      document.getElementById('stat-total-tenants').textContent = stats.totalTenants ?? 0;
+      document.getElementById('stat-active-modules').textContent = stats.activeModulesCount ?? 0;
+      document.getElementById('stat-trial-modules').textContent = stats.trialCount ?? 0;
+      document.getElementById('stat-renewals-30d').textContent = stats.renewals30DaysCount ?? 0;
 
       globalLicensingCompanies = data.companies || [];
       renderLicensingTable(globalLicensingCompanies);

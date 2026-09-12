@@ -90,6 +90,52 @@ const server = createServer(async (req, res) => {
     }));
   }
 
+  // Proxy transparente para a API Online de Produção
+  if (urlPath.startsWith('/api/')) {
+    const targetUrl = `${API_BASE}${urlPath}`;
+    try {
+      const headers = { ...req.headers };
+      delete headers.host;
+      delete headers.connection;
+      headers['x-forwarded-host'] = req.headers.host;
+      headers['x-forwarded-proto'] = 'http';
+
+      const fetchOptions = {
+        method: req.method,
+        headers,
+        redirect: 'manual'
+      };
+
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        const chunks = [];
+        for await (const chunk of req) {
+          chunks.push(chunk);
+        }
+        if (chunks.length > 0) {
+          fetchOptions.body = Buffer.concat(chunks);
+        }
+      }
+
+      const proxyRes = await fetch(targetUrl, fetchOptions);
+      const resHeaders = {};
+      proxyRes.headers.forEach((val, key) => {
+        if (key.toLowerCase() !== 'content-encoding') {
+          resHeaders[key] = val;
+        }
+      });
+
+      res.writeHead(proxyRes.status, resHeaders);
+      const buffer = await proxyRes.arrayBuffer();
+      return res.end(Buffer.from(buffer));
+    } catch (err) {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Sem ligação à API Online da HelderLabs. Verifique a sua ligação à Internet.'
+      }));
+    }
+  }
+
   const filePath = safeResolve(urlPath);
   if (!filePath) {
     res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });

@@ -170,4 +170,29 @@
       });
     });
   }
+
+  /**
+   * Arquiva uma dinamização (soft delete).
+   *
+   * NUNCA se apaga fisicamente: as comissões já calculadas referenciam a
+   * dinamização que lhes deu origem. Apagá-la invalidaria o histórico de
+   * comissões — precisamente o registo que dá ao vendedor o argumento factual
+   * numa reclamação. Se existirem vendas associadas, a dinamização é arquivada
+   * e deixa de estar disponível para novas vendas, mantendo o histórico intacto.
+   */
+  static async deleteDynamization(db: any, tenantId: string, userId: string, id: string) {
+    const existing = await db.hccallDynamization.findFirst({
+      where: { id, tenantId, userId, deletedAt: null }
+    });
+    if (!existing) return null;
+
+    const linkedSales = await db.hccallSale.count({ where: { tenantId, dynamizationId: id, deletedAt: null } });
+
+    const archived = await db.hccallDynamization.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
+
+    return { ...archived, archived: true, linkedSales };
+  }
 }

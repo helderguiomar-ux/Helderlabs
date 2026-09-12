@@ -59,6 +59,8 @@ describe('Bloco 1 — Autenticação, Registo com Confirmações & Pedidos de Ac
         name: 'Carlos Silva',
         email: 'carlos@empresa.pt',
         emailConfirmation: 'carlos.diferente@empresa.pt',
+        password: 'PasswordSegura2026!',
+        passwordConfirmation: 'PasswordSegura2026!',
         companyName: 'Silva Lda',
         acceptedTerms: true,
         acceptedPrivacy: true
@@ -67,7 +69,11 @@ describe('Bloco 1 — Autenticação, Registo com Confirmações & Pedidos de Ac
 
     assert.equal(res.statusCode, 400);
     const body = JSON.parse(res.payload);
-    assert.equal(body.error, 'EMAILS_DO_NOT_MATCH');
+    // A validação passou do handler para o schema Zod (onde não pode ser
+    // contornada por um POST direto); o código estável é agora VALIDATION_ERROR
+    // e o campo em falha vem identificado.
+    assert.equal(body.error, 'VALIDATION_ERROR');
+    assert.equal(body.field, 'emailConfirmation');
   });
 
   it('2. Validação de Registo: Rejeita se password e passwordConfirmation não coincidirem', async () => {
@@ -88,7 +94,8 @@ describe('Bloco 1 — Autenticação, Registo com Confirmações & Pedidos de Ac
 
     assert.equal(res.statusCode, 400);
     const body = JSON.parse(res.payload);
-    assert.equal(body.error, 'PASSWORDS_DO_NOT_MATCH');
+    assert.equal(body.error, 'VALIDATION_ERROR');
+    assert.equal(body.field, 'passwordConfirmation');
   });
 
   it('3. Fluxo E2E: Registo -> Verificação OTP -> Listagem no Super Admin -> Aprovação com Módulos e Login com Password Definida', async () => {

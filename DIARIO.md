@@ -17,6 +17,28 @@ Re-selagem em lote da cadeia criptográfica de auditoria (`CHAIN_REPAIR`).
 
 ---
 
+## 2026-09-12 · [antigravity] — Deploy v1.1.0 & Resolução de Integridade
+ 
+### 🎯 Objetivo
+Execução do plano de deploy da release v1.1.0: onboarding resiliente, eliminação da enumeração de contas, integridade real da cadeia de auditoria e saneamento de módulos.
+
+### 🔍 Ações Efetuadas
+1. **Passo 1 (Validação Estática)**: Prisma client gerado, TypeScript typecheck com 0 erros e ESLint aprovado (0 erros, 0 avisos).
+2. **Passo 2 (Saneamento do Módulo Financeiro)**: Remoção física de `backend/src/modules/finance` (23 ficheiros). Padronização da chave canónica em `financas`.
+3. **Passo 3 (Pre-Flight & Paragem Controlada)**:
+   - O pre-flight detetou 18 colisões de `prevHash` com intervalos entre 2 ms e 181 ms decorrentes de concorrência em serverless.
+   - Em conformidade com o mandato, o deploy foi interrompido e reportado.
+   - Decidido documentar as descontinuidades em `audit_chain_incidents` em vez de re-selar destrutivamente.
+4. **Passo 4 (Migração)**:
+   - Aplicada a migração `20260912120000_onboarding_resilience_and_audit_integrity`.
+   - 18 incidentes documentados e classificados como `CONCURRENCY_RACE`.
+   - Criado índice parcial `audit_logs_chain_link_unique` e fixado `audit.chain.enforced_since`.
+5. **Passo 5 (Suite de Testes)**:
+   - 169 testes executados e aprovados (100% verde em 45 suites).
+   - Identificado achado crítico: remoção da backdoor não altera o dado pré-existente na base de dados (`passwordHash` contendo `admin1234`), tornando a rotação da credencial do super-administrador mandatória e bloqueadora de produção.
+
+---
+
 ## 2026-09-12 · [antigravity] — Sessão de Auditoria Adversarial & Bloco 0
 
 ### 🎯 Objetivo

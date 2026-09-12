@@ -225,6 +225,24 @@ export class HccallController {
     return reply.send({ success: true, dynamization });
   }
 
+  static async deleteDynamization(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id: string };
+    const db = forTenant(user.tenantId);
+    const result = await HccallDynamizationService.deleteDynamization(db, user.tenantId, user.sub, id);
+    if (!result) return reply.status(404).send({ error: 'Dinamização não encontrada' });
+    broadcastUserEvent(user.sub, 'dynamizations_updated', { id, archived: true });
+    return reply.send({
+      success: true,
+      archived: true,
+      linkedSales: result.linkedSales,
+      message:
+        result.linkedSales > 0
+          ? `Dinamização arquivada. ${result.linkedSales} venda(s) histórica(s) mantêm a comissão calculada.`
+          : 'Dinamização arquivada.'
+    });
+  }
+
   // -------------------------------------------------------------------------
   // VENDAS
   // -------------------------------------------------------------------------
@@ -300,6 +318,27 @@ export class HccallController {
     const objective = await HccallObjectiveService.createObjective(db, user.tenantId, user.sub, body);
     broadcastUserEvent(user.sub, 'objectives_updated', objective);
     return reply.status(201).send({ success: true, objective });
+  }
+
+  static async updateObjective(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id: string };
+    const body = CreateObjectiveSchema.partial().parse(req.body);
+    const db = forTenant(user.tenantId);
+    const objective = await HccallObjectiveService.updateObjective(db, user.tenantId, user.sub, id, body as any);
+    if (!objective) return reply.status(404).send({ error: 'Objetivo não encontrado' });
+    broadcastUserEvent(user.sub, 'objectives_updated', objective);
+    return reply.send({ success: true, objective });
+  }
+
+  static async deleteObjective(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { id } = req.params as { id: string };
+    const db = forTenant(user.tenantId);
+    const objective = await HccallObjectiveService.deleteObjective(db, user.tenantId, user.sub, id);
+    if (!objective) return reply.status(404).send({ error: 'Objetivo não encontrado' });
+    broadcastUserEvent(user.sub, 'objectives_updated', { id, deleted: true });
+    return reply.send({ success: true });
   }
 
   // -------------------------------------------------------------------------

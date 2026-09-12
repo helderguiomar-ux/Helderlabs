@@ -28,22 +28,22 @@ export const SYSTEM_MODULES: Record<string, SystemModuleDefinition> = {
     routePrefix: '/api/crm',
     appUrl: '/app.html#/crm'
   },
-  finance: {
-    key: 'finance',
+  financas: {
+    key: 'financas',
     name: 'Gestão Financeira',
     description: 'Cockpit financeiro, tesouraria, projeções a 90 dias e controlo orçamental.',
     version: '2.0.0',
     color: '#059669',
     icon: 'dollar-sign',
     status: 'ACTIVE',
-    aliases: ['financas'],
+    aliases: ['finance'],
     routePrefix: '/api/financas',
     appUrl: '/app.html#/financas'
   },
   hccall: {
     key: 'hccall',
-    name: 'HCCALL · Call Center Telecom & Energia',
-    description: 'Registo de vendas, tracking de comissões, motor offline PWA e histórico de alterações.',
+    name: 'HCCALL · Performance Comercial',
+    description: 'Sistema pessoal de controlo e otimização de performance comercial: registo rápido de vendas e dinamizações, objetivos, ritmo de atingimento, simulador e comissões. Independente do setor e do local de trabalho.',
     version: '2.1.0',
     color: '#d97706',
     icon: 'phone-call',

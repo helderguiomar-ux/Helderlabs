@@ -140,8 +140,8 @@ describe('E2E Verification & Flow Validation', () => {
   });
 
   it('5. should resolve canonical keys properly', () => {
-    assert.equal(resolveCanonicalModuleKey('finance'), 'finance');
-    assert.equal(resolveCanonicalModuleKey('financas'), 'finance');
+    assert.equal(resolveCanonicalModuleKey('finance'), 'financas');
+    assert.equal(resolveCanonicalModuleKey('financas'), 'financas');
     assert.equal(resolveCanonicalModuleKey('crm'), 'crm');
     assert.equal(resolveCanonicalModuleKey('hccall'), 'hccall');
     assert.equal(resolveCanonicalModuleKey('sellmais'), 'sellmais');

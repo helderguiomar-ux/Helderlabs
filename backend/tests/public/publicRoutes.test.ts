@@ -13,7 +13,13 @@ describe('Public Routes Tests (/api/public)', () => {
       method: 'POST',
       url: '/api/public/register',
       payload: {
+        // Payload completo de propósito: as confirmações e a política de
+        // password são agora validadas no schema Zod, pelo que um payload
+        // incompleto nunca chegaria à verificação de consentimento RGPD.
         email: 'novo.cliente@exemplo.pt',
+        emailConfirmation: 'novo.cliente@exemplo.pt',
+        password: 'PasswordSegura2026!',
+        passwordConfirmation: 'PasswordSegura2026!',
         acceptedTerms: false,
         acceptedPrivacy: true
       }
@@ -32,6 +38,9 @@ describe('Public Routes Tests (/api/public)', () => {
       url: '/api/public/register',
       payload: {
         email: testEmail,
+        emailConfirmation: testEmail,
+        password: 'PasswordSegura2026!',
+        passwordConfirmation: 'PasswordSegura2026!',
         name: 'Maria Santos',
         companyName: 'Santos & Associados',
         intendedModule: 'crm',
@@ -69,6 +78,9 @@ describe('Public Routes Tests (/api/public)', () => {
       url: '/api/public/register',
       payload: {
         email: testEmail,
+        emailConfirmation: testEmail,
+        password: 'PasswordSegura2026!',
+        passwordConfirmation: 'PasswordSegura2026!',
         name: 'Vasco Gama',
         companyName: 'Gama Navegações',
         intendedModule: 'crm',

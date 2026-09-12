@@ -623,7 +623,10 @@
     if (!name || name.length < 2) return showError('Por favor introduza o seu nome completo.');
     if (!email || !email.includes('@')) return showError('Por favor introduza um email corporativo válido.');
     if (email !== emailConfirm) return showError('O email e a confirmação de email não coincidem.');
-    if (!password || password.length < 4) return showError('A palavra-passe deve ter no mínimo 4 caracteres.');
+    if (!password || password.length < 12) return showError('A palavra-passe deve ter no mínimo 12 caracteres.');
+    if (!/[a-z]/.test(password)) return showError('A palavra-passe deve conter pelo menos uma letra minúscula.');
+    if (!/[A-Z]/.test(password)) return showError('A palavra-passe deve conter pelo menos uma letra maiúscula.');
+    if (!/[0-9]/.test(password)) return showError('A palavra-passe deve conter pelo menos um algarismo.');
     if (password !== passwordConfirm) return showError('A palavra-passe e a confirmação não coincidem.');
     if (!companyName) return showError('Por favor introduza o nome da sua empresa.');
     if (!terms) return showError('Deverá aceitar os Termos e Condições e a Política de Privacidade.');
@@ -650,6 +653,15 @@
       if (!res.ok) throw new Error(data.message || data.error || 'Erro ao enviar pedido de registo.');
 
       currentEmail = email;
+
+      // O pedido é agora SEMPRE gravado, mesmo quando o envio do email falha.
+      // Nesse caso não faz sentido pedir o código — informa-se o utilizador de
+      // que o pedido ficou registado e segue para aprovação manual.
+      if (data.emailDelivered === false) {
+        showSuccess(data.message || 'O seu pedido foi registado. Não foi possível enviar o código de validação neste momento — entraremos em contacto.');
+        return;
+      }
+
       showStep('step-otp');
       showSuccess('Código de validação enviado para ' + email + '. Introduza o código para concluir o pedido.');
       setupOtpInputs();

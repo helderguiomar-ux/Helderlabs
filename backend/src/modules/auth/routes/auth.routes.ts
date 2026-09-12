@@ -18,18 +18,31 @@ const loginPasswordSchema = z.object({
 });
 
 const setPasswordSchema = z.object({
-  password: z.string().min(4, 'A password deve ter pelo menos 4 caracteres')
+  password: z
+    .string()
+    .min(12, 'A palavra-passe deve ter pelo menos 12 caracteres')
+    .regex(/[a-z]/, 'A palavra-passe deve conter pelo menos uma letra minúscula')
+    .regex(/[A-Z]/, 'A palavra-passe deve conter pelo menos uma letra maiúscula')
+    .regex(/[0-9]/, 'A palavra-passe deve conter pelo menos um algarismo')
 });
 
 export async function authRoutes(app: FastifyInstance) {
   const authService = new AuthService();
   const entitlementService = new EntitlementService();
 
-  // Passo 1: Verificar se utilizador tem password
-  app.post('/check-email', async (request, reply) => {
-    const { email } = emailSchema.parse(request.body);
-    const hasPassword = await authService.checkHasPassword(email);
-    return reply.status(200).send({ hasPassword });
+  // Passo 1: Preparar o ecrã de autenticação.
+  //
+  // Este endpoint devolvia { hasPassword: true } para contas existentes e
+  // { hasPassword: false } para emails desconhecidos — enumeração de contas
+  // direta, reproduzida em produção. Passa a devolver SEMPRE a mesma resposta:
+  // o ecrã de login apresenta ambos os campos e o utilizador escolhe o método.
+  app.post('/check-email', {
+    config: {
+      rateLimit: { max: 20, timeWindow: '15 minutes' }
+    }
+  }, async (request, reply) => {
+    emailSchema.parse(request.body);
+    return reply.status(200).send({ hasPassword: true, passwordAvailable: true, otpAvailable: true });
   });
 
   const isE2EDisabled = process.env.DISABLE_RATE_LIMIT === 'true';
@@ -45,8 +58,11 @@ export async function authRoutes(app: FastifyInstance) {
     }
   }, async (request, reply) => {
     const { email } = emailSchema.parse(request.body);
-    await authService.sendOtp(email);
-    return reply.status(200).send({ message: 'Código enviado com sucesso' });
+    const result = await authService.sendOtp(email, {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent'] as string | undefined
+    });
+    return reply.status(200).send(result);
   });
 
   // Passo 3a: Validar OTP

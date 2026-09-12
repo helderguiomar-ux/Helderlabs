@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildApp } from '../../src/app';
+import { invalidateEntitlementCache } from '../../src/plugins/entitlements';
 import { EntitlementService } from '../../src/modules/platform/services/EntitlementService';
 import { signAuthToken } from '../../src/plugins/authenticate';
 import { prisma } from '../../src/database/prisma/client';
@@ -47,6 +48,9 @@ describe('Phase 3 Entitlement Guards (requireApp)', () => {
       data: { status: 'SUSPENDED', suspendedAt: new Date() }
     });
     EntitlementService.invalidateCache(tenant.id);
+    // A v1.1.0 acrescentou uma cache no plugin requireApp (TTL 60s); sem a
+    // invalidar, o teste media a cache e nao a regra de licenciamento.
+    invalidateEntitlementCache();
 
     const user = await prisma.user.findFirst({ where: { email: 'ana@consultoria-alfa.pt' } });
     assert.ok(user);
@@ -89,6 +93,9 @@ describe('Phase 3 Entitlement Guards (requireApp)', () => {
         data: { status: 'ACTIVE', suspendedAt: null }
       });
       EntitlementService.invalidateCache(tenant.id);
+    // A v1.1.0 acrescentou uma cache no plugin requireApp (TTL 60s); sem a
+    // invalidar, o teste media a cache e nao a regra de licenciamento.
+    invalidateEntitlementCache();
       await app.close();
     }
   });

@@ -6,8 +6,8 @@ import { HccallSaleService } from '../../src/modules/hccall/services/HccallSaleS
 describe('Security & Licensing E2E Tests', () => {
   describe('Canonical Modules Registry & Aliasing', () => {
     it('should resolve canonical keys for all supported modules and aliases', () => {
-      assert.equal(resolveCanonicalModuleKey('finance'), 'finance');
-      assert.equal(resolveCanonicalModuleKey('financas'), 'finance');
+      assert.equal(resolveCanonicalModuleKey('finance'), 'financas');
+      assert.equal(resolveCanonicalModuleKey('financas'), 'financas');
       assert.equal(resolveCanonicalModuleKey('crm'), 'crm');
       assert.equal(resolveCanonicalModuleKey('hccall'), 'hccall');
       assert.equal(resolveCanonicalModuleKey('sellmais'), 'sellmais');

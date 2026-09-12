@@ -5,21 +5,37 @@ import { prisma } from '../database/prisma/client';
 import { EmailService } from '../modules/platform/services/EmailService';
 import { AuditService } from '../modules/platform/services/AuditService';
 
-const PublicRegisterSchema = z.object({
-  email: z.string().email('Email inválido'),
-  emailConfirmation: z.string().email('Email de confirmação inválido').optional(),
-  password: z.string().min(4, 'A palavra-passe deve ter pelo menos 4 caracteres').optional(),
-  passwordConfirmation: z.string().optional(),
-  name: z.string().optional(),
-  contactName: z.string().optional(),
-  phone: z.string().optional(),
-  companyName: z.string().optional(),
-  intendedModule: z.string().optional().default('all'),
-  acceptedTerms: z.boolean(),
-  acceptedPrivacy: z.boolean(),
-  termsVersion: z.string().optional().default('1.0'),
-  privacyVersion: z.string().optional().default('1.0')
-});
+const PublicRegisterSchema = z
+  .object({
+    email: z.string().email('Email inválido'),
+    emailConfirmation: z.string().email('Email de confirmação inválido'),
+    password: z
+      .string()
+      .min(12, 'A palavra-passe deve ter pelo menos 12 caracteres')
+      .regex(/[a-z]/, 'A palavra-passe deve conter pelo menos uma letra minúscula')
+      .regex(/[A-Z]/, 'A palavra-passe deve conter pelo menos uma letra maiúscula')
+      .regex(/[0-9]/, 'A palavra-passe deve conter pelo menos um algarismo'),
+    passwordConfirmation: z.string(),
+    name: z.string().optional(),
+    contactName: z.string().optional(),
+    phone: z.string().optional(),
+    companyName: z.string().optional(),
+    intendedModule: z.string().optional().default('all'),
+    acceptedTerms: z.boolean(),
+    acceptedPrivacy: z.boolean(),
+    termsVersion: z.string().optional().default('1.0'),
+    privacyVersion: z.string().optional().default('1.0')
+  })
+  // Validação cruzada NO SCHEMA (e não no handler) para que seja impossível
+  // contornar as confirmações através de um POST direto à API.
+  .refine(
+    (d) => d.email.toLowerCase().trim() === d.emailConfirmation.toLowerCase().trim(),
+    { message: 'O email e a confirmação de email não coincidem.', path: ['emailConfirmation'] }
+  )
+  .refine((d) => d.password === d.passwordConfirmation, {
+    message: 'A palavra-passe e a confirmação de palavra-passe não coincidem.',
+    path: ['passwordConfirmation']
+  });
 
 const VerifyEmailSchema = z.object({
   email: z.string().email('Email inválido'),
@@ -64,23 +80,9 @@ export async function publicRoutes(app: FastifyInstance) {
 
     const cleanEmail = body.email.toLowerCase().trim();
 
-    if (body.emailConfirmation && cleanEmail !== body.emailConfirmation.toLowerCase().trim()) {
-      return reply.status(400).send({
-        error: 'EMAILS_DO_NOT_MATCH',
-        message: 'O email e a confirmação de email não coincidem.'
-      });
-    }
-
-    let passwordHash: string | null = null;
-    if (body.password) {
-      if (body.passwordConfirmation && body.password !== body.passwordConfirmation) {
-        return reply.status(400).send({
-          error: 'PASSWORDS_DO_NOT_MATCH',
-          message: 'A palavra-passe e a confirmação de palavra-passe não coincidem.'
-        });
-      }
-      passwordHash = await bcrypt.hash(body.password, 10);
-    }
+    // As confirmações de email e de palavra-passe são validadas no schema Zod
+    // (ver PublicRegisterSchema), pelo que aqui já estão garantidas.
+    const passwordHash: string = await bcrypt.hash(body.password, 10);
 
     const contactName = body.contactName || body.name || cleanEmail.split('@')[0];
     const now = new Date();
@@ -111,64 +113,55 @@ export async function publicRoutes(app: FastifyInstance) {
     const otpHash = await bcrypt.hash(otpCode, 10);
     const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
 
-    // Envio real de email via EmailService
+    // -------------------------------------------------------------------------
+    // ORDEM CRÍTICA: PERSISTIR PRIMEIRO, ENVIAR DEPOIS.
+    // A ordem inversa (envio antes da gravação) fazia com que uma falha do
+    // fornecedor de email abortasse o pedido com 502 e o AccountRequest nunca
+    // chegasse a existir — o utilizador perdia o registo e o Super Admin nunca
+    // via o pedido na fila de aprovação. Um pedido de acesso NUNCA se perde
+    // por indisponibilidade de um serviço externo.
+    // -------------------------------------------------------------------------
+    const requestData = {
+      name: contactName,
+      contactName,
+      phone: body.phone ?? existingReq?.phone ?? null,
+      companyName: body.companyName ?? existingReq?.companyName ?? null,
+      intendedModule: body.intendedModule ?? existingReq?.intendedModule ?? 'all',
+      status: 'PENDING_VERIFICATION',
+      passwordHash,
+      emailVerifiedAt: null,
+      otpHash,
+      otpExpiresAt,
+      otpAttempts: 0,
+      acceptedTermsAt: now,
+      acceptedPrivacyAt: now,
+      termsVersion: body.termsVersion,
+      privacyVersion: body.privacyVersion,
+      emailDeliveryStatus: 'PENDING',
+      emailDeliveryError: null,
+      emailLastAttemptAt: now
+    };
+
+    const accountReq = existingReq
+      ? await prisma.accountRequest.update({ where: { id: existingReq.id }, data: requestData })
+      : await prisma.accountRequest.create({ data: { email: cleanEmail, ...requestData } });
+
+    // Só agora se tenta o envio. O resultado é gravado no próprio pedido.
     const emailResult = await EmailService.sendVerificationEmail(cleanEmail, contactName, otpCode, {
       ipAddress: request.ip,
       userAgent: request.headers['user-agent']
     });
 
-    if (!emailResult.ok) {
-      app.log.error({ email: cleanEmail, result: emailResult }, '[PUBLIC REGISTER] Falha no envio do email de verificação');
-      return reply.status(502).send({
-        error: 'EMAIL_DELIVERY_FAILED',
-        message: emailResult.message || 'Falha ao enviar o email com o código de validação. Por favor tente novamente.'
-      });
-    }
-
-    let accountReq;
-    if (existingReq) {
-      accountReq = await prisma.accountRequest.update({
-        where: { id: existingReq.id },
-        data: {
-          name: contactName,
-          contactName,
-          phone: body.phone || existingReq.phone,
-          companyName: body.companyName || existingReq.companyName,
-          intendedModule: body.intendedModule || existingReq.intendedModule,
-          status: 'PENDING_VERIFICATION',
-          passwordHash: passwordHash || existingReq.passwordHash,
-          emailVerifiedAt: null, // reinicia validação se for novo pedido
-          otpHash,
-          otpExpiresAt,
-          otpAttempts: 0,
-          acceptedTermsAt: now,
-          acceptedPrivacyAt: now,
-          termsVersion: body.termsVersion,
-          privacyVersion: body.privacyVersion
-        }
-      });
-    } else {
-      accountReq = await prisma.accountRequest.create({
-        data: {
-          email: cleanEmail,
-          name: contactName,
-          contactName,
-          phone: body.phone,
-          companyName: body.companyName,
-          intendedModule: body.intendedModule,
-          passwordHash,
-          status: 'PENDING_VERIFICATION',
-          emailVerifiedAt: null,
-          otpHash,
-          otpExpiresAt,
-          otpAttempts: 0,
-          acceptedTermsAt: now,
-          acceptedPrivacyAt: now,
-          termsVersion: body.termsVersion,
-          privacyVersion: body.privacyVersion
-        }
-      });
-    }
+    await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: {
+        emailDeliveryStatus: emailResult.ok ? 'SENT' : 'FAILED',
+        // Detalhe do fornecedor guardado internamente — nunca devolvido ao cliente.
+        emailDeliveryError: emailResult.ok ? null : `${emailResult.code ?? 'UNKNOWN'}: ${emailResult.message ?? ''}`.slice(0, 500),
+        emailLastAttemptAt: new Date(),
+        emailAttemptCount: { increment: 1 }
+      }
+    });
 
     await AuditService.audit({
       action: 'account_request.registered',
@@ -177,17 +170,55 @@ export async function publicRoutes(app: FastifyInstance) {
       resourceId: accountReq.id,
       actorEmail: cleanEmail,
       actorType: 'USER',
-      newValue: { email: cleanEmail, companyName: body.companyName, status: 'PENDING_VERIFICATION' },
+      newValue: {
+        email: cleanEmail,
+        companyName: body.companyName,
+        status: 'PENDING_VERIFICATION',
+        emailDelivered: emailResult.ok
+      },
       result: 'SUCCESS',
       ipAddress: request.ip,
       userAgent: request.headers['user-agent']
     });
 
+    if (!emailResult.ok) {
+      // O pedido FICA GRAVADO. Regista-se o detalhe técnico internamente e
+      // devolve-se ao cliente uma mensagem estável, sem expor o fornecedor.
+      app.log.error(
+        { email: cleanEmail, accountRequestId: accountReq.id, result: emailResult },
+        '[PUBLIC REGISTER] Pedido persistido, mas o envio do email de verificação falhou'
+      );
+
+      await AuditService.audit({
+        action: 'account_request.email_delivery_failed',
+        category: 'SYSTEM',
+        resource: 'AccountRequest',
+        resourceId: accountReq.id,
+        actorEmail: cleanEmail,
+        actorType: 'SYSTEM',
+        newValue: { code: emailResult.code, providerMessage: emailResult.message },
+        result: 'FAILURE',
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent']
+      });
+
+      return reply.status(200).send({
+        success: true,
+        status: 'PENDING_VERIFICATION',
+        requestId: accountReq.id,
+        emailDelivered: false,
+        message:
+          'O seu pedido foi registado com sucesso. Não foi possível enviar o código de validação neste momento — a nossa equipa foi notificada e entrará em contacto. Poderá também tentar reenviar o código dentro de alguns minutos.'
+      });
+    }
+
     return reply.status(200).send({
       success: true,
-      message: 'Código de validação enviado para o seu email. Por favor introduza o código recebido para confirmar a autenticidade do seu endereço.',
+      status: 'PENDING_VERIFICATION',
       requestId: accountReq.id,
-      status: 'PENDING_VERIFICATION'
+      emailDelivered: true,
+      message:
+        'Código de validação enviado para o seu email. Por favor introduza o código recebido para confirmar a autenticidade do seu endereço.'
     });
   });
 
@@ -324,26 +355,43 @@ export async function publicRoutes(app: FastifyInstance) {
     const otpHash = await bcrypt.hash(otpCode, 10);
     const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    const emailResult = await EmailService.sendVerificationEmail(cleanEmail, contactName, otpCode, {
-      ipAddress: request.ip,
-      userAgent: request.headers['user-agent']
-    });
-
-    if (!emailResult.ok) {
-      return reply.status(502).send({
-        error: 'EMAIL_DELIVERY_FAILED',
-        message: emailResult.message || 'Falha ao reenviar o código. Tente mais tarde.'
-      });
-    }
-
+    // Persistir o novo código ANTES de tentar enviar (mesma regra do registo).
     await prisma.accountRequest.update({
       where: { id: accountReq.id },
       data: {
         otpHash,
         otpExpiresAt,
-        otpAttempts: 0
+        otpAttempts: 0,
+        emailDeliveryStatus: 'PENDING',
+        emailLastAttemptAt: new Date()
       }
     });
+
+    const emailResult = await EmailService.sendVerificationEmail(cleanEmail, contactName, otpCode, {
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: {
+        emailDeliveryStatus: emailResult.ok ? 'SENT' : 'FAILED',
+        emailDeliveryError: emailResult.ok ? null : `${emailResult.code ?? 'UNKNOWN'}: ${emailResult.message ?? ''}`.slice(0, 500),
+        emailLastAttemptAt: new Date(),
+        emailAttemptCount: { increment: 1 }
+      }
+    });
+
+    if (!emailResult.ok) {
+      app.log.error(
+        { email: cleanEmail, accountRequestId: accountReq.id, result: emailResult },
+        '[PUBLIC RESEND] Falha no reenvio do código de verificação'
+      );
+      return reply.status(503).send({
+        error: 'EMAIL_DELIVERY_FAILED',
+        message: 'Não foi possível enviar o código neste momento. O seu pedido continua registado — tente novamente dentro de alguns minutos.'
+      });
+    }
 
     await AuditService.audit({
       action: 'account_request.code_resent',

@@ -1,17 +1,17 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-12 15:45 (WEST) · Responsável: `[antigravity]`
-> Versão: **v0.5.1-audit** · Estado: **NÃO PRONTO / BLOQUEADORES IDENTIFICADOS** (Bloco 0 de Segurança concluído; Onboarding e DNS pendentes)
+> Última atualização: 2026-09-12 16:45 (WEST) · Responsável: `[antigravity]`
+> Versão: **v1.1.0** · Estado: **RELEASE CANDIDATE / PRONTO PARA DEPLOY** (169/169 testes verdes; migração aplicada; bloqueador de rotação de password super-admin ativo)
 
 ---
 
 ## 📌 1. Resumo Executivo
 - **Projeto**: HELDERLABS ERP
-- **Versão Atual**: `0.5.1-audit`
+- **Versão Atual**: `1.1.0`
 - **Ambiente de Produção**: Vercel (`https://helderlabs.eu`)
-- **Status de Segurança**: Bloco 0 aplicado (Backdoor `admin1234` eliminada, OTP em logs removido, CORS restrito, módulos mortos eliminados).
-- **Bloqueadores Ativos**: Registo público bloqueado por DNS do Resend e persistência pós-envio (AUTH-03); Concorrência na cadeia SHA-256 no Vercel (AUD-01).
+- **Status de Segurança**: Backdoor eliminada, OTP seguro, CORS restrito, rate-limiting e CSRF/Zod protegidos.
+- **Bloqueador Operacional de Produção**: Rotação obrigatória da password do Super Administrador (dado residual da backdoor na base de dados).
 - **Ramo Atual**: `master`
 
 ---

@@ -1,65 +1,65 @@
 {
-    "name": "helderlabs-erp-backend",
-    "version": "1.0.0",
-    "private": true,
-    "description": "HelderLabs ERP - backend modular (CRM, Condomínios, Finanças, Plataforma)",
-    "main": "dist/server.js",
-    "engines": {
-        "node": ">=20 <25"
-    },
-    "scripts": {
-        "db:up": "docker compose -f ../docker-compose.yml up -d",
-        "db:down": "docker compose -f ../docker-compose.yml down",
-        "db:guard": "node scripts/guard-db.mjs",
-        "db:migrate": "npm run db:guard && prisma migrate dev",
-        "db:reset": "npm run db:guard && prisma migrate reset",
-        "db:seed": "npm run db:guard && tsx prisma/seed.ts",
-        "db:studio": "prisma studio",
-        "db:deploy": "prisma migrate deploy",
-        "db:mirror": "npm run db:guard && node scripts/db-mirror.mjs",
-        "env:check": "node scripts/env-check.mjs",
-        "dev": "npm run db:guard && tsx watch src/server.ts",
-        "dev:serverless": "npx vercel dev",
-        "verify": "npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run test:browser",
-        "lint": "npx eslint .",
-        "build": "prisma generate && tsc -p tsconfig.json",
-        "start": "node dist/server.js",
-        "typecheck": "tsc --noEmit",
-        "test": "node scripts/collect-and-run-tests.mjs",
-        "test:e2e": "node scripts/run-e2e-audit.mjs",
-        "test:browser": "node scripts/test-e2e-browser.mjs",
-        "audit:verify": "tsx scripts/verify-audit-chain.ts",
-        "seed": "npm run db:seed"
-    },
-    "dependencies": {
-        "@fastify/cors": "^9.0.1",
-        "@fastify/helmet": "^11.1.1",
-        "@fastify/rate-limit": "^8.1.1",
-        "@fastify/static": "^7.0.4",
-        "@ovhcloud/node-ovh": "^3.0.0",
-        "@prisma/client": "^5.20.0",
-        "bcrypt": "^5.1.1",
-        "dotenv": "^16.4.5",
-        "fastify": "^4.28.1",
-        "fastify-socket.io": "^5.1.0",
-        "jose": "^6.2.8",
-        "jsonwebtoken": "^9.0.2",
-        "socket.io": "^4.8.3",
-        "zod": "^3.23.8"
-    },
-    "prisma": {
-        "seed": "tsx prisma/seed.ts"
-    },
-    "devDependencies": {
-        "@types/bcrypt": "^5.0.2",
-        "@types/jsonwebtoken": "^9.0.6",
-        "@types/node": "^20.14.9",
-        "@typescript-eslint/eslint-plugin": "^8.70.0",
-        "@typescript-eslint/parser": "^8.70.0",
-        "eslint": "^10.10.0",
-        "playwright": "^1.63.0",
-        "prisma": "^5.20.0",
-        "tsx": "^4.16.2",
-        "typescript": "^5.5.3"
-    }
+  "name": "helderlabs-erp-backend",
+  "version": "1.1.0",
+  "private": true,
+  "description": "HelderLabs ERP - backend modular (CRM, Condomínios, Finanças, Plataforma)",
+  "main": "dist/server.js",
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "scripts": {
+    "db:up": "docker compose -f ../docker-compose.yml up -d",
+    "db:down": "docker compose -f ../docker-compose.yml down",
+    "db:guard": "node scripts/guard-db.mjs",
+    "db:migrate": "npm run db:guard && prisma migrate dev",
+    "db:reset": "npm run db:guard && prisma migrate reset",
+    "db:seed": "npm run db:guard && tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "db:deploy": "prisma migrate deploy",
+    "db:mirror": "npm run db:guard && node scripts/db-mirror.mjs",
+    "env:check": "node scripts/env-check.mjs",
+    "dev": "npm run db:guard && tsx watch src/server.ts",
+    "dev:serverless": "npx vercel dev",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run test:e2e && npm run test:browser",
+    "lint": "npx eslint .",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/collect-and-run-tests.mjs",
+    "test:e2e": "node scripts/run-e2e-audit.mjs",
+    "test:browser": "node scripts/test-e2e-browser.mjs",
+    "audit:verify": "tsx scripts/verify-audit-chain.ts",
+    "seed": "npm run db:seed"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.1",
+    "@fastify/helmet": "^11.1.1",
+    "@fastify/rate-limit": "^8.1.1",
+    "@fastify/static": "^7.0.4",
+    "@ovhcloud/node-ovh": "^3.0.0",
+    "@prisma/client": "^5.20.0",
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "fastify-socket.io": "^5.1.0",
+    "jose": "^6.2.8",
+    "jsonwebtoken": "^9.0.2",
+    "socket.io": "^4.8.3",
+    "zod": "^3.23.8"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "eslint": "^10.10.0",
+    "playwright": "^1.63.0",
+    "prisma": "^5.20.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
 }

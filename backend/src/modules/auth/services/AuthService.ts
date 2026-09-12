@@ -9,9 +9,29 @@ export class AuthService {
   constructor() {}
 
   /**
-   * Garante que o Super Admin (helderguiomar@gmail.com) tem utilizador criado
-   * e associado ao Tenant do Sistema com a role SUPER_ADMIN e estado ACTIVE.
+   * Guarda de processo: o bootstrap do super-admin corre no MÁXIMO uma vez por
+   * instância. Antes era invocado em checkHasPassword/sendOtp/verifyOtp/login —
+   * todos caminhos NÃO autenticados — o que provocava N+1 escritas na base de
+   * dados a cada pedido público (P95 medido de 9,8 s) e constituía um vetor de
+   * negação de serviço trivial.
    */
+  private static bootstrapDone = false;
+
+  /**
+   * Garante que o Super Admin tem utilizador criado e associado ao Tenant do
+   * Sistema com a role SUPER_ADMIN e estado ACTIVE.
+   *
+   * PÚBLICO e IDEMPOTENTE: destinado a ser chamado no arranque da aplicação
+   * (scripts/prod-bootstrap.ts) e NUNCA a partir de uma rota pública.
+   */
+  public async ensureSuperAdminBootstrap(email?: string) {
+    if (AuthService.bootstrapDone) return null;
+    AuthService.bootstrapDone = true;
+    return this.ensureSuperAdminUser(
+      email || (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com')
+    );
+  }
+
   private async ensureSuperAdminUser(email: string) {
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     if (email.toLowerCase() !== superAdminEmail) return null;
@@ -94,7 +114,6 @@ export class AuthService {
 
   async checkHasPassword(email: string) {
     const cleanEmail = email.toLowerCase().trim();
-    await this.ensureSuperAdminUser(cleanEmail);
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user) return false;
     return !!user.passwordHash;
@@ -105,71 +124,82 @@ export class AuthService {
    */
   async sendOtp(email: string, meta?: { ipAddress?: string; userAgent?: string }) {
     const cleanEmail = email.toLowerCase().trim();
-    const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
-    const isSuperAdmin = cleanEmail === superAdminEmail;
 
-    if (isSuperAdmin) {
-      await this.ensureSuperAdminUser(cleanEmail);
-    }
+    // -----------------------------------------------------------------------
+    // RESPOSTA NEUTRA E CONSTANTE.
+    // Antes existiam três respostas distinguíveis (conta existente / pedido
+    // pendente / email desconhecido), o que permitia enumerar contas de forma
+    // trivial. A resposta é agora idêntica em corpo e código para os três casos.
+    // -----------------------------------------------------------------------
+    const NEUTRAL = {
+      success: true,
+      message: 'Se existir uma conta associada a este email, enviámos um código de acesso.'
+    } as const;
+
+    // Piso de latência: sem isto, 1,2 s para conta existente vs 230 ms para
+    // inexistente enumera por cronómetro mesmo com o corpo igual.
+    const startedAt = Date.now();
+    const MIN_RESPONSE_MS = 700;
+    const settle = async () => {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_RESPONSE_MS) {
+        await new Promise((r) => setTimeout(r, MIN_RESPONSE_MS - elapsed));
+      }
+      return NEUTRAL;
+    };
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOtp = await bcrypt.hash(code, 10);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
-    
+
     if (user) {
       await prisma.user.update({
         where: { id: user.id },
         data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
       });
 
-      // Envio via EmailService centralizado
-      await EmailService.sendOtpEmail(cleanEmail, code, {
+      const result = await EmailService.sendOtpEmail(cleanEmail, code, {
         tenantId: user.tenantId,
         actorId: user.id,
         ipAddress: meta?.ipAddress,
         userAgent: meta?.userAgent
       });
 
-      return {
-        success: true,
-        message: 'Código de acesso enviado para o seu email.'
-      };
-    }
-
-    // Se o utilizador não existe, verificar se há pedido pendente de registo
-    const pendingReq = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
-    if (pendingReq) {
-      if (pendingReq.status === 'PENDING_VERIFICATION') {
-        await prisma.accountRequest.update({
-          where: { id: pendingReq.id },
-          data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
+      if (!result.ok) {
+        // Falha registada internamente; a resposta ao cliente mantém-se neutra
+        // para não revelar a existência da conta através do modo de falha.
+        console.error('[AUTH OTP] Falha no envio do código de acesso', {
+          code: result.code,
+          userId: user.id
         });
-        const contactName = pendingReq.contactName || pendingReq.name || cleanEmail.split('@')[0];
-        await EmailService.sendVerificationEmail(cleanEmail, contactName, code, meta);
-        return {
-          success: true,
-          message: 'Código de validação reenviado para o seu email.',
-          status: 'PENDING_VERIFICATION'
-        };
       }
 
-      if (pendingReq.status === 'PENDING') {
-        return {
-          success: true,
-          message: 'O seu pedido de conta já se encontra verificado e aguarda aprovação pelo Administrador.',
-          status: 'PENDING_APPROVAL'
-        };
-      }
+      return settle();
     }
 
-    // Não criar AccountRequest espúrio! Responder de forma neutra para evitar enumeração de contas
-    console.log(`[AUTH OTP] Tentativa de OTP para email não registado: ${cleanEmail} (não gravado na BD)`);
-    return {
-      success: true,
-      message: 'Se a conta existir, enviámos um código de acesso para o seu email.'
-    };
+    const pendingReq = await prisma.accountRequest.findUnique({ where: { email: cleanEmail } });
+
+    if (pendingReq && pendingReq.status === 'PENDING_VERIFICATION') {
+      await prisma.accountRequest.update({
+        where: { id: pendingReq.id },
+        data: { otpHash: hashedOtp, otpExpiresAt: expiresAt, otpAttempts: 0 }
+      });
+      const contactName = pendingReq.contactName || pendingReq.name || cleanEmail.split('@')[0];
+      const result = await EmailService.sendVerificationEmail(cleanEmail, contactName, code, meta);
+      if (!result.ok) {
+        console.error('[AUTH OTP] Falha no reenvio do código de verificação', {
+          code: result.code,
+          requestId: pendingReq.id
+        });
+      }
+      return settle();
+    }
+
+    // Email desconhecido, ou pedido já verificado a aguardar aprovação:
+    // nenhuma escrita, nenhum AccountRequest espúrio, e a MESMA resposta.
+    return settle();
   }
 
   async verifyOtp(email: string, code: string) {
@@ -181,10 +211,6 @@ export class AuthService {
     const isProduction = process.env.NODE_ENV === 'production';
     const allowDevOtp = !isProduction && process.env.ALLOW_DEV_OTP === 'true';
     const isMasterCode = allowDevOtp && code === '123456';
-
-    if (isSuperAdmin) {
-      await this.ensureSuperAdminUser(cleanEmail);
-    }
 
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 
@@ -297,15 +323,12 @@ export class AuthService {
     const superAdminEmail = (process.env.DEFAULT_SUPER_ADMIN_EMAIL || 'helderguiomar@gmail.com').toLowerCase();
     const isSuperAdmin = cleanEmail === superAdminEmail;
 
-    if (isSuperAdmin) {
-      await this.ensureSuperAdminUser(cleanEmail);
-    }
-
-    let user = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user) throw AppError.unauthorized('Credenciais inválidas');
 
     if (!user.passwordHash) {
-      throw AppError.unauthorized('Conta sem palavra-passe definida. Utilize a autenticação por código OTP.');
+      // Resposta idêntica à de conta inexistente — não revelar o estado da conta.
+      throw AppError.unauthorized('Credenciais inválidas');
     }
     
     const valid = await bcrypt.compare(pass, user.passwordHash);

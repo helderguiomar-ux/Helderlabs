@@ -9,7 +9,7 @@
 1. **Verificação DNS do Resend & Inversão no Registo (`public.routes.ts`)**: Publicar os registos DKIM/SPF do domínio `helderlabs.eu` e inverter o fluxo de registo para persistir o `AccountRequest` antes de tentar o envio de email (evitando erro 502 e perda de leads).
 2. **Serialização de Auditoria Serverless & Advisory Lock**: Substituir a fila em memória `partitionQueues: Map` por `pg_advisory_xact_lock` em transação SQL e adicionar `@@unique([tenantId, prevHash])` no `schema.prisma`.
 3. **Desacoplamento de `ensureSuperAdminUser` das Rotas Pré-Auth**: Mover a criação/verificação de super-admin para bootstrap de arranque para eliminar o pico de 9,8 s no endpoint `/api/auth/check-email`.
-4. **Consolidação Definitiva do Módulo Financeiro (D1)**: Eliminar a rota `/api/finance`, remover a pasta `modules/finance/` e padronizar toda a plataforma em `/api/financas`.
+4. **Consolidação Definitiva do Módulo Financeiro (D1)**: Eliminada a rota `/api/finance` e o código órfão em `modules/finance/`. O suporte a exportação SAF-T PT e reconciliação bancária automática ficam registados para serem desenhados e construídos de raiz quando o módulo financeiro for reimplementado em `/api/financas`.
 
 ---
 

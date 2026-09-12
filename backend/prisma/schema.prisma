@@ -755,14 +755,28 @@ model AuditLog {
   userAgent       String?
   result          String?  @default("SUCCESS") // SUCCESS | FAILED
   timestamp       DateTime @default(now())
-  prevHash        String?
-  hash            String? // SHA-256 do payload + prevHash
+  prevHash        String
+  hash            String // SHA-256 do payload + prevHash — obrigatório
 
+  // Marcação permanente de re-selagem. Um registo re-selado por repairChain
+  // fica assinalado para sempre: a verificação de integridade deixa de poder
+  // devolver um simples "íntegra" para uma partição que foi reescrita.
+  resealedAt      DateTime?
+  resealedBy      String?
+  resealBatchId   String?
+
+  // NOTA: a unicidade do elo da cadeia NÃO é declarada aqui.
+  // Em PostgreSQL, um índice único sobre (tenantId, prevHash) não restringe
+  // nada quando tenantId é NULL — e a partição global usa exatamente NULL.
+  // O índice correto é sobre COALESCE(tenantId,'__global__'), criado em SQL na
+  // migração 20260912_audit_chain_integrity. Ver o comentário dessa migração.
   @@index([tenantId, timestamp])
+  @@index([tenantId, seq])
   @@index([actorId])
   @@index([module])
   @@index([resource, resourceId])
   @@index([category])
+  @@index([resealBatchId])
   @@map("audit_logs")
 }
 
@@ -785,6 +799,15 @@ model AccountRequest {
   termsVersion      String?
   privacyVersion    String?
   emailVerifiedAt   DateTime?
+
+  // Estado de entrega do email de verificação. O pedido é SEMPRE persistido,
+  // mesmo quando o envio falha — estes campos dizem ao Super Admin quais os
+  // pedidos que precisam de reenvio ou de aprovação manual.
+  emailDeliveryStatus String?   @default("PENDING") // PENDING | SENT | FAILED
+  emailDeliveryError  String?   // detalhe interno do fornecedor; nunca exposto ao cliente
+  emailLastAttemptAt  DateTime?
+  emailAttemptCount   Int       @default(0)
+
   approvedBy        String?
   approvedAt        DateTime?
   rejectedBy        String?
@@ -2153,4 +2176,45 @@ model SellCounter {
   @@map("sell_counters")
 }
 
+/// Registo imutável do estado da cadeia de auditoria ANTES de cada re-selagem.
+/// Guarda a TOTALIDADE dos hashes antigos (e não uma amostra), para que uma
+/// re-selagem deixe de poder apagar a prova da descontinuidade que a motivou.
+model AuditChainReseal {
+  id            String   @id @default(cuid())
+  batchId       String   @unique
+  tenantId      String?
+  reason        String
+  performedBy   String
+  performedAt   DateTime @default(now())
+  affectedCount Int
+  previousState Json // [{ id, seq, prevHash, hash }] — integral, sem truncagem
+  finalHash     String
 
+  @@index([tenantId, performedAt])
+  @@map("audit_chain_reseals")
+}
+
+/// Descontinuidades CONHECIDAS e DOCUMENTADAS da cadeia de auditoria.
+///
+/// As colisões de prevHash anteriores à v1.1.0 são a prova de que a corrida de
+/// escrita existiu. Re-selar a cadeia para as fazer desaparecer apagaria essa
+/// prova — foi exatamente o que sucedeu a 2026-09-11 e é o erro que este
+/// sistema passa a impedir. Em vez disso, cada descontinuidade é registada,
+/// classificada e explicada, e a verificação passa a distingui-la de uma
+/// adulteração real em vez de as confundir.
+model AuditChainIncident {
+  id             String   @id @default(cuid())
+  tenantId       String?
+  prevHash       String
+  occurrences    Int
+  firstSeenAt    DateTime
+  lastSeenAt     DateTime
+  spanMs         Int
+  classification String // CONCURRENCY_RACE | UNCLASSIFIED | TAMPERING_SUSPECTED
+  notes          String?
+  documentedAt   DateTime @default(now())
+
+  @@unique([tenantId, prevHash], name: "audit_chain_incident_unique")
+  @@index([tenantId, classification])
+  @@map("audit_chain_incidents")
+}

@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import fs from 'fs';
 import path from 'path';
+import { APP_VERSION } from '../../../version';
 
 function getCommitSha(): string {
   if (process.env.GIT_COMMIT_SHA) return process.env.GIT_COMMIT_SHA;
@@ -50,13 +51,15 @@ export class VersionController {
     const commitSha = getCommitSha();
     const buildTime = process.env.BUILD_TIME || process.env.VERCEL_BUILD_TIME || new Date().toISOString();
     const environment = process.env.ENVIRONMENT || process.env.NODE_ENV || 'development';
-    const schemaVersion = '1.0.0';
+    const appVersion = APP_VERSION;
 
     return reply.status(200).send({
+      version: appVersion,
+      // Mantido por retrocompatibilidade com consumidores existentes.
+      schemaVersion: appVersion,
       commitSha,
       buildTime,
       environment,
-      schemaVersion,
       latestMigration
     });
   }

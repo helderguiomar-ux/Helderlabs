@@ -1,4 +1,4 @@
-﻿import { FastifyInstance } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import { HccallController } from '../controllers/HccallController';
 
 export async function hccallRoutes(app: FastifyInstance) {
@@ -24,6 +24,7 @@ export async function hccallRoutes(app: FastifyInstance) {
     protectedApp.post('/dynamizations', HccallController.createDynamization);
     protectedApp.get('/dynamizations/:id', HccallController.getDynamization);
     protectedApp.put('/dynamizations/:id', HccallController.updateDynamization);
+    protectedApp.delete('/dynamizations/:id', HccallController.deleteDynamization);
 
     // 4. Vendas
     protectedApp.get('/sales', HccallController.listSales);
@@ -35,6 +36,8 @@ export async function hccallRoutes(app: FastifyInstance) {
     // 5. Objetivos Comerciais Multi-Dimensão
     protectedApp.get('/objectives', HccallController.listObjectives);
     protectedApp.post('/objectives', HccallController.createObjective);
+    protectedApp.put('/objectives/:id', HccallController.updateObjective);
+    protectedApp.delete('/objectives/:id', HccallController.deleteObjective);
 
     // 6. Performance & Calendário
     protectedApp.get('/performance', HccallController.getPerformance);

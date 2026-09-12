@@ -9,11 +9,11 @@ import { ZodError } from 'zod';
 import authenticatePlugin from './plugins/authenticate';
 import entitlementsPlugin from './plugins/entitlements';
 import { authRoutes } from './modules/auth/routes/auth.routes';
+import { AuthService } from './modules/auth/services/AuthService';
 import { publicRoutes } from './routes/public.routes';
 import { crmRoutes } from './modules/crm/routes/crm.routes';
 import { condominiosRoutes } from './modules/condominios/routes/condominios.routes';
 import { financasRoutes } from './modules/financas/routes/financas.routes';
-import { financeModuleRoutes } from './modules/finance/routes/index';
 import { platformRoutes } from './modules/platform/routes/platform.routes';
 import { hccallRoutes } from './modules/hccall/routes/hccall.routes';
 import { sellmaisRoutes } from './modules/sellmais/routes/sellmais.routes';
@@ -22,6 +22,7 @@ import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
 import { AuditService } from './modules/platform/services/AuditService';
 import { VersionController } from './modules/platform/controllers/VersionController';
+import { APP_VERSION } from './version';
 
 export function buildApp() {
   const app = Fastify({
@@ -99,9 +100,15 @@ export function buildApp() {
     }
 
     if (error instanceof ZodError) {
+      // A mensagem devolvida passa a ser a do primeiro problema concreto em vez
+      // de um "Pedido inválido." genérico: com as confirmações e a política de
+      // password agora validadas no schema, é esta a mensagem que o utilizador
+      // vê no formulário.
+      const firstIssue = error.issues[0];
       return reply.status(400).send({
         error: 'VALIDATION_ERROR',
-        message: 'Pedido inválido.',
+        message: firstIssue?.message || 'Pedido inválido.',
+        field: firstIssue?.path?.join('.') || undefined,
         issues: error.issues.map((issue) => ({
           path: issue.path.join('.'),
           message: issue.message
@@ -208,13 +215,25 @@ export function buildApp() {
     }
   });
 
+  // Bootstrap do super-admin: UMA VEZ por instância, no arranque.
+  // Antes corria dentro de checkHasPassword/sendOtp/verifyOtp/login — todos
+  // caminhos não autenticados — provocando N+1 escritas por pedido público
+  // (P95 medido de 9,8 s) e servindo de vetor de negação de serviço.
+  app.addHook('onReady', async () => {
+    try {
+      await new AuthService().ensureSuperAdminBootstrap();
+    } catch (err) {
+      app.log.error({ err }, '[BOOTSTRAP] Falha ao garantir o utilizador super-admin');
+    }
+  });
+
   app.get('/api/health', async () => {
     const isDbReady = await checkDatabaseReady(true);
     return {
       application: 'healthy',
       database: isDbReady ? 'ready' : 'unavailable',
       authentication: isDbReady ? 'healthy' : 'degraded',
-      version: process.env.VERSION || '1.0.0',
+      version: process.env.VERSION || APP_VERSION,
       environment: process.env.ENVIRONMENT || 'DEVELOPMENT'
     };
   });
@@ -231,7 +250,6 @@ export function buildApp() {
   app.register(crmRoutes, { prefix: '/api/crm' });
   app.register(condominiosRoutes, { prefix: '/api/condominios' });
   app.register(financasRoutes, { prefix: '/api/financas' });
-  app.register(financeModuleRoutes, { prefix: '/api/finance' });
   app.register(hccallRoutes, { prefix: '/api/hccall' });
   app.register(sellmaisRoutes, { prefix: '/api/sellmais' });
 

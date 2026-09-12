@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { EntitlementService, AppEntitlement } from '../modules/platform/services/EntitlementService';
+import { EntitlementService, AppEntitlement, WorkspaceManifest } from '../modules/platform/services/EntitlementService';
 import { resolveCanonicalModuleKey } from '../config/modules';
 import { AppError } from '../utils/errors';
 
@@ -14,8 +14,54 @@ declare module 'fastify' {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Cache de entitlements por (utilizador, tenant).
+//
+// requireApp() invocava EntitlementService.resolveForUser() em TODOS os
+// pedidos autenticados, e requirePermission() outra vez — duas resoluções
+// completas contra application_assignments/application_instances por pedido.
+// É uma das causas medidas da lentidão no carregamento dos módulos.
+//
+// TTL curto para que alterações de licenciamento se reflitam depressa, e
+// invalidação explícita disponível para quem altera atribuições.
+// ---------------------------------------------------------------------------
+const ENTITLEMENT_TTL_MS = 60_000;
+const entitlementCache = new Map<string, { value: WorkspaceManifest; expiresAt: number }>();
+
+export function invalidateEntitlementCache(userId?: string, tenantId?: string) {
+  if (!userId) {
+    entitlementCache.clear();
+    return;
+  }
+  if (tenantId) {
+    entitlementCache.delete(`${userId}:${tenantId}`);
+    return;
+  }
+  for (const key of entitlementCache.keys()) {
+    if (key.startsWith(`${userId}:`)) entitlementCache.delete(key);
+  }
+}
+
 export default fp(async (app: FastifyInstance) => {
   const entitlementService = new EntitlementService();
+
+  const resolveCached = async (userId: string, tenantId: string): Promise<WorkspaceManifest> => {
+    const key = `${userId}:${tenantId}`;
+    const now = Date.now();
+    const hit = entitlementCache.get(key);
+    if (hit && hit.expiresAt > now) return hit.value;
+
+    const value = await entitlementService.resolveForUser(userId, tenantId);
+    entitlementCache.set(key, { value, expiresAt: now + ENTITLEMENT_TTL_MS });
+
+    // Limite defensivo de memória por instância serverless.
+    if (entitlementCache.size > 500) {
+      for (const [k, v] of entitlementCache) {
+        if (v.expiresAt <= now) entitlementCache.delete(k);
+      }
+    }
+    return value;
+  };
 
   app.decorate('requireApp', (moduleKey: string, opts?: { write?: boolean }) => {
     return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -24,8 +70,11 @@ export default fp(async (app: FastifyInstance) => {
       }
 
       const canonicalTarget = resolveCanonicalModuleKey(moduleKey);
-      const manifest = await entitlementService.resolveForUser(request.user.sub, request.user.tenantId);
-      const appEnt = manifest.apps.find((a) => resolveCanonicalModuleKey(a.key) === canonicalTarget);
+      const manifest = await resolveCached(request.user.sub, request.user.tenantId);
+      const appEnt = manifest.apps.find((a) => a.key === canonicalTarget && a.state !== 'NONE')
+        || manifest.apps.find((a) => resolveCanonicalModuleKey(a.key) === canonicalTarget && a.state !== 'NONE')
+        || manifest.apps.find((a) => a.key === canonicalTarget)
+        || manifest.apps.find((a) => resolveCanonicalModuleKey(a.key) === canonicalTarget);
 
       if (!appEnt || appEnt.state === 'NONE' || appEnt.state === 'DISABLED') {
         throw new AppError('APP_NOT_LICENSED', `O módulo '${moduleKey}' não está licenciado para a sua empresa.`, 403);
@@ -62,8 +111,8 @@ export default fp(async (app: FastifyInstance) => {
 
       if (request.user.role === 'SUPER_ADMIN' || request.user.role === 'TENANT_OWNER') return;
 
-      const manifest = await entitlementService.resolveForUser(request.user.sub, request.user.tenantId);
-      
+      const manifest = await resolveCached(request.user.sub, request.user.tenantId);
+
       const hasPermission = manifest.apps.some((a) => {
         if (a.state === 'NONE' || a.state === 'DISABLED' || a.state === 'SUSPENDED') return false;
         if (!a.roleInApp && request.user?.role !== 'TENANT_ADMIN') return false;

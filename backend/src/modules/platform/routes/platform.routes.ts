@@ -3,6 +3,7 @@ import { prisma } from '../../../database/prisma/client';
 import { applicationsRoutes } from './applications.routes';
 import { ApplicationController } from '../controllers/ApplicationController';
 import { AuditService } from '../services/AuditService';
+import { EmailService } from '../services/EmailService';
 
 export async function platformRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (request, reply) => {
@@ -233,6 +234,55 @@ export async function platformRoutes(app: FastifyInstance) {
     const { tenantId } = request.query as { tenantId?: string };
     const timeline = await AuditService.getResourceTimeline(resource, resourceId, tenantId);
     return reply.status(200).send({ success: true, timeline });
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /api/platform/email/health — diagnóstico do serviço de email
+  // ---------------------------------------------------------------------------
+  // Responde à pergunta que até aqui não tinha resposta a não ser abrindo o
+  // código: "o email está configurado?". Devolve APENAS estado — nunca a chave
+  // nem qualquer fragmento dela. `apiKeyConfigured` é um booleano, de propósito.
+  app.get('/email/health', async (_request, reply) => {
+    const config = EmailService.describeConfig();
+
+    const problems: string[] = [];
+    if (!config.apiKeyConfigured) {
+      problems.push(
+        config.environment === 'production'
+          ? 'RESEND_API_KEY ausente em produção — nenhum email será enviado.'
+          : 'RESEND_API_KEY ausente — os envios são simulados e nada sai.'
+      );
+    }
+    if (!process.env.RESEND_FROM_EMAIL && !process.env.SMTP_FROM) {
+      problems.push('Remetente não configurado; está a ser usado o valor por omissão.');
+    }
+    if (!config.replyTo) {
+      problems.push('RESEND_REPLY_TO não definido — responder a um email do ERP não chega a ninguém.');
+    }
+    if (process.env.RESEND_ALLOW_SANDBOX_FALLBACK === 'true') {
+      problems.push(
+        'Remetente de recurso ATIVO: os envios que falharem por domínio não verificado saem por onboarding@resend.dev e só chegam ao dono da conta Resend.'
+      );
+    }
+
+    return reply.status(200).send({
+      success: true,
+      config,
+      problems,
+      healthy: config.apiKeyConfigured
+    });
+  });
+
+  // GET /api/platform/email/logs — últimos eventos de email na auditoria
+  app.get('/email/logs', async (request, reply) => {
+    const { limit } = request.query as { limit?: string };
+    const take = Math.min(Number(limit) || 50, 200);
+    const logs = await prisma.auditLog.findMany({
+      where: { resource: 'Email' },
+      orderBy: { timestamp: 'desc' },
+      take
+    });
+    return reply.status(200).send({ success: true, count: logs.length, logs });
   });
 
   // Módulos como Aplicativos — gestão por tenant

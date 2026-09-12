@@ -1,8 +1,9 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-12 16:45 (WEST) · Responsável: `[antigravity]`
-> Versão: **v1.1.0** · Estado: **RELEASE CANDIDATE / PRONTO PARA DEPLOY** (169/169 testes verdes; migração aplicada; bloqueador de rotação de password super-admin ativo)
+> Última atualização: 2026-09-12 16:55 (WEST) · Responsável: `[antigravity]`
+> Versão: **v1.1.0 implantada em produção a 2026-09-12, commit f9bd32b. Verificação em curso: 0 de 15 critérios fechados.**
+
 
 ---
 

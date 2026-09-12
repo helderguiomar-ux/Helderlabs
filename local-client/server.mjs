@@ -26,7 +26,7 @@ const PUBLIC_DIR = join(__dirname, '..', 'backend', 'public');
 
 const PORT = Number(process.env.HELDERLABS_LOCAL_PORT || 3400);
 const API_BASE = (process.env.HELDERLABS_API_URL || 'https://helderlabs.eu').replace(/\/$/, '');
-const APP_VERSION = process.env.HELDERLABS_CLIENT_VERSION || '1.2.0';
+const APP_VERSION = process.env.HELDERLABS_CLIENT_VERSION || '1.3.0';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -51,7 +51,7 @@ const MIME = {
 function buildConfigJs() {
   const config = {
     apiBaseUrl: API_BASE,
-    clientType: 'DESKTOP',
+    clientType: 'LOCAL',
     appVersion: APP_VERSION,
     buildId: 'local',
     environment: 'production'
@@ -83,7 +83,7 @@ const server = createServer(async (req, res) => {
   if (urlPath.split('?')[0] === '/__client/health') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     return res.end(JSON.stringify({
-      client: 'HelderLabs ERP Desktop',
+      client: 'HelderLabs ERP Local',
       version: APP_VERSION,
       apiBaseUrl: API_BASE,
       port: PORT
@@ -94,11 +94,13 @@ const server = createServer(async (req, res) => {
   if (urlPath.startsWith('/api/')) {
     const targetUrl = `${API_BASE}${urlPath}`;
     try {
-      const headers = { ...req.headers };
-      delete headers.host;
-      delete headers.connection;
-      headers['x-forwarded-host'] = req.headers.host;
-      headers['x-forwarded-proto'] = 'http';
+      const headers = {};
+      for (const [k, v] of Object.entries(req.headers)) {
+        const lk = k.toLowerCase();
+        if (lk !== 'host' && lk !== 'connection' && !lk.startsWith('x-forwarded-')) {
+          headers[k] = v;
+        }
+      }
 
       const fetchOptions = {
         method: req.method,
@@ -119,7 +121,8 @@ const server = createServer(async (req, res) => {
       const proxyRes = await fetch(targetUrl, fetchOptions);
       const resHeaders = {};
       proxyRes.headers.forEach((val, key) => {
-        if (key.toLowerCase() !== 'content-encoding') {
+        const lk = key.toLowerCase();
+        if (lk !== 'content-encoding' && lk !== 'transfer-encoding') {
           resHeaders[key] = val;
         }
       });

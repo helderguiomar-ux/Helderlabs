@@ -4,7 +4,7 @@ console.log('[BUILD] 1/4: Executando Prisma Generate...');
 try {
   execSync('npx prisma generate', { stdio: 'inherit' });
   // Sincronizar Prisma Client gerado para o node_modules da raiz (usado pelo Vercel serverless bundle)
-  execSync('node -e "const fs=require(\'fs\'); if (fs.existsSync(\'../node_modules/@prisma/client\')) fs.cpSync(\'node_modules/@prisma/client\', \'../node_modules/@prisma/client\', {recursive: true}); if (fs.existsSync(\'node_modules/.prisma\') && fs.existsSync(\'../node_modules\')) fs.cpSync(\'node_modules/.prisma\', \'../node_modules/.prisma\', {recursive: true});"', { stdio: 'inherit' });
+  execSync('node -e "const fs=require(\'fs\'); if (fs.existsSync(\'node_modules/@prisma/client\')) { fs.mkdirSync(\'../node_modules/@prisma/client\', {recursive: true}); fs.cpSync(\'node_modules/@prisma/client\', \'../node_modules/@prisma/client\', {recursive: true}); } if (fs.existsSync(\'node_modules/.prisma\')) { fs.mkdirSync(\'../node_modules/.prisma\', {recursive: true}); fs.cpSync(\'node_modules/.prisma\', \'../node_modules/.prisma\', {recursive: true}); }"', { stdio: 'inherit' });
 } catch (e) {
   console.error('[BUILD ERROR] Falha no Prisma Generate:', e.message);
   throw e;

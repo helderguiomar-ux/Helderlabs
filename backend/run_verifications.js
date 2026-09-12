@@ -15,7 +15,7 @@ async function fetchJsonOrText(url, options = {}) {
 }
 
 async function main() {
-  console.log('=== PASSO 7 — 15 VERIFICAÇÕES DE PRODUÇÃO ===\n');
+  console.log('=== PASSO 7 — 15 VERIFICAÇÕES DE PRODUÇÃO (https://helderlabs.eu) ===\n');
 
   // PONTO 1: GET /api/health
   console.log('--- PONTO 1: GET /api/health ---');
@@ -50,10 +50,9 @@ async function main() {
       emailConfirmation: testRegEmail,
       password: 'PasswordForte1234!',
       passwordConfirmation: 'PasswordForte1234!',
-      fullName: 'Verificação Passo 7',
-      organizationName: 'Verificação Labs',
-      termsAccepted: true,
-      privacyAccepted: true
+      name: 'Verificação Passo 7',
+      acceptedTerms: true,
+      acceptedPrivacy: true
     })
   });
   console.log(`Status: ${register.status}`);
@@ -114,9 +113,9 @@ async function main() {
       emailConfirmation: `weak.${Date.now()}@helderlabs.pt`,
       password: 'fraca',
       passwordConfirmation: 'fraca',
-      fullName: 'Weak Pass',
-      termsAccepted: true,
-      privacyAccepted: true
+      name: 'Weak Pass',
+      acceptedTerms: true,
+      acceptedPrivacy: true
     })
   });
   console.log(`Status com password fraca: ${weakPass.status}`);

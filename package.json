@@ -3,7 +3,8 @@
   "version": "1.1.1",
   "private": true,
   "scripts": {
-    "build": "cd backend && npm install && node scripts/deploy-build.mjs"
+    "postinstall": "prisma generate --schema=backend/prisma/schema.prisma",
+    "build": "prisma generate --schema=backend/prisma/schema.prisma && cd backend && npm install && node scripts/deploy-build.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

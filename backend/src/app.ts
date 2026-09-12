@@ -235,7 +235,11 @@ export function buildApp() {
   // (P95 medido de 9,8 s) e servindo de vetor de negação de serviço.
   app.addHook('onReady', async () => {
     try {
-      await new AuthService().ensureSuperAdminBootstrap();
+      // Timeout de 2s para evitar FST_ERR_HOOK_TIMEOUT em serverless cold-start
+      await Promise.race([
+        new AuthService().ensureSuperAdminBootstrap(),
+        new Promise((resolve) => setTimeout(resolve, 2000))
+      ]);
     } catch (err) {
       app.log.error({ err }, '[BOOTSTRAP] Falha ao garantir o utilizador super-admin');
     }

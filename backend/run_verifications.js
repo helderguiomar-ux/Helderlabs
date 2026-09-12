@@ -1,3 +1,4 @@
+require('dotenv').config({ path: __dirname + '/.env' });
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const BASE_URL = 'https://helderlabs.eu';

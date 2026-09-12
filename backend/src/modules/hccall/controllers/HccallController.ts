@@ -36,6 +36,8 @@ const CreateProductSchema = z.object({
   sku: z.string().optional(),
   category: z.string().optional(),
   baseValueCents: z.number().int().optional(),
+  // Comissão por omissão do serviço — aplicada quando não há dinamização activa.
+  defaultCommissionCents: z.number().int().min(0).optional(),
   sortOrder: z.number().int().optional()
 });
 
@@ -43,6 +45,8 @@ const CreateDynamizationSchema = z.object({
   name: z.string().min(1, 'Nome da dinamização é obrigatório'),
   description: z.string().optional(),
   tierMode: z.enum(['RETROACTIVE', 'MARGINAL', 'FLAT']).default('RETROACTIVE'),
+  // Comissão fixa por venda. O motor já a sabia usar; faltava poder configurá-la.
+  baseAmountPerSaleCents: z.number().int().min(0).optional(),
   startsAt: z.string().or(z.date()),
   endsAt: z.string().or(z.date()).optional().nullable(),
   tiers: z.array(z.object({
@@ -59,6 +63,7 @@ const CreateDynamizationSchema = z.object({
 const CreateSaleSchema = z.object({
   clientUuid: z.string().optional(),
   customerNumber: z.string().optional(),
+  orderNumber: z.string().max(60).optional(),
   customerName: z.string().optional(),
   customerPhone: z.string().optional(),
   serviceId: z.string().optional(),

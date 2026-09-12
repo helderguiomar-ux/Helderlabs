@@ -68,6 +68,7 @@
       name: string;
       description?: string;
       tierMode?: string;
+      baseAmountPerSaleCents?: number;
       startsAt: string | Date;
       endsAt?: string | Date | null;
       tiers?: { minQuantity: number; maxQuantity: number | null; unitAmountCents: number }[];
@@ -81,6 +82,7 @@
         name: data.name,
         description: data.description,
         tierMode: data.tierMode || 'RETROACTIVE',
+        baseAmountPerSaleCents: data.baseAmountPerSaleCents ?? 0,
         startsAt: new Date(data.startsAt),
         endsAt: data.endsAt ? new Date(data.endsAt) : null,
         active: true,
@@ -116,6 +118,7 @@
       name?: string;
       description?: string;
       tierMode?: string;
+      baseAmountPerSaleCents?: number;
       startsAt?: string | Date;
       endsAt?: string | Date | null;
       active?: boolean;
@@ -143,6 +146,7 @@
           name: data.name,
           description: data.description,
           tierMode: data.tierMode,
+          baseAmountPerSaleCents: data.baseAmountPerSaleCents,
           startsAt: data.startsAt ? new Date(data.startsAt) : undefined,
           endsAt: data.endsAt !== undefined ? (data.endsAt ? new Date(data.endsAt) : null) : undefined,
           active: data.active,

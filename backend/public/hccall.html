@@ -1,1039 +1,1512 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt" data-theme="">
 <head>
-  <!-- Anti-FOUC Inline Theme Loader -->
-  <script>
-    (function() {
-      try {
-        var t = localStorage.getItem('hl_theme');
-        if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
-        else if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      } catch(e) {}
-    })();
-  </script>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>HCCALL 2.0 · Personal Sales Control</title>
-  <meta name="theme-color" content="#0d419f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="/hccall.webmanifest">
-  <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/assets/css/app.css">
-  <style>
-    :root {
-      --brand: #0d419f;
-      --brand-hover: #1f6feb;
-      --brand-glow: rgba(13, 65, 159, 0.35);
-      --bg: #090d16;
-      --card-bg: #131b2e;
-      --card-border: #1f2d4d;
-      --text: #f0f6fc;
-      --text-muted: #8b949e;
-      --success: #238636;
-      --warning: #d29922;
-      --danger: #f85149;
-      --info: #58a6ff;
-    }
-
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-    body {
-      margin: 0;
-      padding: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      padding-bottom: 75px;
-      user-select: none;
-    }
-
-    /* Top Bar */
-    .top-header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(19, 27, 46, 0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--card-border);
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .brand-title {
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .sync-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.75rem;
-      padding: 4px 8px;
-      border-radius: 12px;
-      background: rgba(35, 134, 54, 0.2);
-      color: #3fb950;
-      border: 1px solid rgba(35, 134, 54, 0.4);
-      font-weight: 600;
-    }
-
-    .sync-badge.pending {
-      background: rgba(210, 153, 34, 0.2);
-      color: var(--warning);
-      border-color: rgba(210, 153, 34, 0.4);
-    }
-
-    .sync-badge.offline {
-      background: rgba(248, 81, 73, 0.2);
-      color: var(--danger);
-      border-color: rgba(248, 81, 73, 0.4);
-    }
-
-    /* Content Area */
-    .main-container {
-      padding: 16px;
-      flex: 1;
-      max-width: 600px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .view-pane { display: none; }
-    .view-pane.active { display: block; animation: fadeIn 0.15s ease-out; }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* KPI Cards */
-    .kpi-block {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    }
-
-    .kpi-header {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .kpi-value-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 8px;
-    }
-
-    .kpi-sales-count {
-      font-size: 1.8rem;
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .kpi-comm-total {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #3fb950;
-    }
-
-    .status-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-    }
-
-    .pill {
-      font-size: 0.75rem;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text);
-    }
-
-    /* Big Action Button (Thumb Zone) */
-    .btn-giant {
-      width: 100%;
-      min-height: 54px;
-      background: var(--brand);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      box-shadow: 0 6px 20px var(--brand-glow);
-      cursor: pointer;
-      margin-top: 16px;
-      margin-bottom: 16px;
-      transition: background 0.15s, transform 0.05s;
-    }
-
-    .btn-giant:active {
-      transform: scale(0.98);
-      background: var(--brand-hover);
-    }
-
-    /* Form Inputs */
-    .form-group {
-      margin-bottom: 14px;
-    }
-
-    .form-label {
-      display: block;
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      margin-bottom: 6px;
-    }
-
-    .form-control {
-      width: 100%;
-      min-height: 46px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      color: #fff;
-      font-size: 1rem;
-      padding: 10px 14px;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-
-    .form-control:focus {
-      border-color: var(--brand-hover);
-      box-shadow: 0 0 0 3px var(--brand-glow);
-    }
-
-    /* Sales List Items */
-    .sale-item {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      transition: background 0.1s;
-    }
-
-    .sale-item:active {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .sale-code {
-      font-weight: 700;
-      font-size: 0.95rem;
-      color: var(--info);
-    }
-
-    .sale-client {
-      font-size: 0.85rem;
-      color: var(--text);
-      margin-top: 2px;
-    }
-
-    .sale-service {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    .sale-comm-badge {
-      text-align: right;
-    }
-
-    .comm-val {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #3fb950;
-    }
-
-    .status-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
-      margin-top: 4px;
-    }
-
-    /* Bottom Navigation Bar */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 64px;
-      background: rgba(19, 27, 46, 0.96);
-      backdrop-filter: blur(16px);
-      border-top: 1px solid var(--card-border);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 100;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-
-    .nav-btn {
-      flex: 1;
-      height: 100%;
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: color 0.15s;
-    }
-
-    .nav-btn.active {
-      color: #58a6ff;
-    }
-
-    .nav-btn svg {
-      width: 22px;
-      height: 22px;
-      fill: currentColor;
-    }
-
-    /* Modal */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(4px);
-      z-index: 200;
-      align-items: flex-end;
-      justify-content: center;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal-sheet {
-      background: var(--card-bg);
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      border: 1px solid var(--card-border);
-      border-bottom: none;
-      width: 100%;
-      max-width: 600px;
-      max-height: 85vh;
-      overflow-y: auto;
-      padding: 20px 18px 30px;
-      animation: slideUp 0.2s ease-out;
-    }
-
-    @keyframes slideUp {
-      from { transform: translateY(100%); }
-      to { transform: translateY(0); }
-    }
-
-    .modal-title-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .modal-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-    }
-
-    .btn-close {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 1.5rem;
-      line-height: 1;
-      padding: 4px;
-      cursor: pointer;
-    }
-
-    /* History Timeline */
-    .timeline-item {
-      border-left: 2px solid var(--card-border);
-      padding-left: 12px;
-      margin-left: 6px;
-      padding-bottom: 14px;
-      position: relative;
-    }
-
-    .timeline-dot {
-      position: absolute;
-      left: -6px;
-      top: 0;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--brand-hover);
-    }
-
-    .timeline-time {
-      font-size: 0.7rem;
-      color: var(--text-muted);
-      margin-bottom: 2px;
-    }
-
-    .timeline-text {
-      font-size: 0.85rem;
-      color: var(--text);
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#17408b">
+<title>HCCALL · Performance Comercial</title>
+<link rel="manifest" href="/hccall.webmanifest">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/api.js"></script>
+<style>
+/* ===========================================================================
+   HCCALL — sistema pessoal de performance comercial
+   Mobile-first: o telemóvel é o alvo primário, o desktop é o alargamento.
+   =========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  --surface-0: #f4f4f2;
+  --surface-1: #fcfcfb;
+  --surface-2: #ffffff;
+  --surface-3: #ececeb;
+
+  --ink-1: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #85847e;
+
+  --line: #dedcd6;
+  --line-strong: #c4c2ba;
+
+  --brand: #17408b;
+  --brand-ink: #ffffff;
+  --brand-soft: #e7edf8;
+
+  /* Séries de dados — validadas (ver validate_palette.js) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+
+  /* Estado — nunca sozinhas: acompanham sempre ícone e texto */
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+
+  --radius: 14px;
+  --radius-sm: 10px;
+  --tap: 48px;
+
+  --shadow-1: 0 1px 2px rgba(11,11,11,.06), 0 1px 3px rgba(11,11,11,.05);
+  --shadow-2: 0 4px 16px rgba(11,11,11,.10);
+
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --nav-h: 64px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --surface-3: #2d2d2b;
+    --ink-1: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #8d8c84;
+    --line: #343432;
+    --line-strong: #4a4a47;
+    --brand: #4d7fd6;
+    --brand-ink: #0b0b0b;
+    --brand-soft: #1e2b44;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --shadow-1: 0 1px 2px rgba(0,0,0,.4);
+    --shadow-2: 0 4px 16px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #121211;
+  --surface-1: #1a1a19;
+  --surface-2: #232322;
+  --surface-3: #2d2d2b;
+  --ink-1: #ffffff;
+  --ink-2: #c3c2b7;
+  --ink-3: #8d8c84;
+  --line: #343432;
+  --line-strong: #4a4a47;
+  --brand: #4d7fd6;
+  --brand-ink: #0b0b0b;
+  --brand-soft: #1e2b44;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-2: 0 4px 16px rgba(0,0,0,.5);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--surface-0);
+  color: var(--ink-1);
+  font: 400 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+body { min-height: 100dvh; }
+
+h1,h2,h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+button { font: inherit; color: inherit; }
+
+/* --------------------------------------------------------------- ESTRUTURA */
+.app { display: flex; flex-direction: column; min-height: 100dvh; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--line);
+}
+.topbar__title { font-size: 17px; font-weight: 650; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar__sub { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+
+.iconbtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; flex: none;
+  background: transparent; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); cursor: pointer;
+}
+.iconbtn:active { background: var(--surface-3); }
+
+.main { flex: 1; padding: 16px; padding-bottom: calc(var(--nav-h) + var(--safe-b) + 24px); }
+.screen { display: none; }
+.screen.is-active { display: block; animation: fade .18s ease-out; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ------------------------------------------------------- NAVEGAÇÃO INFERIOR */
+.nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  background: var(--surface-1);
+  border-top: 1px solid var(--line);
+  padding-bottom: var(--safe-b);
+}
+.nav__item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; min-height: var(--nav-h);
+  background: none; border: 0; cursor: pointer;
+  color: var(--ink-3); font-size: 11px; font-weight: 550;
+}
+.nav__item svg { width: 22px; height: 22px; }
+.nav__item[aria-current="page"] { color: var(--brand); }
+
+/* ------------------------------------------------------------------ CARTÕES */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+.card__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.card__title { font-size: 13px; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-2); }
+.card__hint { font-size: 12px; color: var(--ink-3); margin-left: auto; }
+
+/* ----------------------------------------------------------------- CAMPOS */
+.field { margin-bottom: 14px; }
+.field__label {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--ink-2); margin-bottom: 6px;
+}
+.field__label .opt { font-weight: 400; color: var(--ink-3); }
+.input, .select, textarea.input {
+  width: 100%; min-height: var(--tap);
+  padding: 12px 14px;
+  background: var(--surface-2);
+  color: var(--ink-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  font-size: 16px; /* 16px evita o zoom automático no iOS */
+}
+.input:focus, .select:focus {
+  outline: 2px solid var(--brand); outline-offset: 1px; border-color: var(--brand);
+}
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ------------------------------------------------------- SELETOR DE SERVIÇO */
+.picker { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.picker__item {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  min-height: 68px; padding: 12px;
+  background: var(--surface-2); color: var(--ink-1);
+  border: 1.5px solid var(--line-strong); border-radius: var(--radius-sm);
+  cursor: pointer; text-align: left;
+}
+.picker__item:active { transform: scale(.98); }
+.picker__item[aria-pressed="true"] {
+  border-color: var(--brand); background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+.picker__name { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.picker__val { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------- CHIPS */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px; border-radius: 999px;
+  font-size: 12px; font-weight: 600;
+  background: var(--surface-3); color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.chip--active { background: var(--brand-soft); color: var(--brand); border-color: var(--brand); }
+.chip__dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* ----------------------------------------------------------------- BOTÕES */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--tap); padding: 0 18px;
+  border-radius: var(--radius-sm); border: 1px solid transparent;
+  font-size: 15px; font-weight: 650; cursor: pointer;
+}
+.btn--primary { background: var(--brand); color: var(--brand-ink); }
+.btn--ghost { background: var(--surface-2); color: var(--ink-1); border-color: var(--line-strong); }
+.btn--danger { background: transparent; color: var(--critical); border-color: var(--critical); }
+.btn--block { width: 100%; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(.99); }
+
+/* A comissão vive DENTRO da barra fixa: o número que importa fica sempre à
+   vista, encostado ao botão que o confirma — sem obrigar a rolar. */
+.submitbar {
+  position: sticky; bottom: calc(var(--nav-h) + var(--safe-b));
+  margin: 18px -16px -8px; padding: 10px 16px calc(12px + var(--safe-b));
+  background: var(--surface-1);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 20px rgba(11,11,11,.06);
+}
+.submitbar__row { display: flex; align-items: center; gap: 12px; }
+.submitbar__cm { display: flex; flex-direction: column; flex: none; min-width: 104px; }
+.submitbar__cmlabel {
+  font-size: 10.5px; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--ink-3);
+}
+.submitbar__cmvalue {
+  font-size: 26px; font-weight: 700; line-height: 1.15;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.submitbar__row .btn { flex: 1; }
+.submitbar__note { font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; min-height: 0; }
+.submitbar__note:empty { display: none; }
+
+/* ------------------------------------------------------ NÚMEROS EM DESTAQUE */
+.hero { text-align: center; padding: 6px 0 2px; }
+.hero__label { font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--ink-3); }
+.hero__value {
+  font-size: clamp(38px, 12vw, 52px); font-weight: 700; line-height: 1.05;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 6px 0 4px;
+}
+.hero__note { font-size: 13px; color: var(--ink-2); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat { text-align: center; padding: 12px 6px; background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.stat__v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat__l { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+/* -------------------------------------------------------------- PROGRESSO */
+.meter { margin-top: 4px; }
+.meter__track {
+  position: relative; height: 12px; border-radius: 6px;
+  background: var(--surface-3); overflow: hidden;
+}
+.meter__fill { height: 100%; border-radius: 6px; background: var(--series-1); transition: width .4s ease; }
+.meter__pace {
+  position: absolute; top: -4px; bottom: -4px; width: 2px;
+  background: var(--ink-2); border-radius: 1px;
+}
+.meter__legend { display: flex; justify-content: space-between; margin-top: 7px;
+  font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+.status {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600;
+}
+.status svg { width: 16px; height: 16px; flex: none; }
+.status--good { color: var(--good); }
+.status--warning { color: #8a6100; }
+.status--critical { color: var(--critical); }
+:root[data-theme="dark"] .status--warning,
+:root:not([data-theme="light"]) .status--warning { color: var(--warning); }
+
+/* ------------------------------------------------------------------ LISTAS */
+.list { display: flex; flex-direction: column; gap: 8px; }
+.item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; min-height: 60px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.item__body { flex: 1; min-width: 0; }
+.item__t { font-size: 15px; font-weight: 600; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.item__s { font-size: 12.5px; color: var(--ink-3); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item__v { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+  white-space: nowrap; }
+.item__act { display: flex; gap: 6px; flex: none; }
+
+.empty { text-align: center; padding: 34px 18px; color: var(--ink-3); }
+.empty__t { font-weight: 600; color: var(--ink-2); margin-bottom: 4px; }
+.empty__s { font-size: 13.5px; }
+
+/* ------------------------------------------------------------------ TABELA */
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-3); font-weight: 650; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ MODAL */
+.sheet {
+  position: fixed; inset: 0; z-index: 100;
+  display: none; align-items: flex-end; justify-content: center;
+  background: rgba(11,11,11,.5);
+}
+.sheet.is-open { display: flex; }
+.sheet__panel {
+  width: 100%; max-width: 560px; max-height: 92dvh; overflow-y: auto;
+  background: var(--surface-1);
+  border-radius: 18px 18px 0 0;
+  padding: 18px 16px calc(20px + var(--safe-b));
+  animation: up .22s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes up { from { transform: translateY(22px); opacity: .6; } to { transform: none; opacity: 1; } }
+.sheet__head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.sheet__title { font-size: 17px; font-weight: 650; flex: 1; }
+
+/* ------------------------------------------------------------------- AVISO */
+.banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; border-radius: var(--radius-sm);
+  font-size: 13.5px; margin-bottom: 14px;
+}
+.banner--err { background: #fdecec; color: #8f2020; border: 1px solid #f3c6c6; }
+.banner--ok  { background: #e6f6e6; color: #1a6b1a; border: 1px solid #bfe4bf; }
+:root[data-theme="dark"] .banner--err,
+:root:not([data-theme="light"]) .banner--err { background: #2e1616; color: #ffb4b4; border-color: #5a2626; }
+:root[data-theme="dark"] .banner--ok,
+:root:not([data-theme="light"]) .banner--ok { background: #142914; color: #9ce09c; border-color: #2a4d2a; }
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--nav-h) + var(--safe-b) + 16px); z-index: 200;
+  padding: 12px 18px; border-radius: 999px;
+  background: var(--ink-1); color: var(--surface-1);
+  font-size: 14px; font-weight: 600; box-shadow: var(--shadow-2);
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+}
+.toast.is-on { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+/* ------------------------------------------------------------------ GRÁFICO */
+.chart { width: 100%; display: block; overflow: visible; }
+.chart text { font-size: 11px; fill: var(--ink-3); }
+.chart .bar { fill: var(--series-1); cursor: pointer; }
+.chart .bar:hover { fill: var(--series-2); }
+.chart .gridline { stroke: var(--line); stroke-width: 1; }
+.chart .barlabel { fill: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.tip {
+  position: fixed; z-index: 300; pointer-events: none;
+  padding: 7px 10px; border-radius: 8px;
+  background: var(--ink-1); color: var(--surface-1);
+  font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  box-shadow: var(--shadow-2); opacity: 0; transition: opacity .12s;
+}
+.tip.is-on { opacity: 1; }
+
+.seg { display: flex; gap: 0; background: var(--surface-3); border-radius: var(--radius-sm); padding: 3px; }
+.seg__b { flex: 1; min-height: 38px; border: 0; background: none; border-radius: 8px;
+  font-size: 13.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.seg__b[aria-pressed="true"] { background: var(--surface-1); color: var(--ink-1); box-shadow: var(--shadow-1); }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ===================================================== DESKTOP / TABLET ==== */
+@media (min-width: 900px) {
+  :root { --nav-h: 0px; }
+  .app { flex-direction: row; }
+  .nav {
+    position: sticky; top: 0; left: auto; right: auto; bottom: auto;
+    height: 100dvh; width: 232px; flex: none;
+    grid-template-columns: 1fr; grid-auto-rows: max-content;
+    align-content: start; gap: 4px; padding: 16px 12px;
+    border-top: 0; border-right: 1px solid var(--line);
+  }
+  .nav__brand { display: block; padding: 6px 12px 18px; font-size: 18px; font-weight: 700; }
+  .nav__item {
+    flex-direction: row; justify-content: flex-start; gap: 12px;
+    min-height: 46px; padding: 0 12px; border-radius: var(--radius-sm);
+    font-size: 14.5px;
+  }
+  .nav__item[aria-current="page"] { background: var(--brand-soft); }
+  .shell { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .main { padding: 24px 28px 40px; max-width: 1080px; width: 100%; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .grid2 .card { margin-bottom: 0; }
+  .picker { grid-template-columns: repeat(3, 1fr); }
+  .submitbar { position: static; margin: 18px 0 0; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: var(--radius); box-shadow: none; }
+  .submitbar__row .btn { flex: none; min-width: 240px; margin-left: auto; }
+  .sheet { align-items: center; }
+  .sheet__panel { border-radius: 18px; max-height: 86dvh; }
+}
+@media (min-width: 900px) { .nav__brand { color: var(--ink-1); } }
+@media (max-width: 899px) { .nav__brand { display: none; } }
+</style>
 </head>
 <body>
+<div class="app">
 
-  <!-- Top Bar -->
-  <header class="top-header">
-    <div style="display:flex; align-items:center; gap:12px;">
-      <a href="/workspace.html" style="background:rgba(255,255,255,0.08); border:1px solid var(--card-border); color:#fff; border-radius:8px; padding:4px 10px; font-size:12px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">← Workspace</a>
-      <div class="brand-title">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="#58a6ff"><path d="M12 1a9 9 0 0 0-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2a7 7 0 0 1 14 0v2h-4v8h3c1.66 0 3-1.34 3-3v-7a9 9 0 0 0-9-9z"/></svg>
-        <span>HCCALL Telecom</span>
-      </div>
-    </div>
-    <div id="syncStatusBadge" class="sync-badge">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"/></svg>
-      <span id="syncStatusText">Online</span>
-    </div>
-  </header>
+  <!-- ===================================================== NAVEGAÇÃO ===== -->
+  <nav class="nav" aria-label="Secções">
+    <span class="nav__brand">HCCALL</span>
 
-  <!-- Main Container -->
-  <main class="main-container">
-
-    <!-- 1. ECRÃ INÍCIO -->
-    <section id="view-home" class="view-pane active">
-      <!-- HOJE -->
-      <div class="kpi-block">
-        <div class="kpi-header">
-          <span>Hoje</span>
-          <span id="todayDateStr">--</span>
-        </div>
-        <div class="kpi-value-row">
-          <div>
-            <span class="kpi-sales-count" id="kpiTodayCount">0</span>
-            <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 4px;">vendas</span>
-          </div>
-          <div class="kpi-comm-total" id="kpiTodayComm">0,00 €</div>
-        </div>
-        <div class="status-pills" id="kpiTodayBreakdown">
-          <span class="pill">0 ativadas</span>
-          <span class="pill">0 pendentes</span>
-        </div>
-      </div>
-
-      <!-- ESTE MÊS -->
-      <div class="kpi-block" style="background: rgba(13, 65, 159, 0.12); border-color: rgba(31, 111, 235, 0.3);">
-        <div class="kpi-header">
-          <span>Este Mês</span>
-          <span id="monthNameStr">--</span>
-        </div>
-        <div class="kpi-value-row">
-          <div>
-            <span class="kpi-sales-count" id="kpiMonthCount">0</span>
-            <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 4px;">vendas</span>
-          </div>
-          <div class="kpi-comm-total" id="kpiMonthComm">0,00 €</div>
-        </div>
-      </div>
-
-      <!-- BOTÃO GIGANTE NOVA VENDA -->
-      <button class="btn-giant" onclick="app.showNewSale()">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        <span>+ NOVA VENDA</span>
-      </button>
-
-      <!-- Últimas Vendas Recentes -->
-      <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em;">
-        Vendas Recentes
-      </div>
-      <div id="recentSalesList">
-        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem;">
-          A carregar registos...
-        </div>
-      </div>
-    </section>
-
-    <!-- 2. ECRÃ VENDAS (LISTA) -->
-    <section id="view-sales" class="view-pane">
-      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="salesSearchInput" class="form-control" placeholder="Pesquisar por cliente, código ou serviço..." oninput="app.debounceSearchSales()">
-        <button class="form-control" style="width: auto; min-width: 46px; padding: 0 12px; background: rgba(255,255,255,0.08);" onclick="app.exportSalesCsv()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-        </button>
-      </div>
-
-      <div id="allSalesList">
-        <!-- Injetado dinamicamente -->
-      </div>
-    </section>
-
-    <!-- 3. ECRÃ CLIENTES -->
-    <section id="view-customers" class="view-pane">
-      <div style="margin-bottom: 12px;">
-        <input type="text" id="custSearchInput" class="form-control" placeholder="Pesquisar número de cliente ou nome..." oninput="app.debounceSearchCustomers()">
-      </div>
-      <div id="customersList">
-        <!-- Injetado dinamicamente -->
-      </div>
-    </section>
-
-    <!-- 4. ECRÃ CONFIGURAÇÃO -->
-    <section id="view-settings" class="view-pane">
-      <div class="kpi-block">
-        <div class="kpi-header">
-          <span>Serviços Telecom</span>
-          <button style="background:none; border:none; color:var(--info); font-weight:700; cursor:pointer;" onclick="app.openNewServiceModal()">+ Adicionar</button>
-        </div>
-        <div id="settingsServicesList" style="margin-top: 8px;"></div>
-      </div>
-
-      <div class="kpi-block">
-        <div class="kpi-header">
-          <span>Dinamizações & Campanhas</span>
-          <button style="background:none; border:none; color:var(--info); font-weight:700; cursor:pointer;" onclick="app.openNewPromotionModal()">+ Adicionar</button>
-        </div>
-        <div id="settingsPromotionsList" style="margin-top: 8px;"></div>
-      </div>
-
-      <div class="kpi-block">
-        <div class="kpi-header">
-          <span>Estados de Venda</span>
-        </div>
-        <div id="settingsStatusesList" style="margin-top: 8px;"></div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- MODAL NOVA VENDA (<20s) -->
-  <div id="newSaleModal" class="modal-overlay">
-    <div class="modal-sheet">
-      <div class="modal-title-row">
-        <div class="modal-title">Registar Nova Venda</div>
-        <button class="btn-close" onclick="app.closeModal('newSaleModal')">&times;</button>
-      </div>
-
-      <form id="newSaleForm" onsubmit="app.handleSaveNewSale(event)">
-        <div class="form-group">
-          <label class="form-label">Número de Cliente *</label>
-          <input type="text" id="saleCustomerNumber" class="form-control" inputmode="numeric" placeholder="ex: 123456789" required onblur="app.lookupCustomer(this.value)">
-        </div>
-
-        <div class="form-group" id="optCustomerNameGroup" style="display:none;">
-          <label class="form-label">Nome do Cliente (Opcional)</label>
-          <input type="text" id="saleCustomerName" class="form-control" placeholder="Nome do cliente">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Serviço *</label>
-          <select id="saleServiceSelect" class="form-control" required onchange="app.filterPromotionsByService(this.value)">
-            <!-- Injetado dinamicamente -->
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Dinamização / Campanha</label>
-          <select id="salePromotionSelect" class="form-control" onchange="app.onPromotionSelected(this.value)">
-            <!-- Injetado dinamicamente -->
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Comissão Efetiva (€) *</label>
-          <input type="number" step="0.01" id="saleCommissionEur" class="form-control" placeholder="0.00" required>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Estado Inicial *</label>
-          <select id="saleStatusSelect" class="form-control" required>
-            <!-- Injetado dinamicamente -->
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Observações</label>
-          <input type="text" id="saleNotes" class="form-control" placeholder="Notas operacionais...">
-        </div>
-
-        <button type="submit" class="btn-giant" style="margin-top: 10px;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>
-          <span>GUARDAR VENDA</span>
-        </button>
-      </form>
-    </div>
-  </div>
-
-  <!-- MODAL DETALHE / HISTÓRICO DA VENDA -->
-  <div id="saleDetailModal" class="modal-overlay">
-    <div class="modal-sheet">
-      <div class="modal-title-row">
-        <div>
-          <div class="modal-title" id="detailSaleCode">#00000</div>
-          <div style="font-size: 0.75rem; color: var(--text-muted);" id="detailSaleDate">--</div>
-        </div>
-        <button class="btn-close" onclick="app.closeModal('saleDetailModal')">&times;</button>
-      </div>
-
-      <div class="kpi-block" style="padding: 12px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 0.8rem; color: var(--text-muted);">Cliente</div>
-            <div style="font-weight: 700; font-size: 1rem;" id="detailCustomerNum">--</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 0.8rem; color: var(--text-muted);">Comissão</div>
-            <div style="font-weight: 800; font-size: 1.2rem; color: #3fb950;" id="detailCommission">0,00 €</div>
-          </div>
-        </div>
-        <div style="margin-top: 8px; font-size: 0.85rem; color: var(--text);" id="detailServicePromo">--</div>
-      </div>
-
-      <!-- Histórico de Alterações -->
-      <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em;">
-        Histórico de Alterações
-      </div>
-      <div id="saleHistoryTimeline"></div>
-
-      <button class="btn-giant" style="background: rgba(255,255,255,0.08); box-shadow:none; border: 1px solid var(--card-border);" onclick="app.openEditSaleModal()">
-        <span>Editar Venda</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- Bottom Navigation Bar -->
-  <nav class="bottom-nav">
-    <button class="nav-btn active" onclick="app.switchTab('home')">
-      <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-      <span>Início</span>
+    <button class="nav__item" data-go="registar" aria-current="page">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Registar
     </button>
-    <button class="nav-btn" onclick="app.switchTab('sales')">
-      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-      <span>Vendas</span>
+    <button class="nav__item" data-go="vendas">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Vendas
     </button>
-    <button class="nav-btn" onclick="app.switchTab('customers')">
-      <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-      <span>Clientes</span>
+    <button class="nav__item" data-go="analise">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-6M22 19H2"/></svg>
+      Análise
     </button>
-    <button class="nav-btn" onclick="app.switchTab('settings')">
-      <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-      <span>Ajustes</span>
+    <button class="nav__item" data-go="definicoes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H2a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 3.7 8a1.7 1.7 0 0 0-.4-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H8a1.7 1.7 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V8a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.6 1z"/></svg>
+      Definições
     </button>
   </nav>
 
-  <!-- PWA & Application Script -->
-  <script src="/assets/js/theme.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/hccall-sw.js').catch(() => {});
-    }
+  <div class="shell">
+    <!-- ==================================================== BARRA TOPO ==== -->
+    <header class="topbar">
+      <div style="flex:1;min-width:0">
+        <div class="topbar__title" id="scrTitle">Registar venda</div>
+        <div class="topbar__sub" id="scrSub">A carregar…</div>
+      </div>
+      <button class="iconbtn" id="btnTheme" title="Tema" aria-label="Alternar tema">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button class="iconbtn" id="btnLogout" title="Sair" aria-label="Terminar sessão">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      </button>
+    </header>
 
-    // =======================================================================
-    // INDEXEDDB OFFLINE ENGINE
-    // =======================================================================
-    const DB_NAME = 'hccall_local_db';
-    const DB_VERSION = 1;
-    let dbInstance = null;
+    <main class="main">
+      <div id="globalBanner"></div>
 
-    function openLocalDb() {
-      return new Promise((resolve, reject) => {
-        if (dbInstance) return resolve(dbInstance);
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains('offline_queue')) {
-            db.createObjectStore('offline_queue', { keyPath: 'clientUuid' });
-          }
-          if (!db.objectStoreNames.contains('cached_data')) {
-            db.createObjectStore('cached_data', { keyPath: 'key' });
-          }
-        };
-        req.onsuccess = () => { dbInstance = req.result; resolve(dbInstance); };
-        req.onerror = () => reject(req.error);
-      });
-    }
+      <!-- ================================================== REGISTAR ===== -->
+      <section class="screen is-active" id="scr-registar">
+        <div class="card">
+          <div class="card__head">
+            <span class="card__title">Serviço</span>
+            <span class="card__hint" id="svcHint"></span>
+          </div>
+          <div class="picker" id="svcPicker"></div>
+        </div>
 
-    async function queueOfflineOperation(op) {
-      const db = await openLocalDb();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('offline_queue', 'readwrite');
-        tx.objectStore('offline_queue').put(op);
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-      });
-    }
+        <div class="card">
+          <div class="card__head"><span class="card__title">Dados da venda</span></div>
 
-    async function getOfflineQueue() {
-      const db = await openLocalDb();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction('offline_queue', 'readonly');
-        const req = tx.objectStore('offline_queue').getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-      });
-    }
+          <div class="field">
+            <label class="field__label" for="fCliente">Cliente</label>
+            <input class="input" id="fCliente" type="text" autocomplete="off"
+                   enterkeyhint="next" placeholder="Nome do cliente">
+          </div>
 
-    async function clearSyncedFromQueue(clientUuids) {
-      const db = await openLocalDb();
-      const tx = db.transaction('offline_queue', 'readwrite');
-      const store = tx.objectStore('offline_queue');
-      for (const id of clientUuids) store.delete(id);
-    }
-
-    // =======================================================================
-    // APPLICATION STATE & CONTROLLER
-    // =======================================================================
-    const app = {
-      services: [],
-      promotions: [],
-      statuses: [],
-      currentSaleDetail: null,
-
-      async init() {
-        this.updateOnlineStatus();
-        window.addEventListener('online', () => { this.updateOnlineStatus(); this.syncQueue(); });
-        window.addEventListener('offline', () => this.updateOnlineStatus());
-
-        await this.loadConfig();
-        await this.loadDashboard();
-        await this.loadRecentSales();
-        this.syncQueue();
-      },
-
-      updateOnlineStatus() {
-        const badge = document.getElementById('syncStatusBadge');
-        const txt = document.getElementById('syncStatusText');
-        if (navigator.onLine) {
-          badge.className = 'sync-badge';
-          txt.innerText = 'Online';
-        } else {
-          badge.className = 'sync-badge offline';
-          txt.innerText = 'Offline';
-        }
-      },
-
-      async getAuthToken() {
-        if (window.ERPAuth && typeof window.ERPAuth.getToken === 'function') {
-          const t = window.ERPAuth.getToken();
-          if (t) return t;
-        }
-        let token = localStorage.getItem('erp_session');
-        if (token) {
-          try {
-            const parsed = JSON.parse(token);
-            if (parsed && parsed.token) return parsed.token;
-          } catch (_) {}
-        }
-        token = localStorage.getItem('hl_token') || localStorage.getItem('auth_token') || localStorage.getItem('erp_token') || sessionStorage.getItem('erp_token');
-        if (!token) {
-          const cookieMatch = document.cookie.match(/erp_token=([^;]+)/);
-          if (cookieMatch) token = cookieMatch[1];
-        }
-        return token;
-      },
-
-      async apiFetch(url, options = {}) {
-        // O HCCALL tinha um caminho alternativo próprio para quando o api.js
-        // global não estivesse carregado. Esse caminho usava `fetch` com URL
-        // relativo — no cliente local, o pedido iria para o servidor estático
-        // em vez da API. O api.js é agora obrigatório em todas as páginas.
-        if (!window.apiFetch) {
-          console.error('[HCCALL] assets/js/api.js não foi carregado — a aplicação não pode contactar a API.');
-          throw new Error('Cliente mal configurado: api.js em falta.');
-        }
-        try {
-          return await window.apiFetch(url, options);
-        } catch (err) {
-          // Falha de rede: o api.js já emitiu o evento erp:offline.
-          return null;
-        }
-      },
-
-      switchTab(tab) {
-        document.querySelectorAll('.view-pane').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-
-        const targetPane = document.getElementById(`view-${tab}`);
-        if (targetPane) targetPane.classList.add('active');
-
-        const btnIdx = ['home', 'sales', 'customers', 'settings'].indexOf(tab);
-        if (btnIdx >= 0) {
-          document.querySelectorAll('.nav-btn')[btnIdx]?.classList.add('active');
-        }
-
-        if (tab === 'home') { this.loadDashboard(); this.loadRecentSales(); }
-        else if (tab === 'sales') { this.loadAllSales(); }
-        else if (tab === 'customers') { this.loadCustomers(); }
-        else if (tab === 'settings') { this.loadSettingsView(); }
-      },
-
-      async loadConfig() {
-        const [resProd, resDyn, resObj, resPerf, resAlert] = await Promise.all([
-          this.apiFetch('/api/hccall/products'),
-          this.apiFetch('/api/hccall/dynamizations'),
-          this.apiFetch('/api/hccall/objectives'),
-          this.apiFetch('/api/hccall/performance'),
-          this.apiFetch('/api/hccall/alerts')
-        ]);
-
-        if (resProd && resProd.ok) this.products = (await resProd.json()).products || [];
-        if (resDyn && resDyn.ok) this.dynamizations = (await resDyn.json()).dynamizations || [];
-        if (resObj && resObj.ok) this.objectives = (await resObj.json()).objectives || [];
-        if (resPerf && resPerf.ok) this.performance = (await resPerf.json());
-        if (resAlert && resAlert.ok) this.alerts = (await resAlert.json()).alerts || [];
-
-        // Conectar Live SSE para Desktop Auto-Refresh
-        if (!this.eventSourceConnected) {
-          try {
-            const evt = new EventSource('/api/hccall/events');
-            evt.addEventListener('sale_created', () => {
-              this.loadDashboard();
-              this.loadRecentSales();
-            });
-            this.eventSourceConnected = true;
-          } catch (_) {}
-        }
-      },
-
-      async loadDashboard() {
-        const today = new Date();
-        document.getElementById('todayDateStr').innerText = today.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' });
-        document.getElementById('monthNameStr').innerText = today.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
-
-        const resPerf = await this.apiFetch('/api/hccall/performance');
-        if (resPerf && resPerf.ok) {
-          const p = await resPerf.json();
-          this.performance = p;
-          document.getElementById('kpiTodayCount').innerText = p.currentPeriod.salesCount;
-          document.getElementById('kpiTodayComm').innerText = (p.currentPeriod.commissionCents / 100).toFixed(2) + ' €';
-
-          const growth = p.homologousPeriod.salesGrowthPct;
-          document.getElementById('kpiMonthCount').innerText = p.currentPeriod.salesCount;
-          document.getElementById('kpiMonthComm').innerText = (p.currentPeriod.commissionCents / 100).toFixed(2) + ' €';
-
-          const calGrid = document.getElementById('kpiTodayBreakdown');
-          if (calGrid && p.highlights) {
-            calGrid.innerHTML = `<span class="pill">Melhor dia: ${p.highlights.bestDay?.count || 0} vendas</span> <span class="pill">Média: ${p.currentPeriod.dailyAverage}/dia</span>`;
-          }
-        }
-      },
-
-      async loadRecentSales() {
-        const res = await this.apiFetch('/api/hccall/sales?limit=5');
-        const container = document.getElementById('recentSalesList');
-        if (!res || !res.ok) {
-          container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:10px;">Modo offline ativo</div>';
-          return;
-        }
-
-        const data = await res.json();
-        if (data.items.length === 0) {
-          container.innerHTML = '<div style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding:10px;">Nenhuma venda registada hoje</div>';
-          return;
-        }
-
-        container.innerHTML = data.items.map(s => `
-          <div class="sale-item" onclick="app.openSaleDetail('${s.id}')">
-            <div>
-              <div class="sale-code">${s.code}</div>
-              <div class="sale-client">${s.customerNumber}</div>
-              <div class="sale-service">${s.serviceName || 'Geral'} ${s.promotionName ? '· ' + s.promotionName : ''}</div>
+          <div class="row2">
+            <div class="field">
+              <label class="field__label" for="fNumCliente">N.º cliente</label>
+              <input class="input" id="fNumCliente" type="text" inputmode="numeric"
+                     autocomplete="off" enterkeyhint="next" placeholder="000000">
             </div>
-            <div class="sale-comm-badge">
-              <div class="comm-val">${(s.commissionCents / 100).toFixed(2)} €</div>
-              <span class="status-badge" style="background:${s.statusColor}22; color:${s.statusColor}">${s.statusLabel}</span>
+            <div class="field">
+              <label class="field__label" for="fOrdem">N.º ordem</label>
+              <input class="input" id="fOrdem" type="text" inputmode="numeric"
+                     autocomplete="off" enterkeyhint="done" placeholder="000000">
             </div>
           </div>
-        `).join('');
-      },
 
-      showNewSale() {
-        // Populate services
-        const svcSel = document.getElementById('saleServiceSelect');
-        svcSel.innerHTML = this.services.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-
-        // Populate statuses
-        const stsSel = document.getElementById('saleStatusSelect');
-        stsSel.innerHTML = this.statuses.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
-
-        // Populate promotions
-        this.filterPromotionsByService(svcSel.value);
-
-        document.getElementById('newSaleForm').reset();
-        document.getElementById('saleCommissionEur').value = '';
-        document.getElementById('newSaleModal').classList.add('active');
-        document.getElementById('saleCustomerNumber').focus();
-      },
-
-      filterPromotionsByService(serviceId) {
-        const prmSel = document.getElementById('salePromotionSelect');
-        const filtered = this.promotions.filter(p => !p.serviceId || p.serviceId === serviceId);
-        prmSel.innerHTML = '<option value="">Sem Dinamização</option>' +
-          filtered.map(p => `<option value="${p.id}" data-comm="${p.suggestedCommissionCents / 100}">${p.name} (+${(p.suggestedCommissionCents / 100).toFixed(2)} €)</option>`).join('');
-      },
-
-      onPromotionSelected(promoId) {
-        if (!promoId) return;
-        const opt = document.querySelector(`#salePromotionSelect option[value="${promoId}"]`);
-        if (opt && opt.dataset.comm) {
-          document.getElementById('saleCommissionEur').value = opt.dataset.comm;
-        }
-      },
-
-      async lookupCustomer(num) {
-        if (!num || num.length < 3) return;
-        const res = await this.apiFetch(`/api/hccall/customers?search=${encodeURIComponent(num)}&limit=1`);
-        if (res && res.ok) {
-          const data = await res.json();
-          if (data.items.length > 0) {
-            document.getElementById('optCustomerNameGroup').style.display = 'block';
-            document.getElementById('saleCustomerName').value = data.items[0].name || '';
-          }
-        }
-      },
-
-      async handleSaveNewSale(e) {
-        e.preventDefault();
-        const clientUuid = 'hccall-' + crypto.randomUUID();
-        const commEur = parseFloat(document.getElementById('saleCommissionEur').value || '0');
-        const commCents = Math.round(commEur * 100);
-
-        const payload = {
-          clientUuid,
-          customerNumber: document.getElementById('saleCustomerNumber').value.trim(),
-          customerName: document.getElementById('saleCustomerName').value.trim() || undefined,
-          serviceId: document.getElementById('saleServiceSelect').value || undefined,
-          promotionId: document.getElementById('salePromotionSelect').value || undefined,
-          commissionCents: commCents,
-          statusId: document.getElementById('saleStatusSelect').value || undefined,
-          notes: document.getElementById('saleNotes').value.trim() || undefined,
-          soldAt: new Date().toISOString()
-        };
-
-        // Try direct save
-        const res = await this.apiFetch('/api/hccall/sales', {
-          method: 'POST',
-          body: JSON.stringify(payload)
-        });
-
-        if (res && res.ok) {
-          this.closeModal('newSaleModal');
-          await this.loadDashboard();
-          await this.loadRecentSales();
-        } else {
-          // Store in offline queue
-          await queueOfflineOperation({
-            clientUuid,
-            action: 'CREATE_SALE',
-            payload,
-            occurredAt: new Date().toISOString()
-          });
-          const badge = document.getElementById('syncStatusBadge');
-          badge.className = 'sync-badge pending';
-          document.getElementById('syncStatusText').innerText = 'Fila Offline (1)';
-          this.closeModal('newSaleModal');
-          alert('Venda guardada localmente no telemóvel. Será sincronizada assim que houver rede.');
-        }
-      },
-
-      async syncQueue() {
-        const queue = await getOfflineQueue();
-        if (queue.length === 0) return;
-
-        const badge = document.getElementById('syncStatusBadge');
-        badge.className = 'sync-badge pending';
-        document.getElementById('syncStatusText').innerText = `A sincronizar (${queue.length})...`;
-
-        const res = await this.apiFetch('/api/hccall/sync', {
-          method: 'POST',
-          body: JSON.stringify({ operations: queue })
-        });
-
-        if (res && res.ok) {
-          const syncedUuids = queue.map(q => q.clientUuid);
-          await clearSyncedFromQueue(syncedUuids);
-          badge.className = 'sync-badge';
-          document.getElementById('syncStatusText').innerText = 'Online';
-          await this.loadDashboard();
-          await this.loadRecentSales();
-        }
-      },
-
-      async openSaleDetail(saleId) {
-        const res = await this.apiFetch(`/api/hccall/sales/${saleId}`);
-        if (!res || !res.ok) return;
-
-        const data = await res.json();
-        const sale = data.sale;
-        this.currentSaleDetail = sale;
-
-        document.getElementById('detailSaleCode').innerText = sale.code;
-        document.getElementById('detailSaleDate').innerText = new Date(sale.soldAt).toLocaleDateString('pt-PT');
-        document.getElementById('detailCustomerNum').innerText = sale.customerNumber;
-        document.getElementById('detailCommission').innerText = (sale.commissionCents / 100).toFixed(2) + ' €';
-        document.getElementById('detailServicePromo').innerText = `${sale.serviceName} ${sale.promotionName ? '· Dinamização: ' + sale.promotionName : ''}`;
-
-        const timeline = document.getElementById('saleHistoryTimeline');
-        timeline.innerHTML = (sale.changes || []).map(c => `
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div class="timeline-time">${new Date(c.changedAt).toLocaleString('pt-PT')}</div>
-            <div class="timeline-text"><strong>${c.field}:</strong> ${c.oldValue ? c.oldValue + ' → ' : ''}${c.newValue}</div>
-            ${c.reason ? `<div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">Motivo: ${c.reason}</div>` : ''}
+          <div class="field">
+            <label class="field__label" for="fData">Data <span class="opt">· hoje por omissão</span></label>
+            <input class="input" id="fData" type="date">
           </div>
-        `).join('') || '<div style="font-size:0.8rem; color:var(--text-muted);">Sem alterações registadas.</div>';
 
-        document.getElementById('saleDetailModal').classList.add('active');
-      },
+          <div class="field" id="dynField" hidden>
+            <label class="field__label" for="fDyn">Dinamização</label>
+            <select class="select" id="fDyn"></select>
+          </div>
+        </div>
 
-      closeModal(id) {
-        document.getElementById(id)?.classList.remove('active');
-      },
+        <div class="submitbar">
+          <div class="submitbar__note" id="cmPreviewNote"></div>
+          <div class="submitbar__row">
+            <div class="submitbar__cm">
+              <span class="submitbar__cmlabel">Comissão</span>
+              <span class="submitbar__cmvalue" id="cmPreviewValue">—</span>
+            </div>
+            <button class="btn btn--primary" id="btnSaveSale" disabled>
+              Registar venda
+            </button>
+          </div>
+        </div>
+      </section>
 
-      async exportSalesCsv() {
-        window.open('/api/hccall/export', '_blank');
-      }
+      <!-- ==================================================== VENDAS ===== -->
+      <section class="screen" id="scr-vendas">
+        <div class="card">
+          <div class="seg" role="group" aria-label="Período">
+            <button class="seg__b" data-period="month" aria-pressed="true">Este mês</button>
+            <button class="seg__b" data-period="prev" aria-pressed="false">Mês anterior</button>
+            <button class="seg__b" data-period="all" aria-pressed="false">Tudo</button>
+          </div>
+          <div class="field" style="margin:12px 0 0">
+            <input class="input" id="fSearch" type="search" placeholder="Procurar cliente, ordem ou serviço…">
+          </div>
+        </div>
+
+        <div class="stats" style="margin-bottom:14px">
+          <div class="stat"><div class="stat__v" id="stVendas">0</div><div class="stat__l">vendas</div></div>
+          <div class="stat"><div class="stat__v" id="stComissao">—</div><div class="stat__l">comissão</div></div>
+          <div class="stat"><div class="stat__v" id="stMedia">—</div><div class="stat__l">média</div></div>
+        </div>
+
+        <div class="list" id="salesList"></div>
+      </section>
+
+      <!-- =================================================== ANÁLISE ===== -->
+      <section class="screen" id="scr-analise">
+        <div class="card">
+          <div class="hero">
+            <div class="hero__label" id="fcLabel">Previsão de comissão</div>
+            <div class="hero__value" id="fcValue">—</div>
+            <div class="hero__note" id="fcNote"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card">
+            <div class="card__head">
+              <span class="card__title">Objetivo do mês</span>
+              <span class="card__hint" id="objHint"></span>
+            </div>
+            <div id="objBox"></div>
+          </div>
+
+          <div class="card">
+            <div class="card__head"><span class="card__title">Ritmo</span></div>
+            <div class="stats">
+              <div class="stat"><div class="stat__v" id="pcHoje">—</div><div class="stat__l">por dia útil</div></div>
+              <div class="stat"><div class="stat__v" id="pcNec">—</div><div class="stat__l">necessário</div></div>
+              <div class="stat"><div class="stat__v" id="pcDias">—</div><div class="stat__l">dias restantes</div></div>
+            </div>
+            <div style="margin-top:12px" id="pcStatus"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <span class="card__title">Comissão por mês</span>
+            <span class="card__hint">últimos 6 meses</span>
+          </div>
+          <svg class="chart" id="chartMonths" role="img" aria-label="Comissão por mês nos últimos seis meses"></svg>
+          <details style="margin-top:10px">
+            <summary style="font-size:13px;color:var(--ink-2);cursor:pointer">Ver como tabela</summary>
+            <div class="tablewrap" style="margin-top:8px"><table id="tblMonths"></table></div>
+          </details>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <span class="card__title">Por serviço</span>
+            <span class="card__hint" id="svcBreakHint">este mês</span>
+          </div>
+          <div id="svcBreak"></div>
+        </div>
+      </section>
+
+      <!-- ================================================ DEFINIÇÕES ===== -->
+      <section class="screen" id="scr-definicoes">
+        <div class="card">
+          <div class="card__head">
+            <span class="card__title">Serviços e comissões</span>
+            <button class="btn btn--ghost" style="min-height:36px;padding:0 12px;font-size:13px;margin-left:auto"
+                    id="btnAddSvc">Novo</button>
+          </div>
+          <div class="list" id="svcList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <span class="card__title">Dinamizações</span>
+            <button class="btn btn--ghost" style="min-height:36px;padding:0 12px;font-size:13px;margin-left:auto"
+                    id="btnAddDyn">Nova</button>
+          </div>
+          <div class="list" id="dynList"></div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <span class="card__title">Objetivos mensais</span>
+            <button class="btn btn--ghost" style="min-height:36px;padding:0 12px;font-size:13px;margin-left:auto"
+                    id="btnAddObj">Novo</button>
+          </div>
+          <div class="tablewrap"><table id="objTable"></table></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ========================================================== FOLHAS ===== -->
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet__panel">
+    <div class="sheet__head">
+      <span class="sheet__title" id="sheetTitle">—</span>
+      <button class="iconbtn" id="sheetClose" aria-label="Fechar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="sheetBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="tip" id="tip"></div>
+<script>
+'use strict';
+/* ===========================================================================
+   HCCALL — sistema pessoal de performance comercial
+   ---------------------------------------------------------------------------
+   ARQUITETURA (protocolo oficial, secções 3 e 19):
+   esta página é um CLIENTE. Corre no telemóvel, no desktop local ou no browser,
+   e em todos os casos fala com a MESMA API online, que fala com a MESMA base de
+   dados online. Não há base de dados local, não há sincronização, não há uma
+   versão dos dados própria do telemóvel. O tenant é resolvido pelo backend a
+   partir do JWT — nunca é enviado por este cliente.
+
+   Todo o acesso a dados passa por window.apiFetch (assets/js/api.js), que é o
+   único ponto de saída: é ele que resolve a base da API conforme o cliente seja
+   web ou local, e é nele que um futuro OfflineDataProvider entraria.
+   =========================================================================== */
+
+if (!window.apiFetch) {
+  document.body.innerHTML =
+    '<div style="padding:40px;font:16px system-ui">' +
+    '<h2>Cliente mal configurado</h2>' +
+    '<p>O ficheiro <code>assets/js/api.js</code> não foi carregado. ' +
+    'A aplicação não consegue contactar a API.</p></div>';
+  throw new Error('api.js em falta');
+}
+
+/* ------------------------------------------------------------------ ESTADO */
+const S = {
+  services: [],
+  dynamizations: [],
+  objectives: [],
+  sales: [],
+  monthSales: [],
+  pick: { serviceId: null, dynamizationId: '' },
+  period: 'month',
+  search: '',
+  screen: 'registar'
+};
+
+const TITLES = {
+  registar: ['Registar venda', 'Toca no serviço e grava'],
+  vendas: ['Minhas vendas', ''],
+  analise: ['Análise', 'Evolução e previsão'],
+  definicoes: ['Definições', 'Serviços, dinamizações e objetivos']
+};
+
+/* ---------------------------------------------------------------- UTILITÁRIOS */
+const $ = (id) => document.getElementById(id);
+const eur = (cents) =>
+  ((cents || 0) / 100).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+const eurShort = (cents) => {
+  const v = (cents || 0) / 100;
+  return v >= 1000 ? (v / 1000).toFixed(1).replace('.', ',') + 'k€'
+                   : Math.round(v).toLocaleString('pt-PT') + '€';
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/** Converte "12,50" ou "12.50" em cêntimos. Aceita vírgula — é o separador daqui. */
+const toCents = (txt) => {
+  const n = parseFloat(String(txt ?? '').replace(/\s/g, '').replace(',', '.'));
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+};
+const fromCents = (c) => ((c || 0) / 100).toFixed(2).replace('.', ',');
+
+const ymd = (d) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+};
+const monthStart = (d = new Date()) => new Date(d.getFullYear(), d.getMonth(), 1);
+const monthEnd = (d = new Date()) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/** Dias úteis (seg–sex) entre duas datas, inclusive, no calendário civil local. */
+function workingDays(from, to) {
+  let n = 0;
+  const c = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const end = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  while (c <= end) {
+    const d = c.getDay();
+    if (d !== 0 && d !== 6) n++;
+    c.setDate(c.getDate() + 1);
+  }
+  return n;
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('is-on');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('is-on'), 2600);
+}
+
+function banner(msg, kind = 'err') {
+  $('globalBanner').innerHTML = msg
+    ? `<div class="banner banner--${kind}">${esc(msg)}</div>` : '';
+}
+
+/* ------------------------------------------------------------------- API */
+async function api(path, options) {
+  const res = await window.apiFetch('/api/hccall' + path, options);
+  if (!res) throw new Error('Sem resposta do servidor.');
+  if (res.status === 204) return null;
+  let data = null;
+  try { data = await res.json(); } catch (_) {}
+  if (!res.ok) throw new Error((data && (data.message || data.error)) || `Erro ${res.status}`);
+  return data;
+}
+
+/* ============================================================ NAVEGAÇÃO === */
+function go(screen) {
+  S.screen = screen;
+  document.querySelectorAll('.screen').forEach((el) =>
+    el.classList.toggle('is-active', el.id === 'scr-' + screen));
+  document.querySelectorAll('.nav__item').forEach((b) => {
+    if (b.dataset.go === screen) b.setAttribute('aria-current', 'page');
+    else b.removeAttribute('aria-current');
+  });
+  const [t, s] = TITLES[screen] || ['HCCALL', ''];
+  $('scrTitle').textContent = t;
+  $('scrSub').textContent = s;
+  location.hash = '#/' + screen;
+  window.scrollTo(0, 0);
+  if (screen === 'vendas') loadSales();
+  if (screen === 'analise') renderAnalysis();
+}
+
+/* ====================================================== MOTOR DE COMISSÃO ==
+   Espelha a regra do backend, apenas para mostrar o valor ANTES de gravar.
+   O valor gravado é sempre o que o backend calcula — este é um pré-visor.
+   Regra: se houver dinamização activa com comissão definida, vale essa;
+   caso contrário vale a comissão por omissão do serviço.
+   ========================================================================= */
+function activeDynamizations(dateStr) {
+  const d = new Date(dateStr || new Date());
+  return S.dynamizations.filter((dy) => {
+    if (dy.active === false || dy.deletedAt) return false;
+    const a = dy.startsAt ? new Date(dy.startsAt) : null;
+    const b = dy.endsAt ? new Date(dy.endsAt) : null;
+    if (a && d < new Date(a.getFullYear(), a.getMonth(), a.getDate())) return false;
+    if (b && d > new Date(b.getFullYear(), b.getMonth(), b.getDate(), 23, 59, 59)) return false;
+    return true;
+  });
+}
+
+function previewCommission() {
+  const svc = S.services.find((p) => p.id === S.pick.serviceId);
+  if (!svc) return { cents: 0, source: null };
+
+  const dynId = S.pick.dynamizationId;
+  if (dynId) {
+    const dy = S.dynamizations.find((d) => d.id === dynId);
+    if (dy && (dy.baseAmountPerSaleCents || 0) > 0) {
+      return { cents: dy.baseAmountPerSaleCents, source: dy.name, isDyn: true };
+    }
+  }
+  return { cents: svc.defaultCommissionCents || 0, source: svc.name, isDyn: false };
+}
+
+function refreshPreview() {
+  const ok = !!S.pick.serviceId;
+  $('btnSaveSale').disabled = !ok;
+
+  if (!ok) {
+    $('cmPreviewValue').textContent = '—';
+    $('cmPreviewNote').textContent = 'Escolhe o serviço para veres a comissão.';
+    return;
+  }
+
+  const { cents, source, isDyn } = previewCommission();
+  $('cmPreviewValue').textContent = eur(cents);
+  $('cmPreviewNote').textContent = isDyn
+    ? `Dinamização «${source}»`
+    : (cents > 0 ? `Comissão base de «${source}»`
+                 : `«${source}» ainda não tem comissão definida`);
+}
+
+/* ======================================================= ECRÃ · REGISTAR == */
+function renderServicePicker() {
+  const box = $('svcPicker');
+  const list = S.services.filter((s) => s.active !== false && !s.deletedAt);
+
+  if (!list.length) {
+    box.innerHTML =
+      `<div class="empty" style="grid-column:1/-1">
+         <div class="empty__t">Ainda não há serviços</div>
+         <div class="empty__s">Cria-os em Definições e as comissões passam a ser automáticas.</div>
+       </div>`;
+    $('svcHint').textContent = '';
+    return;
+  }
+
+  $('svcHint').textContent = `${list.length} disponíveis`;
+  box.innerHTML = list.map((s) => `
+    <button type="button" class="picker__item" data-svc="${esc(s.id)}"
+            aria-pressed="${S.pick.serviceId === s.id}">
+      <span class="picker__name">${esc(s.name)}</span>
+      <span class="picker__val">${eur(s.defaultCommissionCents || 0)}</span>
+    </button>`).join('');
+
+  box.querySelectorAll('[data-svc]').forEach((b) => {
+    b.onclick = () => {
+      S.pick.serviceId = (S.pick.serviceId === b.dataset.svc) ? null : b.dataset.svc;
+      box.querySelectorAll('[data-svc]').forEach((x) =>
+        x.setAttribute('aria-pressed', String(x.dataset.svc === S.pick.serviceId)));
+      refreshPreview();
     };
+  });
+}
 
-    window.app = app;
-    window.addEventListener('DOMContentLoaded', () => app.init());
-  </script>
-  <script src="/assets/js/connection-banner.js"></script>
+function renderDynField() {
+  const date = $('fData').value || ymd(new Date());
+  const act = activeDynamizations(date);
+  const field = $('dynField');
+  const sel = $('fDyn');
+
+  if (!act.length) {
+    field.hidden = true;
+    S.pick.dynamizationId = '';
+    return;
+  }
+
+  field.hidden = false;
+  // Pré-seleciona a primeira activa: no telemóvel, menos um toque.
+  if (!S.pick.dynamizationId || !act.some((d) => d.id === S.pick.dynamizationId)) {
+    S.pick.dynamizationId = act[0].id;
+  }
+  sel.innerHTML =
+    act.map((d) => `<option value="${esc(d.id)}" ${d.id === S.pick.dynamizationId ? 'selected' : ''}>
+       ${esc(d.name)} · ${eur(d.baseAmountPerSaleCents || 0)}</option>`).join('') +
+    `<option value="" ${!S.pick.dynamizationId ? 'selected' : ''}>Sem dinamização</option>`;
+
+  sel.onchange = () => { S.pick.dynamizationId = sel.value; refreshPreview(); };
+}
+
+async function saveSale() {
+  const btn = $('btnSaveSale');
+  const svc = S.services.find((p) => p.id === S.pick.serviceId);
+  if (!svc) return;
+
+  btn.disabled = true;
+  btn.textContent = 'A registar…';
+  banner('');
+
+  const { cents } = previewCommission();
+
+  try {
+    await api('/sales', {
+      method: 'POST',
+      body: {
+        serviceName: svc.name,
+        productId: svc.id,
+        quantity: 1,
+        customerName: $('fCliente').value.trim() || undefined,
+        customerNumber: $('fNumCliente').value.trim() || undefined,
+        orderNumber: $('fOrdem').value.trim() || undefined,
+        dynamizationId: S.pick.dynamizationId || undefined,
+        commissionCents: cents,
+        soldAt: $('fData').value || ymd(new Date())
+      }
+    });
+
+    toast('Venda registada ✓');
+    // Limpa só o que muda de venda para venda. O serviço e a data mantêm-se:
+    // quem regista várias vendas seguidas do mesmo serviço não repete o toque.
+    $('fCliente').value = '';
+    $('fNumCliente').value = '';
+    $('fOrdem').value = '';
+    $('fCliente').focus();
+    loadSales(true);
+  } catch (err) {
+    banner(err.message || 'Não foi possível registar a venda.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Registar venda';
+  }
+}
+
+/* ========================================================= ECRÃ · VENDAS == */
+function periodRange() {
+  const now = new Date();
+  if (S.period === 'month') return [monthStart(now), monthEnd(now)];
+  if (S.period === 'prev') {
+    const p = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    return [monthStart(p), monthEnd(p)];
+  }
+  return [null, null];
+}
+
+async function loadSales(silent) {
+  const [a, b] = periodRange();
+  const q = new URLSearchParams({ limit: '200' });
+  if (a) q.set('startDate', ymd(a));
+  if (b) q.set('endDate', ymd(b));
+  if (S.search) q.set('search', S.search);
+
+  try {
+    const data = await api('/sales?' + q.toString());
+    S.sales = (data && (data.items || data.sales)) || [];
+    renderSales();
+  } catch (err) {
+    if (!silent) banner(err.message || 'Não foi possível carregar as vendas.');
+  }
+}
+
+function renderSales() {
+  const total = S.sales.reduce((s, v) => s + (v.commissionCents || 0), 0);
+  $('stVendas').textContent = S.sales.length;
+  $('stComissao').textContent = eurShort(total);
+  $('stMedia').textContent = S.sales.length ? eurShort(Math.round(total / S.sales.length)) : '—';
+
+  const box = $('salesList');
+  if (!S.sales.length) {
+    box.innerHTML =
+      `<div class="empty"><div class="empty__t">Sem vendas neste período</div>
+       <div class="empty__s">As vendas que registares aparecem aqui.</div></div>`;
+    return;
+  }
+
+  box.innerHTML = S.sales.map((v) => {
+    const d = new Date(v.soldAt);
+    const bits = [`${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]}`];
+    if (v.customerNumber && v.customerNumber !== 'N/A') bits.push('cl. ' + v.customerNumber);
+    if (v.orderNumber) bits.push('ord. ' + v.orderNumber);
+    if (v.dynamization && v.dynamization.name) bits.push(v.dynamization.name);
+    return `<div class="item">
+      <div class="item__body">
+        <div class="item__t">${esc(v.serviceName || 'Venda')}</div>
+        <div class="item__s">${esc(bits.join(' · '))}</div>
+      </div>
+      <div class="item__v">${eur(v.commissionCents)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ======================================================== ECRÃ · ANÁLISE ==
+   Formas escolhidas pelo trabalho de cada número:
+   - previsão do mês  -> número em destaque (uma grandeza, sem comparação)
+   - objetivo         -> medidor com marca de ritmo (progresso contra alvo)
+   - evolução mensal  -> barras verticais (magnitude ao longo do tempo)
+   - por serviço      -> barras horizontais (magnitude por categoria, nomes longos)
+   Série única em todos: sem legenda, o título nomeia a série.
+   ========================================================================= */
+async function renderAnalysis() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+  try {
+    const data = await api('/sales?' + new URLSearchParams({
+      limit: '1000', startDate: ymd(from), endDate: ymd(monthEnd(now))
+    }));
+    S.monthSales = (data && (data.items || data.sales)) || [];
+  } catch (err) {
+    banner(err.message || 'Não foi possível carregar a análise.');
+    return;
+  }
+
+  const inMonth = S.monthSales.filter((v) => {
+    const d = new Date(v.soldAt);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+
+  const earned = inMonth.reduce((s, v) => s + (v.commissionCents || 0), 0);
+
+  // Previsão: ritmo por dia útil decorrido, projetado sobre os dias úteis do mês.
+  const mStart = monthStart(now), mEnd = monthEnd(now);
+  const elapsed = Math.max(1, workingDays(mStart, now));
+  const totalWd = Math.max(1, workingDays(mStart, mEnd));
+  const remaining = Math.max(0, totalWd - elapsed);
+  const perDay = earned / elapsed;
+  const forecast = Math.round(earned + perDay * remaining);
+
+  $('fcLabel').textContent = `Previsão de comissão · ${MONTHS[now.getMonth()]}`;
+  $('fcValue').textContent = eur(forecast);
+  $('fcNote').textContent =
+    `${eur(earned)} já registados · ${inMonth.length} venda${inMonth.length === 1 ? '' : 's'} · ${remaining === 1 ? 'falta 1 dia útil' : `faltam ${remaining} dias úteis`}`;
+
+  renderObjective(inMonth, earned, elapsed, totalWd, remaining, perDay);
+  renderMonthsChart(now);
+  renderServiceBreakdown(inMonth);
+}
+
+function renderObjective(inMonth, earned, elapsed, totalWd, remaining, perDay) {
+  const now = new Date();
+  const obj = S.objectives.find((o) => {
+    if (o.deletedAt) return false;
+    const a = new Date(o.periodStart), b = new Date(o.periodEnd);
+    return now >= a && now <= b;
+  });
+
+  if (!obj) {
+    $('objBox').innerHTML =
+      `<div class="empty" style="padding:18px 6px">
+         <div class="empty__t">Sem objetivo definido</div>
+         <div class="empty__s">Define-o em Definições para acompanhares o progresso.</div>
+       </div>`;
+    $('objHint').textContent = '';
+    $('pcHoje').textContent = '—'; $('pcNec').textContent = '—';
+    $('pcDias').textContent = remaining;
+    $('pcStatus').innerHTML = '';
+    return;
+  }
+
+  const isCommission = (obj.type || '').toUpperCase() === 'COMMISSION';
+  const current = isCommission ? Math.round(earned / 100) : inMonth.length;
+  const target = obj.targetValue || 0;
+  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+  const pacePct = Math.round((elapsed / totalWd) * 100);
+  const missing = Math.max(0, target - current);
+  const needPerDay = remaining > 0 ? missing / remaining : missing;
+  const fmt = (n) => isCommission ? eurShort(n * 100) : String(n);
+
+  // Não repetir o título do cartão quando o objetivo tem nome genérico.
+  const hint = (obj.name || '').trim();
+  $('objHint').textContent = /^objetivo (do )?m[eê]s/i.test(hint) ? '' : hint;
+  $('objBox').innerHTML = `
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+      <span style="font-size:26px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(current)}</span>
+      <span style="color:var(--ink-3);font-size:14px">de ${fmt(target)} ${esc(obj.unit || '')}</span>
+      <span style="margin-left:auto;font-size:20px;font-weight:700">${pct}%</span>
+    </div>
+    <div class="meter">
+      <div class="meter__track">
+        <div class="meter__fill" style="width:${pct}%"></div>
+        <div class="meter__pace" style="left:calc(${Math.min(100, pacePct)}% - 1px)"
+             title="Ritmo esperado a esta altura do mês"></div>
+      </div>
+      <div class="meter__legend">
+        <span>ritmo esperado ${pacePct}%</span>
+        <span>faltam ${fmt(missing)}</span>
+      </div>
+    </div>`;
+
+  $('pcHoje').textContent = isCommission ? eurShort(perDay) : (current / elapsed).toFixed(1).replace('.', ',');
+  $('pcNec').textContent = remaining > 0 ? (isCommission ? eurShort(needPerDay * 100) : needPerDay.toFixed(1).replace('.', ',')) : '—';
+  $('pcDias').textContent = remaining;
+
+  // Estado: cor acompanhada SEMPRE de ícone e texto — nunca cor sozinha.
+  let kind, label, icon;
+  if (current >= target) {
+    kind = 'good'; label = 'Objetivo atingido';
+    icon = '<path d="M20 6 9 17l-5-5"/>';
+  } else if (pct >= pacePct) {
+    kind = 'good'; label = 'A cumprir o ritmo';
+    icon = '<path d="M12 19V5M5 12l7-7 7 7"/>';
+  } else if (pct >= pacePct - 12) {
+    kind = 'warning'; label = 'Ligeiramente abaixo do ritmo';
+    icon = '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>';
+  } else {
+    kind = 'critical'; label = 'Em risco de não atingir';
+    icon = '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>';
+  }
+  $('pcStatus').innerHTML =
+    `<span class="status status--${kind}">
+       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">${icon}</svg>${label}
+     </span>`;
+}
+
+function renderMonthsChart(now) {
+  const buckets = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({ y: d.getFullYear(), m: d.getMonth(), label: MONTHS[d.getMonth()], cents: 0, n: 0 });
+  }
+  S.monthSales.forEach((v) => {
+    const d = new Date(v.soldAt);
+    const b = buckets.find((x) => x.y === d.getFullYear() && x.m === d.getMonth());
+    if (b) { b.cents += v.commissionCents || 0; b.n++; }
+  });
+
+  const max = Math.max(1, ...buckets.map((b) => b.cents));
+  const W = 320, H = 168, padB = 26, padT = 22;
+  const plot = H - padB - padT;
+  const slot = W / buckets.length;
+  const bw = Math.min(34, slot - 12);
+
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
+    style="height:${H}px" role="img" aria-label="Comissão por mês">`;
+
+  // Linha de base recessiva. Sem grelha adicional: seis barras não precisam dela.
+  svg += `<line class="gridline" x1="0" y1="${H - padB}" x2="${W}" y2="${H - padB}"/>`;
+
+  buckets.forEach((b, i) => {
+    const h = Math.max(b.cents > 0 ? 3 : 0, Math.round((b.cents / max) * plot));
+    const x = i * slot + (slot - bw) / 2;
+    const y = H - padB - h;
+    // Topo arredondado, base ancorada na linha de referência.
+    svg += `<rect class="bar" x="${x}" y="${y}" width="${bw}" height="${h}"
+              rx="4" ry="4" data-lab="${b.label}" data-val="${b.cents}" data-n="${b.n}"/>`;
+    if (h > 0) svg += `<rect class="bar" x="${x}" y="${H - padB - 5}" width="${bw}" height="5"
+              data-lab="${b.label}" data-val="${b.cents}" data-n="${b.n}"/>`;
+    svg += `<text x="${x + bw / 2}" y="${H - padB + 15}" text-anchor="middle">${b.label}</text>`;
+    // Rótulo directo apenas no mês corrente — nunca um número em cada barra.
+    if (i === buckets.length - 1 && b.cents > 0) {
+      svg += `<text class="barlabel" x="${x + bw / 2}" y="${y - 7}" text-anchor="middle">${eurShort(b.cents)}</text>`;
+    }
+  });
+  svg += '</svg>';
+  $('chartMonths').outerHTML = svg;
+
+  // Camada de leitura: alvo de toque maior do que a barra.
+  const chart = document.querySelector('#scr-analise .chart');
+  const tip = $('tip');
+  if (chart) {
+    chart.querySelectorAll('.bar').forEach((r) => {
+      const show = (e) => {
+        const pt = e.touches ? e.touches[0] : e;
+        tip.textContent = `${r.dataset.lab}: ${eur(Number(r.dataset.val))} · ${r.dataset.n} vendas`;
+        tip.style.left = Math.min(window.innerWidth - 150, Math.max(10, pt.clientX - 60)) + 'px';
+        tip.style.top = (pt.clientY - 46) + 'px';
+        tip.classList.add('is-on');
+      };
+      r.addEventListener('mouseenter', show);
+      r.addEventListener('mousemove', show);
+      r.addEventListener('touchstart', show, { passive: true });
+      r.addEventListener('mouseleave', () => tip.classList.remove('is-on'));
+      r.addEventListener('touchend', () => setTimeout(() => tip.classList.remove('is-on'), 1400));
+    });
+  }
+
+  // Vista em tabela — a alternativa acessível ao gráfico.
+  $('tblMonths').innerHTML =
+    '<thead><tr><th>Mês</th><th class="num">Vendas</th><th class="num">Comissão</th></tr></thead><tbody>' +
+    buckets.map((b) => `<tr><td>${b.label} ${b.y}</td><td class="num">${b.n}</td>
+      <td class="num">${eur(b.cents)}</td></tr>`).join('') + '</tbody>';
+}
+
+function renderServiceBreakdown(inMonth) {
+  const by = new Map();
+  inMonth.forEach((v) => {
+    const k = v.serviceName || 'Sem serviço';
+    const e = by.get(k) || { n: 0, cents: 0 };
+    e.n++; e.cents += v.commissionCents || 0;
+    by.set(k, e);
+  });
+
+  const rows = [...by.entries()].sort((a, b) => b[1].cents - a[1].cents);
+  if (!rows.length) {
+    $('svcBreak').innerHTML =
+      `<div class="empty" style="padding:18px 6px"><div class="empty__s">Sem vendas este mês.</div></div>`;
+    return;
+  }
+
+  const max = Math.max(...rows.map((r) => r[1].cents), 1);
+  $('svcBreak').innerHTML = rows.map(([name, e]) => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;gap:10px;font-size:13.5px;margin-bottom:5px">
+        <span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
+        <span style="color:var(--ink-3)">${e.n}</span>
+        <span style="margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums">${eur(e.cents)}</span>
+      </div>
+      <div style="height:8px;background:var(--surface-3);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.round((e.cents / max) * 100)}%;
+                    background:var(--series-1);border-radius:4px"></div>
+      </div>
+    </div>`).join('');
+}
+
+/* ===================================================== ECRÃ · DEFINIÇÕES == */
+function renderSettings() {
+  // --- Serviços ---
+  const sl = $('svcList');
+  const svcs = S.services.filter((s) => !s.deletedAt);
+  sl.innerHTML = svcs.length ? svcs.map((s) => `
+    <div class="item">
+      <div class="item__body">
+        <div class="item__t">${esc(s.name)}</div>
+        <div class="item__s">${esc(s.category || 'Geral')}</div>
+      </div>
+      <div class="item__v">${eur(s.defaultCommissionCents || 0)}</div>
+      <div class="item__act">
+        <button class="iconbtn" data-edit-svc="${esc(s.id)}" aria-label="Editar ${esc(s.name)}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+      </div>
+    </div>`).join('')
+    : `<div class="empty"><div class="empty__t">Sem serviços</div>
+       <div class="empty__s">Cria o primeiro para poderes registar vendas.</div></div>`;
+  sl.querySelectorAll('[data-edit-svc]').forEach((b) =>
+    b.onclick = () => sheetService(S.services.find((x) => x.id === b.dataset.editSvc)));
+
+  // --- Dinamizações ---
+  const dl = $('dynList');
+  const dyns = S.dynamizations.filter((d) => !d.deletedAt);
+  dl.innerHTML = dyns.length ? dyns.map((d) => {
+    const a = new Date(d.startsAt), b = d.endsAt ? new Date(d.endsAt) : null;
+    const per = `${String(a.getDate()).padStart(2, '0')} ${MONTHS[a.getMonth()]}` +
+      (b ? ` – ${String(b.getDate()).padStart(2, '0')} ${MONTHS[b.getMonth()]}` : ' – sem fim');
+    const on = activeDynamizations(ymd(new Date())).some((x) => x.id === d.id);
+    return `<div class="item">
+      <div class="item__body">
+        <div class="item__t">${esc(d.name)}</div>
+        <div class="item__s">${esc(per)}${on ? ' · activa' : ''}</div>
+      </div>
+      <div class="item__v">${eur(d.baseAmountPerSaleCents || 0)}</div>
+      <div class="item__act">
+        <button class="iconbtn" data-edit-dyn="${esc(d.id)}" aria-label="Editar ${esc(d.name)}">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+      </div>
+    </div>`;
+  }).join('')
+    : `<div class="empty"><div class="empty__t">Sem dinamizações</div>
+       <div class="empty__s">Uma dinamização tem nome, duração e comissão aplicável.</div></div>`;
+  dl.querySelectorAll('[data-edit-dyn]').forEach((b) =>
+    b.onclick = () => sheetDyn(S.dynamizations.find((x) => x.id === b.dataset.editDyn)));
+
+  // --- Objetivos mensais ---
+  const objs = S.objectives.filter((o) => !o.deletedAt)
+    .sort((a, b) => new Date(b.periodStart) - new Date(a.periodStart));
+  $('objTable').innerHTML = objs.length
+    ? '<thead><tr><th>Mês</th><th>Objetivo</th><th class="num">Meta</th><th class="num">Atual</th><th></th></tr></thead><tbody>' +
+      objs.map((o) => {
+        const d = new Date(o.periodStart);
+        return `<tr>
+          <td>${MONTHS[d.getMonth()]} ${d.getFullYear()}</td>
+          <td>${esc(o.name)}</td>
+          <td class="num">${o.targetValue} ${esc(o.unit || '')}</td>
+          <td class="num">${o.currentValue || 0}</td>
+          <td class="num"><button class="iconbtn" style="width:32px;height:32px"
+                data-del-obj="${esc(o.id)}" aria-label="Eliminar">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          </button></td></tr>`;
+      }).join('') + '</tbody>'
+    : '<tbody><tr><td style="color:var(--ink-3);padding:18px 4px">Sem objetivos definidos.</td></tr></tbody>';
+
+  $('objTable').querySelectorAll('[data-del-obj]').forEach((b) =>
+    b.onclick = async () => {
+      if (!confirm('Eliminar este objetivo?')) return;
+      try { await api('/objectives/' + b.dataset.delObj, { method: 'DELETE' });
+            S.objectives = S.objectives.filter((o) => o.id !== b.dataset.delObj);
+            renderSettings(); toast('Objetivo eliminado'); }
+      catch (e) { banner(e.message); }
+    });
+}
+
+/* ------------------------------------------------------------------ FOLHAS */
+function openSheet(title, html, onMount) {
+  $('sheetTitle').textContent = title;
+  $('sheetBody').innerHTML = html;
+  $('sheet').classList.add('is-open');
+  if (onMount) onMount();
+}
+function closeSheet() { $('sheet').classList.remove('is-open'); }
+
+function sheetService(svc) {
+  const isNew = !svc;
+  openSheet(isNew ? 'Novo serviço' : 'Editar serviço', `
+    <div class="field">
+      <label class="field__label" for="sName">Nome do serviço</label>
+      <input class="input" id="sName" value="${esc(svc?.name || '')}" placeholder="Ex.: Fibra 1 Gbps">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label class="field__label" for="sCat">Categoria</label>
+        <input class="input" id="sCat" value="${esc(svc?.category || 'Geral')}">
+      </div>
+      <div class="field">
+        <label class="field__label" for="sCom">Comissão (€)</label>
+        <input class="input" id="sCom" inputmode="decimal"
+               value="${fromCents(svc?.defaultCommissionCents || 0)}">
+      </div>
+    </div>
+    <button class="btn btn--primary btn--block" id="sSave">${isNew ? 'Criar serviço' : 'Guardar'}</button>
+    ${isNew ? '' : '<button class="btn btn--danger btn--block" style="margin-top:8px" id="sDel">Eliminar</button>'}
+  `, () => {
+    $('sSave').onclick = async () => {
+      const name = $('sName').value.trim();
+      if (!name) return toast('O nome é obrigatório');
+      const body = { name, category: $('sCat').value.trim() || 'Geral',
+                     defaultCommissionCents: toCents($('sCom').value) };
+      try {
+        if (isNew) await api('/products', { method: 'POST', body });
+        else await api('/products/' + svc.id, { method: 'PUT', body });
+        closeSheet(); await loadConfig(); renderSettings(); renderServicePicker();
+        toast(isNew ? 'Serviço criado ✓' : 'Serviço atualizado ✓');
+      } catch (e) { banner(e.message); }
+    };
+    if (!isNew) $('sDel').onclick = async () => {
+      if (!confirm(`Eliminar «${svc.name}»?`)) return;
+      try { await api('/products/' + svc.id, { method: 'DELETE' });
+            closeSheet(); await loadConfig(); renderSettings(); renderServicePicker();
+            toast('Serviço eliminado'); }
+      catch (e) { banner(e.message); }
+    };
+  });
+}
+
+function sheetDyn(dyn) {
+  const isNew = !dyn;
+  const today = ymd(new Date());
+  openSheet(isNew ? 'Nova dinamização' : 'Editar dinamização', `
+    <div class="field">
+      <label class="field__label" for="dName">Nome</label>
+      <input class="input" id="dName" value="${esc(dyn?.name || '')}" placeholder="Ex.: Campanha de Outubro">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label class="field__label" for="dStart">Início</label>
+        <input class="input" id="dStart" type="date" value="${dyn ? ymd(dyn.startsAt) : today}">
+      </div>
+      <div class="field">
+        <label class="field__label" for="dEnd">Fim <span class="opt">· opcional</span></label>
+        <input class="input" id="dEnd" type="date" value="${dyn?.endsAt ? ymd(dyn.endsAt) : ''}">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field__label" for="dCom">Comissão por venda (€)</label>
+      <input class="input" id="dCom" inputmode="decimal"
+             value="${fromCents(dyn?.baseAmountPerSaleCents || 0)}">
+    </div>
+    <button class="btn btn--primary btn--block" id="dSave">${isNew ? 'Criar dinamização' : 'Guardar'}</button>
+  `, () => {
+    $('dSave').onclick = async () => {
+      const name = $('dName').value.trim();
+      if (!name) return toast('O nome é obrigatório');
+      const body = {
+        name, tierMode: 'FLAT',
+        baseAmountPerSaleCents: toCents($('dCom').value),
+        startsAt: $('dStart').value || today,
+        endsAt: $('dEnd').value || null
+      };
+      try {
+        if (isNew) await api('/dynamizations', { method: 'POST', body });
+        else await api('/dynamizations/' + dyn.id, { method: 'PUT', body });
+        closeSheet(); await loadConfig(); renderSettings(); renderDynField(); refreshPreview();
+        toast(isNew ? 'Dinamização criada ✓' : 'Dinamização atualizada ✓');
+      } catch (e) { banner(e.message); }
+    };
+  });
+}
+
+function sheetObjective() {
+  const now = new Date();
+  openSheet('Novo objetivo mensal', `
+    <div class="field">
+      <label class="field__label" for="oName">Nome</label>
+      <input class="input" id="oName" value="Objetivo de ${MONTHS[now.getMonth()]}">
+    </div>
+    <div class="field">
+      <label class="field__label" for="oType">Medir</label>
+      <select class="select" id="oType">
+        <option value="SALES_COUNT">Número de vendas</option>
+        <option value="COMMISSION">Comissão em euros</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label class="field__label" for="oTarget">Meta</label>
+        <input class="input" id="oTarget" inputmode="numeric" value="0">
+      </div>
+      <div class="field">
+        <label class="field__label" for="oMonth">Mês</label>
+        <input class="input" id="oMonth" type="month"
+               value="${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}">
+      </div>
+    </div>
+    <button class="btn btn--primary btn--block" id="oSave">Criar objetivo</button>
+  `, () => {
+    $('oSave').onclick = async () => {
+      const [y, m] = ($('oMonth').value || '').split('-').map(Number);
+      if (!y || !m) return toast('Escolhe o mês');
+      const type = $('oType').value;
+      const body = {
+        name: $('oName').value.trim() || 'Objetivo mensal',
+        type,
+        targetValue: parseInt($('oTarget').value, 10) || 0,
+        unit: type === 'COMMISSION' ? 'euros' : 'vendas',
+        periodStart: ymd(new Date(y, m - 1, 1)),
+        periodEnd: ymd(new Date(y, m, 0))
+      };
+      try {
+        await api('/objectives', { method: 'POST', body });
+        closeSheet(); await loadConfig(); renderSettings();
+        toast('Objetivo criado ✓');
+      } catch (e) { banner(e.message); }
+    };
+  });
+}
+
+/* ====================================================== CARREGAMENTO ===== */
+async function loadConfig() {
+  const [p, d, o] = await Promise.all([
+    api('/products').catch(() => null),
+    api('/dynamizations').catch(() => null),
+    api('/objectives').catch(() => null)
+  ]);
+  S.services = (p && (p.products || p.items)) || [];
+  S.dynamizations = (d && (d.dynamizations || d.items)) || [];
+  S.objectives = (o && (o.objectives || o.items)) || [];
+}
+
+async function boot() {
+  $('fData').value = ymd(new Date());
+
+  try {
+    await loadConfig();
+    banner('');
+    $('scrSub').textContent = TITLES[S.screen][1];
+  } catch (err) {
+    banner(err.message && err.message.includes('ligação')
+      ? 'Sem ligação ao servidor HelderLabs.'
+      : (err.message || 'Não foi possível carregar a configuração.'));
+  }
+
+  renderServicePicker();
+  renderDynField();
+  renderSettings();
+  refreshPreview();
+
+  const start = (location.hash || '').replace('#/', '');
+  go(TITLES[start] ? start : 'registar');
+}
+
+/* ------------------------------------------------------------- LIGAÇÕES */
+document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => go(b.dataset.go));
+$('btnSaveSale').onclick = saveSale;
+$('fData').onchange = () => { renderDynField(); refreshPreview(); };
+$('btnAddSvc').onclick = () => sheetService(null);
+$('btnAddDyn').onclick = () => sheetDyn(null);
+$('btnAddObj').onclick = () => sheetObjective();
+$('sheetClose').onclick = closeSheet;
+$('sheet').onclick = (e) => { if (e.target === $('sheet')) closeSheet(); };
+
+document.querySelectorAll('[data-period]').forEach((b) => b.onclick = () => {
+  S.period = b.dataset.period;
+  document.querySelectorAll('[data-period]').forEach((x) =>
+    x.setAttribute('aria-pressed', String(x === b)));
+  loadSales();
+});
+
+let searchTimer;
+$('fSearch').oninput = (e) => {
+  clearTimeout(searchTimer);
+  S.search = e.target.value.trim();
+  searchTimer = setTimeout(() => loadSales(true), 320);
+};
+
+$('btnTheme').onclick = () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : cur === 'light' ? '' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('hccall_theme', next); } catch (_) {}
+};
+try {
+  const t = localStorage.getItem('hccall_theme');
+  if (t) document.documentElement.setAttribute('data-theme', t);
+} catch (_) {}
+
+$('btnLogout').onclick = () => {
+  if (window.ERPAuth && window.ERPAuth.logout) window.ERPAuth.logout();
+  else window.location.href = '/login.html';
+};
+
+window.addEventListener('erp:offline', () =>
+  banner('Sem ligação ao servidor HelderLabs. Os dados mostrados podem estar desatualizados.'));
+window.addEventListener('erp:client-outdated', () =>
+  banner('É necessária uma atualização do HelderLabs ERP.'));
+
+boot();
+</script>
 </body>
 </html>

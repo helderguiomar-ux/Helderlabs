@@ -25,10 +25,12 @@ try {
       'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "prevHash" TEXT',
       'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "hash" TEXT',
       'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedAt" TIMESTAMP(3)',
-      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedBy" TEXT',
+      'ALTER TABLE "hccall_products" ADD COLUMN IF NOT EXISTS "defaultCommissionCents" INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE "hccall_dynamizations" ADD COLUMN IF NOT EXISTS "baseAmountPerSaleCents" INTEGER NOT NULL DEFAULT 0',
       'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "orderNumber" TEXT',
       'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionName" TEXT',
       'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionVersion" INTEGER',
+      'CREATE INDEX IF NOT EXISTS "hccall_sales_tenant_order_idx" ON "hccall_sales" ("tenantId", "orderNumber")',
       'UPDATE "audit_logs" SET "prevHash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "prevHash" IS NULL',
       'UPDATE "audit_logs" SET "hash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "hash" IS NULL'
     ];

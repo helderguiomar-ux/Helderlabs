@@ -47,6 +47,7 @@
       sku?: string;
       category?: string;
       baseValueCents?: number;
+      defaultCommissionCents?: number;
       sortOrder?: number;
     }
   ) {
@@ -58,6 +59,7 @@
         sku: data.sku,
         category: data.category || 'Geral',
         baseValueCents: data.baseValueCents ?? 0,
+        defaultCommissionCents: data.defaultCommissionCents ?? 0,
         sortOrder: data.sortOrder ?? 100,
         active: true
       }
@@ -74,6 +76,7 @@
       sku?: string;
       category?: string;
       baseValueCents?: number;
+      defaultCommissionCents?: number;
       active?: boolean;
       sortOrder?: number;
     }

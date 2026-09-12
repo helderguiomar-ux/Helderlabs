@@ -15,6 +15,7 @@ export class HccallSaleService {
     data: {
       clientUuid?: string;
       customerNumber?: string;
+      orderNumber?: string;
       customerName?: string;
       customerPhone?: string;
       serviceId?: string;
@@ -181,6 +182,7 @@ export class HccallSaleService {
           clientUuid,
           customerId,
           customerNumber: data.customerNumber || 'N/A',
+          orderNumber: data.orderNumber || null,
           serviceName: primaryServiceName,
           serviceId: data.serviceId,
           promotionId: data.promotionId,
@@ -273,6 +275,7 @@ export class HccallSaleService {
       where.OR = [
         { code: { contains: query.search, mode: 'insensitive' } },
         { customerNumber: { contains: query.search, mode: 'insensitive' } },
+        { orderNumber: { contains: query.search, mode: 'insensitive' } },
         { serviceName: { contains: query.search, mode: 'insensitive' } }
       ];
     }

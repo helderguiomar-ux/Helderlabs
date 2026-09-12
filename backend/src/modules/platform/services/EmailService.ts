@@ -144,10 +144,15 @@ export class EmailService {
           userAgent: options.userAgent
         });
 
+        let friendlyMsg = errorMsg;
+        if (typeof errorMsg === 'string' && (errorMsg.includes('testing emails') || errorMsg.includes('verify a domain'))) {
+          friendlyMsg = 'Fornecedor Resend em modo de teste/sandbox. Para envio para caixas de correio externas, verifique o domínio em resend.com/domains.';
+        }
+
         return {
           ok: false,
           code: 'RESEND_API_ERROR',
-          message: `Falha no envio de email: ${errorMsg}`
+          message: friendlyMsg
         };
       }
 

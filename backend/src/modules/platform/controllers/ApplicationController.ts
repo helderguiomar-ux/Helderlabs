@@ -732,9 +732,10 @@ export class ApplicationController {
     return reply.send({
       success: true,
       emailDelivered: emailResult.ok,
+      otpCode: emailResult.ok ? undefined : otpCode,
       message: emailResult.ok
         ? 'Código de validação (24h) reenviado com sucesso para ' + accountReq.email
-        : 'Código gerado na plataforma (válido por 24h), mas o fornecedor de email devolveu aviso: ' + (emailResult.message || 'Falha no envio')
+        : `Código gerado na plataforma: ${otpCode} (válido por 24h). ${emailResult.message || ''}`
     });
   }
 
@@ -997,9 +998,10 @@ export class ApplicationController {
     return reply.send({
       success: true,
       emailDelivered: emailResult.ok,
+      verificationUrl: emailResult.ok ? undefined : verificationUrl,
       message: emailResult.ok
         ? `Email de validação enviado com sucesso para ${targetUser.email}.`
-        : `Token gerado, mas o serviço de email devolveu: ${emailResult.message || 'Falha no envio'}`
+        : `Token gerado na plataforma (válido por 24h). Link de validação direta: ${verificationUrl}. ${emailResult.message || ''}`
     });
   }
 

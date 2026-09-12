@@ -26,7 +26,9 @@ try {
       'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "hash" TEXT',
       'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedAt" TIMESTAMP(3)',
       'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedBy" TEXT',
-      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealBatchId" TEXT',
+      'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "orderNumber" TEXT',
+      'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionName" TEXT',
+      'ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionVersion" INTEGER',
       'UPDATE "audit_logs" SET "prevHash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "prevHash" IS NULL',
       'UPDATE "audit_logs" SET "hash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "hash" IS NULL'
     ];

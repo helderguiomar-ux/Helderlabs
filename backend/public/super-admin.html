@@ -1041,7 +1041,10 @@
       const res = await api(`/api/platform/users/${userId}/resend-verification`, {
         method: 'POST'
       });
-      alert(res.message || 'Link de validação enviado com sucesso via Resend!');
+      if (res.verificationUrl && navigator.clipboard) {
+        navigator.clipboard.writeText(res.verificationUrl).catch(() => {});
+      }
+      alert(res.message || 'Link de validação enviado com sucesso!');
       if (currentCompanyDetailData) {
         openCompanyDetailModal(currentCompanyDetailData.tenantId);
       }
@@ -1301,6 +1304,9 @@
       const res = await api(`/api/platform/account-requests/${id}/resend-code`, {
         method: 'POST'
       });
+      if (res.otpCode && navigator.clipboard) {
+        navigator.clipboard.writeText(res.otpCode).catch(() => {});
+      }
       alert(res.message || 'Código reenviado com sucesso.');
       loadAccountRequests();
     } catch(err) {

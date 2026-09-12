@@ -9,11 +9,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator clientRoot {
-  provider = "prisma-client-js"
-  output   = "../../node_modules/.prisma/client"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -107,9 +102,6 @@ model User {
   name         String
   email        String       @unique
   passwordHash String?
-  emailVerifiedAt            DateTime?
-  emailVerificationToken     String?   @unique
-  emailVerificationExpiresAt DateTime?
   // Autenticação Email+OTP
   otpHash      String?
   otpExpiresAt DateTime?
@@ -123,6 +115,11 @@ model User {
   customRole   Role?        @relation(fields: [roleId], references: [id])
   active       Boolean      @default(true)
   deletedAt    DateTime?
+
+  // Validação de Email (Resend)
+  emailVerifiedAt            DateTime?
+  emailVerificationToken     String?   @unique
+  emailVerificationExpiresAt DateTime?
 
   isOnline     Boolean    @default(false)
   lastSeen     DateTime?
@@ -1539,6 +1536,9 @@ model HccallProduct {
   name           String
   category       String    @default("Geral")
   baseValueCents Int       @default(0)
+  /// Comissão por omissão deste serviço, em cêntimos. É o valor aplicado
+  /// quando a venda não cai em nenhuma dinamização activa.
+  defaultCommissionCents Int @default(0)
   active         Boolean   @default(true)
   sortOrder      Int       @default(100)
   deletedAt      DateTime?
@@ -1560,6 +1560,10 @@ model HccallDynamization {
   name           String
   description    String?
   tierMode       String    @default("RETROACTIVE") // RETROACTIVE | MARGINAL | FLAT
+  /// Comissão fixa por venda abrangida por esta dinamização, em cêntimos.
+  /// O HccallCommissionEngine já sabia usá-la (baseAmountPerSaleCents); faltava
+  /// a coluna e o campo na API para a poder configurar.
+  baseAmountPerSaleCents Int @default(0)
   startsAt       DateTime  @db.Date
   endsAt         DateTime? @db.Date
   active         Boolean   @default(true)
@@ -1638,6 +1642,9 @@ model HccallSale {
   orgContextId         String?
   orgContext           HccallOrgContext?   @relation(fields: [orgContextId], references: [id])
   code                 String
+  /// Número de ordem no sistema do operador. Distinto de `code` (referência
+  /// interna gerada) e de `customerNumber` (identificação do cliente).
+  orderNumber          String?
   clientUuid           String
   idempotencyKey       String?
   customerId           String?

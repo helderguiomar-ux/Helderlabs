@@ -59,6 +59,11 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
       await prismaClient.$executeRawUnsafe(`UPDATE "audit_logs" SET "hash" = '0000000000000000000000000000000000000000000000000000000000000000' WHERE "hash" IS NULL;`);
     } catch {}
 
+    // 2.1 Hccall Sales orderNumber and promotion snapshots
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "orderNumber" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionName" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "hccall_sales" ADD COLUMN IF NOT EXISTS "promotionVersion" INTEGER;`);
+
     // 3. Incidents table
     await prismaClient.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "audit_chain_incidents" (

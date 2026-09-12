@@ -21,7 +21,7 @@ window.AuditModule = {
 
   async loadInitialData() {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const [dashRes, logsRes, integRes] = await Promise.all([
         fetchFn('/api/platform/audit/dashboard').then(r => r.json()),
         fetchFn('/api/platform/audit/logs?limit=50').then(r => r.json()),
@@ -196,7 +196,7 @@ window.AuditModule = {
 
   async reverifyChain() {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const integRes = await fetchFn('/api/platform/audit-chain/verify').then(r => r.json());
       this.integrity = integRes;
       this.renderIntegrityBanner();

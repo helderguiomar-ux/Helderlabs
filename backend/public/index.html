@@ -191,6 +191,8 @@
       .engineering-card { transform: none !important; transition: none !important; }
     }
   </style>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/api.js"></script>
 </head>
 <body>
 
@@ -705,7 +707,7 @@
         };
 
         try {
-          const res = await fetch('/api/public/leads', {
+          const res = await apiFetch('/api/public/leads', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)

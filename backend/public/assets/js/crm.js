@@ -20,7 +20,7 @@ window.CRMModule = {
 
   async loadCompanies() {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn('/api/crm/companies');
       const data = await res.json();
       if (data.success) {
@@ -128,7 +128,7 @@ window.CRMModule = {
 
   async openCompany360(id) {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/crm/companies/${id}`);
       const data = await res.json();
       if (data.success) {
@@ -375,7 +375,7 @@ window.CRMModule = {
     };
 
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn('/api/crm/companies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

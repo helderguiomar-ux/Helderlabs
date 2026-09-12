@@ -7,6 +7,35 @@
 (function(window) {
   'use strict';
 
+  // ---------------------------------------------------------------------------
+  // CONFIGURAÇÃO DE RUNTIME
+  //
+  // O mesmo código serve dois clientes: o web (servido por helderlabs.eu, com a
+  // API na mesma origem) e o local (servido por localhost, com a API remota).
+  // A única diferença entre eles é o conteúdo de config.js.
+  // ---------------------------------------------------------------------------
+  const CONFIG = window.HELDERLABS_CONFIG || {
+    apiBaseUrl: '',
+    clientType: 'WEB',
+    appVersion: 'unknown',
+    buildId: 'unknown',
+    environment: 'unknown'
+  };
+
+  /**
+   * Converte um caminho de API relativo no URL absoluto do cliente atual.
+   * No cliente web, apiBaseUrl é vazio e o caminho fica relativo — o
+   * comportamento de sempre. No cliente local, passa a apontar para a API
+   * de produção.
+   */
+  function resolveUrl(url) {
+    if (typeof url !== 'string') return url;
+    const base = (CONFIG.apiBaseUrl || '').replace(/\/$/, '');
+    if (!base) return url;
+    if (!url.startsWith('/api/')) return url;
+    return base + url;
+  }
+
   const SESSION_KEY = 'erp_session';
   const LEGACY_KEYS = ['hl_token', 'auth_token', 'erp_token'];
 
@@ -79,9 +108,11 @@
 
   function logout() {
     clearAuthSession();
-    fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-      window.location.href = '/login.html';
-    });
+    fetch(resolveUrl('/api/auth/logout'), { method: 'POST' })
+      .catch(() => {})
+      .finally(() => {
+        window.location.href = '/login.html';
+      });
   }
 
   // Banner visual não-intrusivo para erros 403 de licenciamento/permissões
@@ -121,7 +152,31 @@
       opts.body = JSON.stringify(opts.body);
     }
 
-    const response = await fetch(url, opts);
+    // Identificação do cliente: DIAGNÓSTICO E AUDITORIA APENAS.
+    // O backend nunca concede permissões com base nestes cabeçalhos — a
+    // autorização vem do JWT e do tenant que lhe está associado.
+    opts.headers['X-HelderLabs-Client'] = CONFIG.clientType;
+    opts.headers['X-HelderLabs-Client-Version'] = CONFIG.appVersion;
+
+    const target = resolveUrl(url);
+
+    let response;
+    try {
+      response = await fetch(target, opts);
+    } catch (networkError) {
+      // Num cliente local, a API está noutro host: uma falha de rede é um
+      // estado normal e tem de ser distinguível de um erro da aplicação.
+      window.dispatchEvent(new CustomEvent('erp:offline', { detail: { url: target } }));
+      throw new Error('Sem ligação ao servidor HelderLabs.');
+    }
+
+    // Incompatibilidade de versão entre este cliente e a API (ver /api/version).
+    if (response.status === 426) {
+      try {
+        const info = await response.clone().json();
+        window.dispatchEvent(new CustomEvent('erp:client-outdated', { detail: info }));
+      } catch (_) {}
+    }
 
     // Tratamento 401 — Sessão expirada
     if (response.status === 401) {
@@ -149,7 +204,11 @@
     return response;
   }
 
+  window.ERPConfig = CONFIG;
+  window.apiUrl = resolveUrl;
+
   window.ERPAuth = {
+    config: CONFIG,
     getToken: getAuthToken,
     getUser: getAuthUser,
     getSession: getSession,

@@ -22,7 +22,7 @@ import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
 import { AuditService } from './modules/platform/services/AuditService';
 import { VersionController } from './modules/platform/controllers/VersionController';
-import { APP_VERSION } from './version';
+import { APP_VERSION, MINIMUM_CLIENT_VERSION, compareVersions } from './version';
 
 export function buildApp() {
   const app = Fastify({
@@ -71,7 +71,11 @@ export function buildApp() {
     'https://www.helderlabs.eu',
     'http://localhost:3333',
     'http://localhost:3000',
-    'http://127.0.0.1:3333'
+    'http://127.0.0.1:3333',
+    // Cliente local de produção (local-client/server.mjs). Porta dedicada para
+    // não colidir com o `npm run dev` na 3333 — permite ter os dois abertos.
+    'http://localhost:3400',
+    'http://127.0.0.1:3400'
   ];
 
   const rawOrigins = process.env.ALLOWED_ORIGINS;
@@ -179,6 +183,63 @@ export function buildApp() {
   app.register(authenticatePlugin);
   app.register(entitlementsPlugin);
 
+  // ---------------------------------------------------------------------------
+  // Configuração de runtime do cliente WEB.
+  //
+  // Gerada pelo servidor em vez de ser um ficheiro estático, por duas razões:
+  // o commit e a versão ficam sempre corretos sem passo de build, e não há
+  // hipótese de um config.js com valores errados ficar commitado por engano.
+  //
+  // O CLIENTE LOCAL não usa esta rota — o seu servidor gera a sua própria
+  // versão, com apiBaseUrl a apontar para aqui.
+  //
+  // NUNCA acrescentar segredos: isto é público por definição.
+  // ---------------------------------------------------------------------------
+  app.get('/assets/js/config.js', async (request, reply) => {
+    const commit =
+      process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_COMMIT_SHA || 'local';
+    const config = {
+      apiBaseUrl: '',
+      clientType: 'WEB',
+      appVersion: APP_VERSION,
+      buildId: commit.slice(0, 7),
+      environment: process.env.ENVIRONMENT || process.env.NODE_ENV || 'development'
+    };
+    return reply
+      .type('application/javascript; charset=utf-8')
+      .header('Cache-Control', 'no-store')
+      .send(`window.HELDERLABS_CONFIG = Object.freeze(${JSON.stringify(config)});\n`);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Compatibilidade cliente/API.
+  //
+  // O cliente local é distribuído à parte e pode ficar para trás. Em vez de
+  // falhar de forma incompreensível quando um endpoint muda, um cliente
+  // demasiado antigo recebe 426 com instrução explícita.
+  //
+  // O cabeçalho é de DIAGNÓSTICO: nunca concede permissões, e a sua ausência
+  // nunca bloqueia — um cliente que não se identifica é tratado como atual.
+  // ---------------------------------------------------------------------------
+  app.addHook('onRequest', async (request, reply) => {
+    if (!request.url.startsWith('/api/')) return;
+    if (request.url === '/api/version' || request.url === '/api/health') return;
+
+    const clientVersion = request.headers['x-helderlabs-client-version'];
+    if (!clientVersion || typeof clientVersion !== 'string') return;
+    if (clientVersion === 'unknown') return;
+
+    if (compareVersions(clientVersion, MINIMUM_CLIENT_VERSION) < 0) {
+      return reply.status(426).send({
+        error: 'CLIENT_UPDATE_REQUIRED',
+        message: 'É necessária uma atualização do HelderLabs ERP.',
+        clientVersion,
+        minimumClientVersion: MINIMUM_CLIENT_VERSION,
+        serverVersion: APP_VERSION
+      });
+    }
+  });
+
   const staticRoot = path.join(__dirname, '../public');
   app.register(fastifyStatic, {
     root: staticRoot,
@@ -199,7 +260,14 @@ export function buildApp() {
   });
 
   app.addHook('onResponse', async (request, reply) => {
-    if (request.url.startsWith('/api/') && request.method !== 'GET' && request.url !== '/api/health') {
+    if (
+      request.url.startsWith('/api/') &&
+      request.method !== 'GET' &&
+      request.method !== 'OPTIONS' &&
+      request.method !== 'HEAD' &&
+      request.url !== '/api/health' &&
+      request.url !== '/api/version'
+    ) {
       const pathParts = request.url.split('?')[0].split('/');
       const moduleName = pathParts[2] || 'plataforma';
       const isSecurity =
@@ -235,11 +303,7 @@ export function buildApp() {
   // (P95 medido de 9,8 s) e servindo de vetor de negação de serviço.
   app.addHook('onReady', async () => {
     try {
-      // Timeout de 2s para evitar FST_ERR_HOOK_TIMEOUT em serverless cold-start
-      await Promise.race([
-        new AuthService().ensureSuperAdminBootstrap(),
-        new Promise((resolve) => setTimeout(resolve, 2000))
-      ]);
+      await new AuthService().ensureSuperAdminBootstrap();
     } catch (err) {
       app.log.error({ err }, '[BOOTSTRAP] Falha ao garantir o utilizador super-admin');
     }

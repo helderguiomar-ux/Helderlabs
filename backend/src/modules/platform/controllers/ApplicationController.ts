@@ -1,6 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import { z } from 'zod';
+import bcrypt from 'bcrypt';
+import crypto from 'node:crypto';
 import { signAuthToken } from '../../../plugins/authenticate';
 import { EntitlementService } from '../services/EntitlementService';
 import { AuditService } from '../services/AuditService';
@@ -258,6 +260,16 @@ export class ApplicationController {
       });
     }
 
+    // REGRA FUNDAMENTAL: Um utilizador não pode receber uma licença enquanto o email não estiver validado.
+    if (!targetUser.emailVerifiedAt) {
+      return reply.status(400).send({
+        error: 'EMAIL_NOT_VERIFIED',
+        message: 'Este utilizador ainda não validou o endereço de email. Envie novamente o email de validação antes de atribuir uma licença.',
+        userId: targetUser.id,
+        userEmail: targetUser.email
+      });
+    }
+
     const assignment = await prisma.applicationAssignment.upsert({
       where: { userId_applicationId: { userId: body.userId, applicationId } },
       create: {
@@ -409,7 +421,8 @@ export class ApplicationController {
     const body = z.object({
       tenantId: z.string().optional(),
       role: z.string().default('TENANT_ADMIN'),
-      modules: z.array(z.string()).optional()
+      modules: z.array(z.string()).optional(),
+      forceVerify: z.boolean().optional()
     }).parse(req.body || {});
 
     const accountReq = await prisma.accountRequest.findUnique({ where: { id } });
@@ -425,10 +438,17 @@ export class ApplicationController {
     }
 
     if (!accountReq.emailVerifiedAt) {
-      return reply.status(400).send({
-        error: 'EMAIL_NOT_VERIFIED',
-        message: 'O email deste pedido ainda não foi verificado pelo utilizador. Apenas pedidos com email validado podem ser aprovados.'
-      });
+      if (body.forceVerify) {
+        await prisma.accountRequest.update({
+          where: { id },
+          data: { emailVerifiedAt: new Date() }
+        });
+      } else {
+        return reply.status(400).send({
+          error: 'EMAIL_NOT_VERIFIED',
+          message: 'O email deste pedido ainda não foi verificado pelo utilizador. Apenas pedidos com email validado podem ser aprovados.'
+        });
+      }
     }
 
     const companyName = accountReq.companyName || accountReq.name || accountReq.contactName || accountReq.email.split('@')[0];
@@ -650,6 +670,326 @@ export class ApplicationController {
   }
 
   /**
+   * POST /api/platform/account-requests/:id/resend-code
+   * Super Admin reenvia código de verificação para um pedido de adesão (válido por 24h)
+   */
+  static async resendAccountRequestCode(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const { id } = req.params as { id: string };
+    const accountReq = await prisma.accountRequest.findUnique({ where: { id } });
+    if (!accountReq) {
+      return reply.status(404).send({ error: 'REQUEST_NOT_FOUND', message: 'Pedido de conta não encontrado.' });
+    }
+
+    if (accountReq.status === 'APPROVED') {
+      return reply.status(400).send({ error: 'ACCOUNT_ALREADY_APPROVED', message: 'Esta conta já foi aprovada.' });
+    }
+
+    const contactName = accountReq.contactName || accountReq.name || accountReq.email.split('@')[0];
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otpCode, 10);
+    const otpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+    await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: {
+        otpHash,
+        otpExpiresAt,
+        otpAttempts: 0,
+        emailDeliveryStatus: 'PENDING',
+        emailLastAttemptAt: new Date()
+      }
+    });
+
+    const emailResult = await EmailService.sendVerificationEmail(accountReq.email, contactName, otpCode, {
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] as string | undefined
+    });
+
+    await prisma.accountRequest.update({
+      where: { id: accountReq.id },
+      data: {
+        emailDeliveryStatus: emailResult.ok ? 'SENT' : 'FAILED',
+        emailDeliveryError: emailResult.ok ? null : `${emailResult.code ?? 'UNKNOWN'}: ${emailResult.message ?? ''}`.slice(0, 500)
+      }
+    });
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      action: 'account_request.resend_code',
+      resource: 'AccountRequest',
+      resourceId: id,
+      newValue: { email: accountReq.email, delivered: emailResult.ok },
+      result: emailResult.ok ? 'SUCCESS' : 'FAILURE'
+    });
+
+    return reply.send({
+      success: true,
+      emailDelivered: emailResult.ok,
+      message: emailResult.ok
+        ? 'Código de validação (24h) reenviado com sucesso para ' + accountReq.email
+        : 'Código gerado na plataforma (válido por 24h), mas o fornecedor de email devolveu aviso: ' + (emailResult.message || 'Falha no envio')
+    });
+  }
+
+  /**
+   * POST /api/platform/account-requests/:id/force-verify
+   * Super Admin valida manualmente o email de um pedido
+   */
+  static async forceVerifyAccountRequest(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const { id } = req.params as { id: string };
+    const accountReq = await prisma.accountRequest.findUnique({ where: { id } });
+    if (!accountReq) {
+      return reply.status(404).send({ error: 'REQUEST_NOT_FOUND', message: 'Pedido de conta não encontrado.' });
+    }
+
+    const updated = await prisma.accountRequest.update({
+      where: { id },
+      data: {
+        status: accountReq.status === 'PENDING_VERIFICATION' ? 'PENDING' : accountReq.status,
+        emailVerifiedAt: accountReq.emailVerifiedAt || new Date(),
+        otpHash: null,
+        otpExpiresAt: null,
+        otpAttempts: 0
+      }
+    });
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      action: 'account_request.force_verified',
+      resource: 'AccountRequest',
+      resourceId: id,
+      newValue: { email: accountReq.email, verifiedManually: true },
+      result: 'SUCCESS'
+    });
+
+    return reply.send({
+      success: true,
+      message: 'Email validado manualmente pelo Administrador.',
+      accountRequest: updated
+    });
+  }
+
+  /**
+   * GET /api/platform/licensing/dashboard
+   * Retorna os indicadores reais de topo e a listagem consolidada de empresas (1 linha por empresa).
+   */
+  static async getLicensingDashboard(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'PLATFORM_ADMIN') {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Acesso restrito ao Super Admin.' });
+    }
+
+    const now = new Date();
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const totalTenants = await prisma.tenant.count({ where: { deletedAt: null } });
+
+    const activeApplications = await prisma.applicationInstance.findMany({
+      where: { deletedAt: null },
+      include: {
+        module: true,
+        tenant: { select: { id: true, name: true, slug: true, status: true } }
+      }
+    });
+
+    let activeModulesCount = 0;
+    let trialCount = 0;
+    let renewals30DaysCount = 0;
+    let lifetimeLicensesCount = 0;
+
+    for (const app of activeApplications) {
+      if (app.status === 'ACTIVE') {
+        activeModulesCount++;
+        if (!app.validUntil) {
+          lifetimeLicensesCount++;
+        } else {
+          const vUntil = new Date(app.validUntil);
+          if (vUntil >= now && vUntil <= thirtyDaysFromNow) {
+            renewals30DaysCount++;
+          }
+        }
+      } else if (app.status === 'TRIAL') {
+        trialCount++;
+        if (app.validUntil) {
+          const vUntil = new Date(app.validUntil);
+          if (vUntil >= now && vUntil <= thirtyDaysFromNow) {
+            renewals30DaysCount++;
+          }
+        }
+      }
+    }
+
+    const tenants = await prisma.tenant.findMany({
+      where: { deletedAt: null },
+      include: {
+        _count: { select: { users: true } },
+        applications: {
+          where: { deletedAt: null },
+          include: {
+            module: true,
+            assignments: { select: { id: true, userId: true } }
+          }
+        },
+        users: {
+          select: { id: true, name: true, email: true, emailVerifiedAt: true, role: true, active: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const companies = tenants.map(t => {
+      const activeApps = t.applications.filter(a => a.status === 'ACTIVE' || a.status === 'TRIAL');
+      const modulesList = activeApps.map(a => ({
+        key: resolveCanonicalModuleKey(a.module.key),
+        name: a.module.name,
+        status: a.status,
+        isLifetime: a.validUntil === null,
+        validUntil: a.validUntil,
+        priceCents: a.priceCents,
+        billingPeriod: a.billingPeriod,
+        usersCount: a.assignments.length
+      }));
+
+      let nextRenewal: Date | null = null;
+      let hasOnlyLifetime = activeApps.length > 0;
+
+      for (const app of activeApps) {
+        if (app.validUntil) {
+          hasOnlyLifetime = false;
+          const d = new Date(app.validUntil);
+          if (!nextRenewal || d < nextRenewal) {
+            nextRenewal = d;
+          }
+        }
+      }
+
+      return {
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        email: t.email,
+        phone: t.phone,
+        status: t.status,
+        createdAt: t.createdAt,
+        userCount: t._count.users,
+        users: t.users.map(u => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          active: u.active,
+          isEmailVerified: Boolean(u.emailVerifiedAt)
+        })),
+        activeModulesCount: activeApps.length,
+        modules: modulesList,
+        isAllLifetime: hasOnlyLifetime && activeApps.length > 0,
+        nextRenewal: nextRenewal ? nextRenewal.toISOString() : null
+      };
+    });
+
+    return reply.send({
+      success: true,
+      stats: {
+        totalTenants,
+        activeModulesCount,
+        trialCount,
+        renewals30DaysCount,
+        lifetimeLicensesCount
+      },
+      companies
+    });
+  }
+
+  /**
+   * POST /api/platform/users/:userId/resend-verification
+   * Envia ou reenvia link seguro de validação de email para um utilizador
+   */
+  static async resendUserVerificationEmail(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const { userId } = req.params as { userId: string };
+
+    const isSuperAdmin = user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN';
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { tenant: true }
+    });
+
+    if (!targetUser) {
+      return reply.status(404).send({ error: 'USER_NOT_FOUND', message: 'Utilizador não encontrado.' });
+    }
+
+    if (!isSuperAdmin && targetUser.tenantId !== user.tenantId) {
+      return reply.status(403).send({ error: 'FORBIDDEN', message: 'Sem permissão para este utilizador.' });
+    }
+
+    if (targetUser.emailVerifiedAt) {
+      return reply.status(400).send({
+        error: 'ALREADY_VERIFIED',
+        message: 'O endereço de email deste utilizador já se encontra validado.'
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+    await prisma.user.update({
+      where: { id: targetUser.id },
+      data: {
+        emailVerificationToken: token,
+        emailVerificationExpiresAt: expiresAt
+      }
+    });
+
+    const appUrl = process.env.APP_URL || 'https://helderlabs.eu';
+    const verificationUrl = `${appUrl}/api/public/verify-user-email?token=${token}`;
+
+    const emailResult = await EmailService.sendUserVerificationLinkEmail(
+      targetUser.email,
+      targetUser.name || targetUser.email.split('@')[0],
+      verificationUrl,
+      {
+        tenantId: targetUser.tenantId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'] as string | undefined
+      }
+    );
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: isSuperAdmin ? 'SUPER_ADMIN' : 'USER',
+      tenantId: targetUser.tenantId,
+      action: 'user.verification_link_sent',
+      resource: 'User',
+      resourceId: targetUser.id,
+      newValue: { email: targetUser.email, delivered: emailResult.ok },
+      result: emailResult.ok ? 'SUCCESS' : 'FAILURE'
+    });
+
+    return reply.send({
+      success: true,
+      emailDelivered: emailResult.ok,
+      message: emailResult.ok
+        ? `Email de validação enviado com sucesso para ${targetUser.email}.`
+        : `Token gerado, mas o serviço de email devolveu: ${emailResult.message || 'Falha no envio'}`
+    });
+  }
+
+  /**
    * GET /api/platform/licensing/summary
    * Retorna resumo de receitas recorrentes (MRR/ARR), licenças ativas, e distribuição de planos.
    */
@@ -738,12 +1078,15 @@ export class ApplicationController {
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
       include: {
+        users: {
+          select: { id: true, name: true, email: true, role: true, emailVerifiedAt: true, active: true }
+        },
         applications: {
           where: { deletedAt: null },
           include: {
             module: true,
             assignments: {
-              include: { user: { select: { id: true, name: true, email: true, role: true } } }
+              include: { user: { select: { id: true, name: true, email: true, role: true, emailVerifiedAt: true } } }
             }
           }
         }
@@ -787,6 +1130,7 @@ export class ApplicationController {
         icon: def.icon,
         applicationId: app?.id || null,
         status,
+        isLifetime: app ? app.validUntil === null : false,
         plan: app?.plan || 'pro',
         priceCents: rawPrice,
         billingPeriod: app?.billingPeriod || 'MONTHLY',
@@ -801,11 +1145,21 @@ export class ApplicationController {
           userId: a.user.id,
           userName: a.user.name || a.user.email,
           userEmail: a.user.email,
+          isEmailVerified: Boolean(a.user.emailVerifiedAt),
           roleInApp: a.roleInApp,
           status: a.status
         })) || []
       };
     });
+
+    const tenantUsers = tenant.users.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      active: u.active,
+      isEmailVerified: Boolean(u.emailVerifiedAt)
+    }));
 
     return reply.send({
       success: true,
@@ -813,7 +1167,8 @@ export class ApplicationController {
       tenantName: tenant.name,
       entitlementsVersion: tenant.entitlementsVersion,
       totalMonthlyCents,
-      modules: modulesList
+      modules: modulesList,
+      users: tenantUsers
     });
   }
 
@@ -845,7 +1200,8 @@ export class ApplicationController {
       validFrom: z.string().optional().nullable(),
       validUntil: z.string().optional().nullable(),
       graceDays: z.number().int().min(0).optional().default(7),
-      config: z.record(z.unknown()).optional().default({})
+      config: z.record(z.unknown()).optional().default({}),
+      authorizedUserIds: z.array(z.string()).optional()
     });
 
     const body = schema.parse(req.body || {});
@@ -902,6 +1258,45 @@ export class ApplicationController {
         config: body.config as any
       }
     });
+
+    // Se foram especificados utilizadores autorizados, validar e associar
+    if (body.authorizedUserIds && Array.isArray(body.authorizedUserIds)) {
+      for (const uid of body.authorizedUserIds) {
+        const u = await prisma.user.findFirst({ where: { id: uid, tenantId } });
+        if (!u) {
+          return reply.status(404).send({ error: 'USER_NOT_FOUND', message: `Utilizador ${uid} não encontrado nesta empresa.` });
+        }
+        if (!u.emailVerifiedAt) {
+          return reply.status(400).send({
+            error: 'EMAIL_NOT_VERIFIED',
+            message: `O utilizador '${u.name || u.email}' ainda não validou o endereço de email. Envie o email de validação antes de lhe atribuir licença.`,
+            userId: u.id,
+            userEmail: u.email
+          });
+        }
+      }
+
+      await prisma.applicationAssignment.updateMany({
+        where: {
+          applicationId: appInstance.id,
+          userId: { notIn: body.authorizedUserIds }
+        },
+        data: { status: 'REMOVED' }
+      });
+
+      for (const uid of body.authorizedUserIds) {
+        await prisma.applicationAssignment.upsert({
+          where: { userId_applicationId: { userId: uid, applicationId: appInstance.id } },
+          create: {
+            userId: uid,
+            applicationId: appInstance.id,
+            roleInApp: 'USER',
+            status: 'ACTIVE'
+          },
+          update: { status: 'ACTIVE' }
+        });
+      }
+    }
 
     if (canonicalKey === 'finance' && body.status === 'ACTIVE') {
       await seedFinancas(tenantId);

@@ -107,6 +107,9 @@ model User {
   name         String
   email        String       @unique
   passwordHash String?
+  emailVerifiedAt            DateTime?
+  emailVerificationToken     String?   @unique
+  emailVerificationExpiresAt DateTime?
   // Autenticação Email+OTP
   otpHash      String?
   otpExpiresAt DateTime?

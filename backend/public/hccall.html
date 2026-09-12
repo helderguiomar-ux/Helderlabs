@@ -414,6 +414,8 @@
       color: var(--text);
     }
   </style>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/api.js"></script>
 </head>
 <body>
 
@@ -657,7 +659,6 @@
 
   <!-- PWA & Application Script -->
   <script src="/assets/js/theme.js"></script>
-<script src="/assets/js/api.js"></script>
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/hccall-sw.js').catch(() => {});
@@ -768,29 +769,19 @@
       },
 
       async apiFetch(url, options = {}) {
-        if (window.apiFetch) {
-          try {
-            return await window.apiFetch(url, options);
-          } catch (err) {
-            return null;
-          }
+        // O HCCALL tinha um caminho alternativo próprio para quando o api.js
+        // global não estivesse carregado. Esse caminho usava `fetch` com URL
+        // relativo — no cliente local, o pedido iria para o servidor estático
+        // em vez da API. O api.js é agora obrigatório em todas as páginas.
+        if (!window.apiFetch) {
+          console.error('[HCCALL] assets/js/api.js não foi carregado — a aplicação não pode contactar a API.');
+          throw new Error('Cliente mal configurado: api.js em falta.');
         }
-        const token = await this.getAuthToken();
-        const headers = {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          ...options.headers
-        };
-
         try {
-          const res = await fetch(url, { ...options, headers });
-          if (res.status === 401) {
-            window.location.href = '/login.html?redirect=/hccall.html';
-            return null;
-          }
-          return res;
+          return await window.apiFetch(url, options);
         } catch (err) {
-          return null; // Network error / offline
+          // Falha de rede: o api.js já emitiu o evento erp:offline.
+          return null;
         }
       },
 
@@ -1043,5 +1034,6 @@
     window.app = app;
     window.addEventListener('DOMContentLoaded', () => app.init());
   </script>
+  <script src="/assets/js/connection-banner.js"></script>
 </body>
 </html>

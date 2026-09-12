@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../../database/prisma/client';
 import fs from 'fs';
 import path from 'path';
-import { APP_VERSION } from '../../../version';
+import { APP_VERSION, MINIMUM_CLIENT_VERSION } from '../../../version';
 
 function getCommitSha(): string {
   if (process.env.GIT_COMMIT_SHA) return process.env.GIT_COMMIT_SHA;
@@ -58,9 +58,15 @@ export class VersionController {
       // Mantido por retrocompatibilidade com consumidores existentes.
       schemaVersion: appVersion,
       commitSha,
+      build: commitSha.slice(0, 7),
+      builtAt: buildTime,
       buildTime,
       environment,
-      latestMigration
+      latestMigration,
+      // Contrato de compatibilidade: um cliente abaixo desta versão recebe 426
+      // em vez de falhar de forma incompreensível. Ver src/version.ts.
+      minimumClientVersion: MINIMUM_CLIENT_VERSION,
+      serverTime: new Date().toISOString()
     });
   }
 }

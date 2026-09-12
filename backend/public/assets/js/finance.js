@@ -25,11 +25,11 @@ window.FinanceModule = {
   async loadInitialData() {
     try {
       const [dashRes, projRes, accRes, catRes, txRes] = await Promise.all([
-        (window.apiFetch ? apiFetch('/api/financas/dashboard') : fetch('/api/financas/dashboard')).then(r => r.json()),
-        (window.apiFetch ? apiFetch('/api/financas/projections?days=90') : fetch('/api/financas/projections?days=90')).then(r => r.json()),
-        (window.apiFetch ? apiFetch('/api/financas/accounts') : fetch('/api/financas/accounts')).then(r => r.json()),
-        (window.apiFetch ? apiFetch('/api/financas/categories') : fetch('/api/financas/categories')).then(r => r.json()),
-        (window.apiFetch ? apiFetch('/api/financas/transactions') : fetch('/api/financas/transactions')).then(r => r.json())
+        (window.apiFetch ? apiFetch('/api/financas/dashboard') : apiFetch('/api/financas/dashboard')).then(r => r.json()),
+        (window.apiFetch ? apiFetch('/api/financas/projections?days=90') : apiFetch('/api/financas/projections?days=90')).then(r => r.json()),
+        (window.apiFetch ? apiFetch('/api/financas/accounts') : apiFetch('/api/financas/accounts')).then(r => r.json()),
+        (window.apiFetch ? apiFetch('/api/financas/categories') : apiFetch('/api/financas/categories')).then(r => r.json()),
+        (window.apiFetch ? apiFetch('/api/financas/transactions') : apiFetch('/api/financas/transactions')).then(r => r.json())
       ]);
 
       if (dashRes.success) {
@@ -313,7 +313,7 @@ window.FinanceModule = {
 
   async markAsPaid(id) {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/financas/transactions/${id}/pay`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -330,7 +330,7 @@ window.FinanceModule = {
   async deleteTransaction(id) {
     if (!confirm('Deseja arquivar esta transação? (Poderá recuperá-la mais tarde)')) return;
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/financas/transactions/${id}`, { method: 'DELETE' });
       if (res.ok) {
         await this.init();
@@ -422,7 +422,7 @@ window.FinanceModule = {
     };
 
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn('/api/financas/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -462,7 +462,7 @@ window.FinanceModule = {
     };
 
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/financas/transactions/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

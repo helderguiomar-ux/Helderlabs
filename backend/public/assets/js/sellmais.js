@@ -27,7 +27,7 @@ window.SellmaisModule = {
 
   async loadTypes() {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn('/api/sellmais/types');
       const data = await res.json();
       if (data.success) {
@@ -46,7 +46,7 @@ window.SellmaisModule = {
       if (this.currentFilter.acquisitionType) params.append('acquisitionType', this.currentFilter.acquisitionType);
       if (this.currentFilter.search) params.append('search', this.currentFilter.search);
 
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/sellmais/items?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
@@ -59,7 +59,7 @@ window.SellmaisModule = {
 
   async loadValuation() {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn('/api/sellmais/valuation');
       const data = await res.json();
       if (data.success) {
@@ -274,7 +274,7 @@ window.SellmaisModule = {
     };
 
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn('/api/sellmais/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,7 +318,7 @@ window.SellmaisModule = {
     };
 
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/sellmais/items/${itemId}/costs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -365,7 +365,7 @@ window.SellmaisModule = {
     };
 
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/sellmais/items/${itemId}/transition`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -387,7 +387,7 @@ window.SellmaisModule = {
 
   async openItemDetail(itemId) {
     try {
-      const fetchFn = window.apiFetch || fetch;
+      const fetchFn = window.apiFetch;
       const res = await fetchFn(`/api/sellmais/items/${itemId}`);
       const data = await res.json();
       if (!data.success) return;

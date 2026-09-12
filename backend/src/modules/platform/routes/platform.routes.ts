@@ -185,13 +185,17 @@ export async function platformRoutes(app: FastifyInstance) {
   app.post('/impersonate/end', ApplicationController.endImpersonation);
   app.post('/account-requests/:id/approve', ApplicationController.approveAccountRequest);
   app.post('/account-requests/:id/reject', ApplicationController.rejectAccountRequest);
+  app.post('/account-requests/:id/resend-code', ApplicationController.resendAccountRequestCode);
+  app.post('/account-requests/:id/force-verify', ApplicationController.forceVerifyAccountRequest);
 
   // Ficha de Licenciamento por Tenant & Renovações
+  app.get('/licensing/dashboard', ApplicationController.getLicensingDashboard);
+  app.get('/licensing/renewals', ApplicationController.getUpcomingRenewals);
+  app.get('/licensing/summary', ApplicationController.getLicensingSummary);
   app.get('/tenants/:tenantId/licensing', ApplicationController.getTenantLicensing);
   app.put('/tenants/:tenantId/licensing/:moduleKey', ApplicationController.updateTenantLicensingModule);
   app.delete('/tenants/:tenantId/licensing/:moduleKey', ApplicationController.disableTenantLicensingModule);
-  app.get('/licensing/renewals', ApplicationController.getUpcomingRenewals);
-  app.get('/licensing/summary', ApplicationController.getLicensingSummary);
+  app.post('/users/:userId/resend-verification', ApplicationController.resendUserVerificationEmail);
 
   // Auditoria
   app.get('/audit-chain/verify', async (request, reply) => {

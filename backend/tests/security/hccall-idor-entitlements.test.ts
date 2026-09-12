@@ -21,9 +21,12 @@ describe('Security & Licensing E2E Tests', () => {
       assert.equal(isModuleRegistered('financas'), true);
       assert.equal(isModuleRegistered('hccall'), true);
       assert.equal(isModuleRegistered('sellmais'), true);
-      assert.equal(isModuleRegistered('invoicing'), false);
-      assert.equal(isModuleRegistered('sales'), false);
+      assert.equal(isModuleRegistered('condominios'), true);
+      assert.equal(isModuleRegistered('sales'), true);
+      assert.equal(isModuleRegistered('invoicing'), true);
+      assert.equal(isModuleRegistered('tasks'), true);
       assert.equal(isModuleRegistered('rent_a_car'), false);
+      assert.equal(isModuleRegistered('unregistered_app'), false);
     });
   });
 

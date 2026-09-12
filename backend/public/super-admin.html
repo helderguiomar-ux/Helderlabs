@@ -23,7 +23,7 @@
 
   <!-- OPEN GRAPH / SOCIAL -->
   <meta property="og:title" content="HelderLabs ERP - Consola Super Admin">
-  <meta property="og:description" content="Gestão da Plataforma, Licenciamento e Administração de Tenants.">
+  <meta property="og:description" content="Gestão da Plataforma, Licenciamento Global e Administração de Empresas.">
   <meta property="og:url" content="https://helderlabs.eu/super-admin.html">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_PT">
@@ -37,10 +37,10 @@
   <link rel="stylesheet" href="/assets/css/styles.css">
   <style>
     body { margin: 0; font-family: var(--font-sans); background-color: var(--paper); color: var(--ink); display: flex; height: 100vh; overflow: hidden; }
-    .sidebar { width: 250px; background-color: var(--sheet-2); border-right: 1px solid var(--rule); display: flex; flex-direction: column; }
+    .sidebar { width: 260px; background-color: var(--sheet-2); border-right: 1px solid var(--rule); display: flex; flex-direction: column; }
     .sidebar-header { padding: 20px; font-size: 18px; font-weight: 700; color: var(--pen); border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 8px; font-family: var(--font-serif); }
-    .nav { padding: 15px 0; flex-grow: 1; }
-    .nav-item { padding: 12px 20px; display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-size: 14px; transition: background 0.2s; cursor: pointer; }
+    .nav { padding: 15px 0; flex-grow: 1; overflow-y: auto; }
+    .nav-item { padding: 11px 20px; display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-size: 13.5px; transition: background 0.2s; cursor: pointer; }
     .nav-item:hover { background-color: var(--rule); }
     .nav-item.active { background-color: var(--sheet); color: var(--pen); border-left: 3px solid var(--pen); font-weight: 600; }
     
@@ -52,14 +52,15 @@
     .btn-theme-toggle { background: var(--sheet-2); border: 1px solid var(--rule); color: var(--ink); padding: 6px 12px; border-radius: var(--radius-btn); cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
     .btn-logout { background: var(--red); color: white; border: none; padding: 6px 14px; border-radius: var(--radius-btn); cursor: pointer; font-size: 12px; font-weight: 600; }
     
-    .content-area { padding: 30px; overflow-y: auto; flex-grow: 1; }
+    .content-area { padding: 26px 30px; overflow-y: auto; flex-grow: 1; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
     /* Modais */
     .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 2000; }
     .modal-overlay.active { display: flex; }
-    .modal-box { background: var(--sheet); border: 1px solid var(--rule-2); border-radius: 12px; width: 90%; max-width: 600px; padding: 24px; color: var(--ink); box-shadow: var(--shadow-elevation); max-height: 90vh; overflow-y: auto; }
+    .modal-box { background: var(--sheet); border: 1px solid var(--rule-2); border-radius: 12px; width: 92%; max-width: 650px; padding: 24px; color: var(--ink); box-shadow: var(--shadow-elevation); max-height: 90vh; overflow-y: auto; }
+    .modal-box.modal-large { max-width: 900px; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; }
     .modal-header h3 { margin: 0; color: var(--pen); font-family: var(--font-serif); }
     .form-group { margin-bottom: 16px; }
@@ -78,24 +79,32 @@
     .btn-danger:hover { background: var(--red); color: white; }
 
     /* Tabelas */
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--sheet); border-radius: 8px; overflow: hidden; border: 1px solid var(--rule); }
-    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--rule); font-size: 13.5px; }
-    th { background-color: var(--sheet-2); color: var(--pen); font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; background: var(--sheet); border-radius: 8px; overflow: hidden; border: 1px solid var(--rule); }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--rule); font-size: 13px; }
+    th { background-color: var(--sheet-2); color: var(--pen); font-weight: 600; font-size: 12.5px; }
     tr:hover { background-color: var(--sheet-2); }
 
     /* Badges */
-    .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+    .status-badge { padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px; }
     .badge-active { background: var(--state-success-bg); color: var(--state-success-text); border: 1px solid var(--state-success-text); }
     .badge-trial { background: var(--state-warning-bg); color: var(--state-warning-text); border: 1px solid var(--state-warning-text); }
     .badge-grace { background: rgba(219, 109, 40, 0.15); color: #db6d28; border: 1px solid rgba(219, 109, 40, 0.4); }
     .badge-suspended { background: var(--state-error-bg); color: var(--state-error-text); border: 1px solid var(--state-error-text); }
+    .badge-lifetime { background: rgba(217, 119, 6, 0.15); color: #d97706; border: 1px solid #d97706; font-weight: 700; }
+    .badge-module { background: var(--sheet-2); color: var(--pen); border: 1px solid var(--rule-2); padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 
     .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-    /* Ficha de Licenciamento Cards */
-    .licensing-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 16px; }
-    .licensing-card { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .licensing-card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--rule); padding-bottom: 8px; }
+    /* Modal Detail Tabs */
+    .detail-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--rule); margin-bottom: 18px; }
+    .detail-tab-btn { padding: 8px 14px; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--ink-2); cursor: pointer; font-size: 13px; font-weight: 600; }
+    .detail-tab-btn.active { color: var(--pen); border-bottom-color: var(--pen); }
+    .detail-tab-pane { display: none; }
+    .detail-tab-pane.active { display: block; }
+
+    /* Module Grid */
+    .mod-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+    .mod-card { background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; }
 
     @media (max-width: 768px) {
       body { flex-direction: column; overflow: auto; height: auto; }
@@ -107,6 +116,8 @@
       .content-area { padding: 16px; }
     }
   </style>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/api.js"></script>
 </head>
 <body>
 
@@ -116,9 +127,9 @@
     </div>
     <div class="nav">
       <div style="padding: 6px 20px; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px;">Administração</div>
-      <a href="#" class="nav-item active" onclick="switchTab('tenants', this); return false;">🏢 Gestão de Empresas</a>
+      <a href="#" class="nav-item active" onclick="switchTab('licensing', this); return false;">📜 Licenciamento Global</a>
+      <a href="#" class="nav-item" onclick="switchTab('tenants', this); return false;">🏢 Gestão de Empresas</a>
       <a href="#" class="nav-item" onclick="switchTab('approvals', this); return false;">📋 Aprovações de Contas <span id="pending-badge" style="background:var(--red); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:4px; display:none;">0</span></a>
-      <a href="#" class="nav-item" onclick="switchTab('applications', this); return false;">📦 Aplicativos & Licenciamento</a>
       <a href="#" class="nav-item" onclick="switchTab('users', this); return false;">👥 Utilizadores Online</a>
       <a href="#" class="nav-item" onclick="switchTab('monitoring', this); return false;">🔍 Monitorização</a>
       <a href="#" class="nav-item" onclick="switchTab('roles', this); return false;">🔐 Perfis e Permissões</a>
@@ -150,8 +161,78 @@
     </div>
 
     <div class="content-area">
+      <!-- 0. LICENCIAMENTO GLOBAL (CENTRAL) -->
+      <section id="licensing-section" class="tab-content active">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin:0; color:var(--pen); font-family:var(--font-serif);">Licenciamento Global HelderLabs</h2>
+            <p style="margin:4px 0 0 0; color:var(--ink-2); font-size:13px;">Gestão de módulos contratados, licenças ativas, atribuição de utilizadores com email validado e controlo de renovações.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" onclick="loadLicensingDashboard()">🔄 Atualizar Dados</button>
+            <button class="btn btn-primary" onclick="openCreateTenantModal()">+ Nova Empresa</button>
+          </div>
+        </div>
+
+        <!-- 4 Metric Cards com Dados Reais -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:10px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:11.5px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.5px;">🏢 Empresas Registadas</div>
+            <div id="stat-total-tenants" style="font-size:26px; font-weight:700; color:var(--pen); margin-top:8px;">--</div>
+            <div style="font-size:12px; color:var(--ink-2); margin-top:4px;">Organizações na plataforma</div>
+          </div>
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:10px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:11.5px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.5px;">📦 Módulos Ativos</div>
+            <div id="stat-active-modules" style="font-size:26px; font-weight:700; color:var(--state-success-text); margin-top:8px;">--</div>
+            <div style="font-size:12px; color:var(--ink-2); margin-top:4px;">Instâncias operacionais ativas</div>
+          </div>
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:10px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:11.5px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.5px;">⏳ Em Período de Trial</div>
+            <div id="stat-trial-modules" style="font-size:26px; font-weight:700; color:var(--state-warning-text); margin-top:8px;">--</div>
+            <div style="font-size:12px; color:var(--ink-2); margin-top:4px;">Módulos em avaliação</div>
+          </div>
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:10px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-size:11.5px; font-weight:700; color:var(--ink-3); text-transform:uppercase; letter-spacing:0.5px;">📅 Renovações (30 Dias)</div>
+            <div id="stat-renewals-30d" style="font-size:26px; font-weight:700; color:var(--pen); margin-top:8px;">--</div>
+            <div style="font-size:11px; color:var(--ink-3); margin-top:4px;">⭐ Exclui licenças vitalícias (∞)</div>
+          </div>
+        </div>
+
+        <!-- Filtros e Pesquisa -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+          <div style="display:flex; gap:12px; flex-grow:1; max-width:600px;">
+            <input type="text" id="licensing-search" placeholder="🔍 Pesquisar por empresa, módulo ou email..." onkeyup="filterLicensingTable()" style="padding:9px 14px; border-radius:6px; border:1px solid var(--rule); background:var(--sheet); color:var(--ink); flex-grow:1;">
+            <select id="licensing-filter-status" onchange="filterLicensingTable()" style="padding:9px 14px; border-radius:6px; border:1px solid var(--rule); background:var(--sheet); color:var(--ink); width:160px;">
+              <option value="ALL">Todos os Estados</option>
+              <option value="ACTIVE">Ativo</option>
+              <option value="TRIAL">Trial</option>
+              <option value="SUSPENDED">Suspenso</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Tabela Central Centrada na Empresa -->
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa (Tenant)</th>
+                <th>Módulos Ativos</th>
+                <th>Próxima Renovação</th>
+                <th>Total Mensal</th>
+                <th>Estado</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="licensing-table-body">
+              <tr><td colspan="6" style="color:var(--ink-3);">A carregar licenciamento global...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- 1. Gestão de Empresas -->
-      <section id="tenants-section" class="tab-content active">
+      <section id="tenants-section" class="tab-content">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <h2 style="margin:0; color:var(--pen); font-family:var(--font-serif);">Gestão de Empresas (Tenants)</h2>
@@ -214,33 +295,6 @@
         </div>
       </section>
 
-      <!-- 2. Aplicativos & Licenciamento -->
-      <section id="applications-section" class="tab-content">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
-          <div>
-            <h2 style="margin:0; color:var(--pen); font-family:var(--font-serif);">Aplicativos & Licenciamento por Empresa</h2>
-            <p style="margin:4px 0 0 0; color:var(--ink-2); font-size:13px;">Módulos ativos, valores mensais e controlo de renovações da plataforma.</p>
-          </div>
-          <div style="display:flex; gap:10px;">
-            <button class="btn btn-secondary" onclick="loadUpcomingRenewals()">📅 Ver Próximas Renovações (30d)</button>
-            <button class="btn btn-blue" onclick="openActivateAppModal()">+ Ativar Módulo em Empresa</button>
-          </div>
-        </div>
-
-        <!-- Painel de Renovações Próximas -->
-        <div id="renewals-panel" style="display:none; background:var(--sheet-2); border:1px solid var(--rule); border-radius:8px; padding:16px; margin-bottom:20px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <h4 style="margin:0; color:var(--pen);">📅 Próximas Renovações (Próximos 30 Dias)</h4>
-            <button class="btn btn-secondary" style="padding:2px 8px; font-size:11px;" onclick="document.getElementById('renewals-panel').style.display='none'">Fechar</button>
-          </div>
-          <div id="renewals-list" style="font-size:13px; color:var(--ink);">A carregar renovações...</div>
-        </div>
-
-        <div id="applications-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
-          <p style="color:var(--ink-3);">A carregar aplicações...</p>
-        </div>
-      </section>
-
       <!-- 3. Utilizadores Online -->
       <section id="users-section" class="tab-content">
         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -250,7 +304,7 @@
           </div>
           <button class="btn btn-secondary" onclick="loadOnlineUsers()">🔄 Atualizar</button>
         </div>
-        <div id="users-list" class="users-grid">
+        <div id="users-list" class="users-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:16px; margin-top:16px;">
           <p style="color:var(--ink-3);">A carregar utilizadores...</p>
         </div>
       </section>
@@ -320,16 +374,102 @@
     </div>
   </div>
 
-  <!-- Modal: Ficha de Licenciamento por Empresa -->
-  <div id="tenant-licensing-modal" class="modal-overlay">
-    <div class="modal-box" style="max-width: 780px;">
+  <!-- Modal: Detalhe / Ficha Completa da Empresa (5 Abas) -->
+  <div id="company-detail-modal" class="modal-overlay">
+    <div class="modal-box modal-large">
       <div class="modal-header">
-        <h3 id="licensing-modal-title">📜 Ficha de Licenciamento</h3>
-        <button class="btn btn-secondary" onclick="closeModal('tenant-licensing-modal')">✕</button>
+        <h3 id="company-detail-title">🏢 Ficha da Empresa</h3>
+        <button class="btn btn-secondary" onclick="closeModal('company-detail-modal')">✕</button>
       </div>
-      <div id="licensing-modal-body">
-        <p style="color:var(--ink-3);">A carregar ficha de licenciamento...</p>
+      
+      <!-- 5 Tabs Navigation -->
+      <div class="detail-tabs">
+        <button class="detail-tab-btn active" onclick="switchDetailTab('overview', this)">Visão Geral</button>
+        <button class="detail-tab-btn" onclick="switchDetailTab('modules', this)">Módulos & Licenças</button>
+        <button class="detail-tab-btn" onclick="switchDetailTab('users', this)">Utilizadores & Permissões</button>
+        <button class="detail-tab-btn" onclick="switchDetailTab('billing', this)">Faturação</button>
+        <button class="detail-tab-btn" onclick="switchDetailTab('audit', this)">Histórico & Auditoria</button>
       </div>
+
+      <div id="company-detail-body">
+        <p style="color:var(--ink-3);">A carregar dados da empresa...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Configuração de Módulo / Licença -->
+  <div id="configure-module-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="cfg-modal-title">⚙️ Configurar Licença do Módulo</h3>
+        <button class="btn btn-secondary" onclick="closeModal('configure-module-modal')">✕</button>
+      </div>
+      <form onsubmit="submitSaveModuleConfig(event)">
+        <input type="hidden" id="cfg-tenant-id">
+        <input type="hidden" id="cfg-module-key">
+
+        <div class="form-group">
+          <label>Estado da Licença *</label>
+          <select id="cfg-status" required>
+            <option value="ACTIVE">ACTIVE (Ativo e Operacional)</option>
+            <option value="TRIAL">TRIAL (Período Experimental)</option>
+            <option value="DISABLED">DISABLED (Desativado / Sem Licença)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="background:var(--sheet-2); padding:12px; border-radius:6px; border:1px solid var(--rule);">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0; font-weight:600; color:var(--pen);">
+            <input type="checkbox" id="cfg-is-lifetime" onchange="toggleLifetimeOption(this.checked)">
+            ⭐ Licença Vitalícia (Sem Expiração)
+          </label>
+          <div id="lifetime-badge-msg" style="display:none; font-size:12px; color:#d97706; margin-top:8px; font-weight:500;">
+            Esta licença é vitalícia e não tem data limite de renovação. O estado permanecerá permanentemente ATIVO e não contará para renovações a 30 dias.
+          </div>
+        </div>
+
+        <div id="cfg-dates-group">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label>Data de Vencimento / Renovação</label>
+              <input type="date" id="cfg-valid-until">
+            </div>
+            <div class="form-group">
+              <label>Período de Tolerância (Dias)</label>
+              <input type="number" min="0" id="cfg-grace-days" value="7">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>Preço Mensal (€)</label>
+            <input type="number" step="0.01" min="0" id="cfg-price" value="0.00">
+          </div>
+          <div class="form-group">
+            <label>Notas de Faturação</label>
+            <input type="text" id="cfg-notes" placeholder="Ex: Faturação anual / Isenção">
+          </div>
+        </div>
+
+        <!-- Atribuição de Utilizadores com Validação de Email Obrigatória -->
+        <div class="form-group" style="margin-top:16px;">
+          <label style="font-weight:600; color:var(--pen);">Utilizadores Autorizados a Aceder ao Módulo</label>
+          <p style="font-size:11.5px; color:var(--ink-3); margin:2px 0 8px 0;">
+            ⚠️ <strong>Regra de Segurança:</strong> Apenas utilizadores com <em>email validado</em> podem ser associados a licenças de módulos.
+          </p>
+          <div id="cfg-users-assignment-list" style="max-height:160px; overflow-y:auto; border:1px solid var(--rule); border-radius:6px; padding:10px; background:var(--paper);">
+            <p style="color:var(--ink-3); font-size:12px; margin:0;">A carregar utilizadores da empresa...</p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: space-between; margin-top: 24px; border-top:1px solid var(--rule); padding-top:16px;">
+          <button type="button" class="btn btn-danger" onclick="submitDisableModuleFromConfig()">Desativar Licença</button>
+          <div style="display:flex; gap:10px;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('configure-module-modal')">Cancelar</button>
+            <button type="submit" class="btn btn-primary">💾 Guardar Configuração</button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -342,6 +482,10 @@
       </div>
       <form onsubmit="submitApproveAccount(event)">
         <input type="hidden" id="approve-req-id">
+        <input type="hidden" id="approve-req-force-verify" value="false">
+        <div id="approve-req-force-notice" style="display:none; margin-bottom:14px; padding:10px 12px; background:rgba(217,119,6,0.15); border:1px solid #d97706; border-radius:6px; font-size:12px; color:#d97706; font-weight:500;">
+          ⚡ <strong>Validação Manual:</strong> Este utilizador ainda não validou o email via link/código. A aprovação irá validar o email e ativar a conta imediatamente.
+        </div>
         <div class="form-group">
           <label>Email do Utilizador</label>
           <input type="text" id="approve-req-email" readonly style="opacity:0.8;">
@@ -413,7 +557,6 @@
   </div>
 
 <script src="/assets/js/theme.js"></script>
-<script src="/assets/js/api.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
   let session = ERPAuth.getSession() || {};
@@ -446,9 +589,9 @@
       if (link) link.classList.add('active');
     }
     
+    if (tab === 'licensing') loadLicensingDashboard();
     if (tab === 'tenants') loadTenants();
     if (tab === 'approvals') loadAccountRequests();
-    if (tab === 'applications') loadApplications();
     if (tab === 'users') loadOnlineUsers();
   }
 
@@ -466,154 +609,449 @@
     return res.json();
   }
 
+  let globalLicensingCompanies = [];
   let globalAccountRequests = [];
   let globalTenants = [];
+  let currentCompanyDetailData = null;
 
-  async function loadAccountRequests() {
+  // ---------------------------------------------------------------------------
+  // 1. DASHBOARD & TABELA GLOBAL DE LICENCIAMENTO CENTRADA NA EMPRESA
+  // ---------------------------------------------------------------------------
+  async function loadLicensingDashboard() {
     try {
-      const data = await api('/api/platform/account-requests');
-      globalAccountRequests = data.requests || [];
-      renderAccountRequests(globalAccountRequests);
-    } catch(e) {
-      console.error(e);
+      const data = await api('/api/platform/licensing/dashboard');
+      
+      // Preencher os 4 Cards de Métricas Reais
+      document.getElementById('stat-total-tenants').textContent = data.metrics.totalTenants ?? 0;
+      document.getElementById('stat-active-modules').textContent = data.metrics.activeModulesCount ?? 0;
+      document.getElementById('stat-trial-modules').textContent = data.metrics.trialCount ?? 0;
+      document.getElementById('stat-renewals-30d').textContent = data.metrics.renewals30DaysCount ?? 0;
+
+      globalLicensingCompanies = data.companies || [];
+      renderLicensingTable(globalLicensingCompanies);
+    } catch(err) {
+      console.error('Erro ao carregar dashboard de licenciamento:', err);
+      document.getElementById('licensing-table-body').innerHTML = `<tr><td colspan="6" style="color:var(--red);">Erro ao carregar licenciamento: ${err.message}</td></tr>`;
     }
   }
 
-  function renderAccountRequests(list) {
-    const tbody = document.getElementById('account-requests-list');
-    const badge = document.getElementById('pending-badge');
-    
-    const pendingCount = list.filter(r => r.status === 'PENDING' || r.status === 'PENDING_VERIFICATION').length;
-    if (badge) {
-      if (pendingCount > 0) {
-        badge.textContent = pendingCount;
-        badge.style.display = 'inline-block';
-      } else {
-        badge.style.display = 'none';
-      }
-    }
-
-    if (!list || list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--ink-3);">Nenhum pedido de conta registado.</td></tr>';
+  function renderLicensingTable(companies) {
+    const tbody = document.getElementById('licensing-table-body');
+    if (!companies || companies.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:var(--ink-3);">Nenhuma empresa encontrada com os filtros selecionados.</td></tr>';
       return;
     }
 
-    tbody.innerHTML = list.map(r => {
-      const isVerified = Boolean(r.emailVerifiedAt);
-      const isPending = r.status === 'PENDING';
-      const isPendingVerification = r.status === 'PENDING_VERIFICATION';
+    tbody.innerHTML = companies.map(c => {
+      // Formatação dos módulos ativos como badges
+      const modulesBadges = (c.activeModules && c.activeModules.length > 0)
+        ? c.activeModules.map(m => `<span class="badge-module" title="${m.name}">${m.name}</span>`).join(' ')
+        : '<span style="color:var(--ink-3); font-size:12px;">Sem módulos ativos</span>';
+
+      // Próxima renovação ou Vitalícia
+      let renewalHtml = '';
+      if (c.isLifetimeOnly) {
+        renewalHtml = '<span class="status-badge badge-lifetime">⭐ ATIVA · VITALÍCIA (∞)</span>';
+      } else if (c.nextRenewalDate) {
+        const renDate = new Date(c.nextRenewalDate);
+        const diffDays = Math.ceil((renDate - new Date()) / (1000 * 60 * 60 * 24));
+        const isUrgent = diffDays <= 30 && diffDays >= 0;
+        renewalHtml = `<span style="${isUrgent ? 'color:#d97706; font-weight:600;' : ''}">${renDate.toLocaleDateString('pt-PT')} ${diffDays >= 0 ? `(${diffDays}d)` : '(Vencida)'}</span>`;
+      } else {
+        renewalHtml = '<span style="color:var(--ink-3); font-size:12px;">--</span>';
+      }
+
+      // Total mensal
+      const monthlyEur = ((c.totalMonthlyCents || 0) / 100).toFixed(2);
+
+      // Estado
+      const statusBadge = `<span class="status-badge ${c.status === 'ACTIVE' ? 'badge-active' : c.status === 'TRIAL' ? 'badge-trial' : 'badge-suspended'}">${c.status}</span>`;
 
       return `
-      <tr>
-        <td><strong>${r.companyName || r.name || r.contactName || 'Sem nome'}</strong><br><span style="font-size:11px; color:var(--ink-3);">tel: ${r.phone || 'n/a'}</span></td>
-        <td>${r.email}</td>
-        <td><span style="color:var(--pen); font-weight:600;">${(r.intendedModule || 'todos').toUpperCase()}</span></td>
-        <td>
-          ${isVerified
-            ? '<span class="status-badge badge-active">✅ Validado</span>'
-            : '<span class="status-badge badge-trial">⏳ A aguardar código</span>'
-          }
-        </td>
-        <td><span class="status-badge ${r.status === 'APPROVED' ? 'badge-active' : isPending ? 'badge-trial' : 'badge-suspended'}">${r.status}</span></td>
-        <td>${new Date(r.createdAt).toLocaleDateString('pt-PT')}</td>
-        <td>
-          ${isPending ? `
-            <div style="display:flex; gap:6px;">
-              <button class="btn btn-primary" style="padding:4px 8px; font-size:12px;" onclick="openApproveAccountModal('${r.id}')">✅ Aprovar</button>
-              <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="openRejectAccountModal('${r.id}')">❌ Rejeitar</button>
+        <tr>
+          <td>
+            <strong>${c.name}</strong><br>
+            <span style="font-size:11px; color:var(--ink-3);">${c.email || c.slug || 'Sem email'} &bull; ${c.userCount || 0} utilizadores</span>
+          </td>
+          <td>
+            <div style="display:flex; gap:4px; flex-wrap:wrap;">
+              ${modulesBadges}
             </div>
-          ` : isPendingVerification ? `
-            <span style="font-size:12px; color:var(--ink-3);">Aguardando verificação do utilizador</span>
-          ` : `
-            <span style="font-size:12px; color:var(--ink-3);">${r.status === 'APPROVED' ? 'Aprovado' : 'Rejeitado'}</span>
-          `}
-        </td>
-      </tr>
+          </td>
+          <td>${renewalHtml}</td>
+          <td><strong>${monthlyEur} €</strong> <span style="font-size:11px; color:var(--ink-3);">/ mês</span></td>
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="openCompanyDetailModal('${c.id}')">
+                👁️ Ver Detalhes
+              </button>
+              <button class="btn btn-blue" style="padding:4px 8px; font-size:12px;" onclick="impersonateTenant('${c.id}')">
+                🏢 Entrar
+              </button>
+            </div>
+          </td>
+        </tr>
       `;
     }).join('');
   }
 
-  function openApproveAccountModal(id) {
-    const req = globalAccountRequests.find(r => r.id === id);
-    if (!req) return;
+  function filterLicensingTable() {
+    const query = (document.getElementById('licensing-search').value || '').toLowerCase();
+    const statusFilter = document.getElementById('licensing-filter-status').value;
 
-    document.getElementById('approve-req-id').value = req.id;
-    document.getElementById('approve-req-email').value = req.email;
-    document.getElementById('approve-req-name').value = req.companyName || req.name || req.contactName || req.email;
+    const filtered = globalLicensingCompanies.filter(c => {
+      const matchText = c.name.toLowerCase().includes(query) ||
+        (c.email && c.email.toLowerCase().includes(query)) ||
+        (c.activeModules && c.activeModules.some(m => m.name.toLowerCase().includes(query) || m.moduleKey.toLowerCase().includes(query)));
+      
+      const matchStatus = (statusFilter === 'ALL') || (c.status === statusFilter);
+      return matchText && matchStatus;
+    });
 
-    const select = document.getElementById('approve-existing-tenant-id');
-    select.innerHTML = globalTenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
-
-    document.getElementById('approve-account-modal').classList.add('active');
+    renderLicensingTable(filtered);
   }
 
-  function toggleTenantSelectOption() {
-    const opt = document.getElementById('approve-tenant-option').value;
-    document.getElementById('approve-existing-tenant-group').style.display = opt === 'EXISTING' ? 'block' : 'none';
+  // ---------------------------------------------------------------------------
+  // 2. FICHA COMPLETA DA EMPRESA (5 ABAS)
+  // ---------------------------------------------------------------------------
+  async function openCompanyDetailModal(tenantId) {
+    document.getElementById('company-detail-modal').classList.add('active');
+    const bodyEl = document.getElementById('company-detail-body');
+    bodyEl.innerHTML = '<p style="color:var(--ink-3);">A carregar dados completos da empresa...</p>';
+
+    try {
+      const data = await api(`/api/platform/tenants/${tenantId}/licensing`);
+      currentCompanyDetailData = data;
+      document.getElementById('company-detail-title').textContent = `🏢 ${data.tenantName} — Ficha de Licenciamento`;
+      renderCompanyDetailTabs(data);
+    } catch(err) {
+      bodyEl.innerHTML = `<p style="color:var(--red);">Erro ao carregar detalhes: ${err.message}</p>`;
+    }
   }
 
-  async function submitApproveAccount(e) {
+  function switchDetailTab(tabId, el) {
+    document.querySelectorAll('.detail-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.detail-tab-pane').forEach(p => p.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const pane = document.getElementById('detail-pane-' + tabId);
+    if (pane) pane.classList.add('active');
+  }
+
+  function renderCompanyDetailTabs(data) {
+    const bodyEl = document.getElementById('company-detail-body');
+    const totalEur = ((data.totalMonthlyCents || 0) / 100).toFixed(2);
+    const activeCount = data.modules.filter(m => m.status === 'ACTIVE').length;
+    const trialCount = data.modules.filter(m => m.status === 'TRIAL').length;
+
+    bodyEl.innerHTML = `
+      <!-- Tab 1: Visão Geral -->
+      <div id="detail-pane-overview" class="detail-tab-pane active">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:16px;">
+          <div style="background:var(--sheet-2); padding:16px; border-radius:8px; border:1px solid var(--rule);">
+            <h4 style="margin:0 0 10px 0; color:var(--pen);">Informações da Empresa</h4>
+            <p style="margin:4px 0; font-size:13px;"><strong>Nome:</strong> ${data.tenantName}</p>
+            <p style="margin:4px 0; font-size:13px;"><strong>Identificador:</strong> ${data.tenantId}</p>
+            <p style="margin:4px 0; font-size:13px;"><strong>Estado Geral:</strong> <span class="status-badge badge-active">${data.tenantStatus}</span></p>
+            <p style="margin:4px 0; font-size:13px;"><strong>Versão de Entitlements:</strong> #${data.entitlementsVersion}</p>
+          </div>
+          <div style="background:var(--sheet-2); padding:16px; border-radius:8px; border:1px solid var(--rule);">
+            <h4 style="margin:0 0 10px 0; color:var(--pen);">Resumo Contratual</h4>
+            <p style="margin:4px 0; font-size:13px;"><strong>Módulos Ativos:</strong> ${activeCount}</p>
+            <p style="margin:4px 0; font-size:13px;"><strong>Módulos em Trial:</strong> ${trialCount}</p>
+            <p style="margin:4px 0; font-size:13px;"><strong>Total Mensal Contratado:</strong> <strong style="color:var(--pen); font-size:16px;">${totalEur} € / mês</strong></p>
+            <p style="margin:4px 0; font-size:13px;"><strong>Utilizadores Registados:</strong> ${data.users.length}</p>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button class="btn btn-primary" onclick="switchDetailTab('modules', document.querySelectorAll('.detail-tab-btn')[1])">⚙️ Gerir Módulos & Licenças &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Módulos & Licenças -->
+      <div id="detail-pane-modules" class="detail-tab-pane">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <p style="margin:0; font-size:13px; color:var(--ink-2);">Ativação de módulos, gestão de datas, valores e atribuição de licenças.</p>
+        </div>
+        <div class="mod-card-grid">
+          ${data.modules.map(m => {
+            const priceEur = ((m.priceCents || 0) / 100).toFixed(2);
+            const isLifetime = (m.status === 'ACTIVE' || m.status === 'TRIAL') && (m.validUntil === null || m.validUntil === undefined);
+            const assignedCount = m.assignedUserIds ? m.assignedUserIds.length : 0;
+            const validUntilStr = m.validUntil ? new Date(m.validUntil).toLocaleDateString('pt-PT') : (isLifetime ? '⭐ VITALÍCIA (∞)' : 'Não configurada');
+
+            return `
+              <div class="mod-card">
+                <div>
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+                    <strong style="color:var(--pen); font-size:14px;">${m.name}</strong>
+                    <span class="status-badge ${m.status === 'ACTIVE' ? 'badge-active' : m.status === 'TRIAL' ? 'badge-trial' : 'badge-suspended'}">${m.status}</span>
+                  </div>
+                  <p style="font-size:12px; color:var(--ink-2); margin:0 0 10px 0;">${m.description}</p>
+                  <div style="font-size:12px; color:var(--ink); margin-bottom:6px;">
+                    <strong>Validade:</strong> ${isLifetime ? '<span class="status-badge badge-lifetime">⭐ VITALÍCIA</span>' : validUntilStr}
+                  </div>
+                  <div style="font-size:12px; color:var(--ink); margin-bottom:6px;">
+                    <strong>Valor:</strong> ${priceEur} € / mês
+                  </div>
+                  <div style="font-size:12px; color:var(--ink-2); margin-bottom:12px;">
+                    👥 <strong>${assignedCount}</strong> utilizador(es) atribuído(s)
+                  </div>
+                </div>
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                  <button class="btn btn-secondary" style="flex:1; justify-content:center; padding:6px; font-size:12px;" onclick="openConfigureModuleModal('${data.tenantId}', '${m.moduleKey}')">
+                    ⚙️ Configurar
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Tab 3: Utilizadores & Permissões -->
+      <div id="detail-pane-users" class="detail-tab-pane">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <p style="margin:0; font-size:13px; color:var(--ink-2);">Apenas utilizadores com <strong>email validado</strong> podem ser associados a licenças de módulos.</p>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome / Utilizador</th>
+                <th>Email</th>
+                <th>Validação de Email</th>
+                <th>Perfil</th>
+                <th>Módulos Atribuídos</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.users.map(u => {
+                const isVerified = u.isEmailVerified;
+                const assignedMods = data.modules.filter(m => m.assignedUserIds && m.assignedUserIds.includes(u.id));
+                const modBadges = assignedMods.length > 0
+                  ? assignedMods.map(m => `<span class="badge-module">${m.name}</span>`).join(' ')
+                  : '<span style="color:var(--ink-3); font-size:11px;">Nenhum</span>';
+
+                return `
+                  <tr>
+                    <td><strong>${u.name || 'Sem nome'}</strong></td>
+                    <td>${u.email}</td>
+                    <td>
+                      ${isVerified
+                        ? '<span class="status-badge badge-active">✅ Validado</span>'
+                        : '<span class="status-badge badge-trial" title="Requer validação para poder receber licença">⏳ Não Validado</span>'
+                      }
+                    </td>
+                    <td><span style="font-weight:600; font-size:12px;">${u.role}</span></td>
+                    <td>${modBadges}</td>
+                    <td>
+                      ${!isVerified ? `
+                        <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="resendUserVerificationLink('${u.id}', '${u.email}')">
+                          📧 Reenviar Link (Resend)
+                        </button>
+                      ` : `
+                        <span style="font-size:11px; color:var(--state-success-text); font-weight:600;">✓ Elegível para Licença</span>
+                      `}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 4: Faturação -->
+      <div id="detail-pane-billing" class="detail-tab-pane">
+        <div style="background:var(--sheet-2); padding:16px; border-radius:8px; border:1px solid var(--rule); margin-bottom:16px;">
+          <h4 style="margin:0 0 8px 0; color:var(--pen);">Resumo de Faturação da Empresa</h4>
+          <p style="font-size:14px; margin:0;">Total Mensal: <strong style="color:var(--pen); font-size:18px;">${totalEur} € / mês</strong></p>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr><th>Módulo</th><th>Estado</th><th>Preço Mensal</th><th>Período</th><th>Validade</th><th>Notas de Faturação</th></tr>
+            </thead>
+            <tbody>
+              ${data.modules.map(m => `
+                <tr>
+                  <td><strong>${m.name}</strong></td>
+                  <td><span class="status-badge ${m.status === 'ACTIVE' ? 'badge-active' : m.status === 'TRIAL' ? 'badge-trial' : 'badge-suspended'}">${m.status}</span></td>
+                  <td>${((m.priceCents || 0) / 100).toFixed(2)} €</td>
+                  <td>Mensal</td>
+                  <td>${m.validUntil ? new Date(m.validUntil).toLocaleDateString('pt-PT') : (m.status === 'ACTIVE' || m.status === 'TRIAL' ? '⭐ Vitalícia' : '--')}</td>
+                  <td>${m.billingNotes || '<span style="color:var(--ink-3);">--</span>'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 5: Histórico & Auditoria -->
+      <div id="detail-pane-audit" class="detail-tab-pane">
+        <p style="font-size:13px; color:var(--ink-2);">Registo de eventos de alteração de estado e licenças nesta empresa.</p>
+        <div style="background:var(--sheet-2); padding:14px; border-radius:8px; border:1px solid var(--rule); font-size:12px; font-family:var(--font-mono); color:var(--ink-2);">
+          🛡️ Entitlements Version: #${data.entitlementsVersion} &bull; Proteção de integridade criptográfica SHA-256 ativa.
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. CONFIGURAÇÃO DE MÓDULO & ATRIBUIÇÃO DE UTILIZADORES COM VERIFICAÇÃO DE EMAIL
+  // ---------------------------------------------------------------------------
+  function openConfigureModuleModal(tenantId, moduleKey) {
+    if (!currentCompanyDetailData) return;
+    const mod = currentCompanyDetailData.modules.find(m => m.moduleKey === moduleKey);
+    if (!mod) return;
+
+    document.getElementById('cfg-tenant-id').value = tenantId;
+    document.getElementById('cfg-module-key').value = moduleKey;
+    document.getElementById('cfg-modal-title').textContent = `⚙️ Configurar Licença — ${mod.name}`;
+
+    document.getElementById('cfg-status').value = mod.status === 'ACTIVE' ? 'ACTIVE' : mod.status === 'TRIAL' ? 'TRIAL' : 'DISABLED';
+    document.getElementById('cfg-price').value = ((mod.priceCents || 0) / 100).toFixed(2);
+    document.getElementById('cfg-grace-days').value = mod.graceDays || 7;
+    document.getElementById('cfg-notes').value = mod.billingNotes || '';
+
+    const isLifetime = (mod.status === 'ACTIVE' || mod.status === 'TRIAL') && (mod.validUntil === null || mod.validUntil === undefined);
+    const lifetimeCheckbox = document.getElementById('cfg-is-lifetime');
+    lifetimeCheckbox.checked = isLifetime;
+    toggleLifetimeOption(isLifetime);
+
+    if (mod.validUntil && !isLifetime) {
+      document.getElementById('cfg-valid-until').value = new Date(mod.validUntil).toISOString().split('T')[0];
+    } else {
+      document.getElementById('cfg-valid-until').value = '';
+    }
+
+    // Renderizar lista de utilizadores para atribuição com verificação de email
+    const usersContainer = document.getElementById('cfg-users-assignment-list');
+    const assignedIds = mod.assignedUserIds || [];
+
+    if (!currentCompanyDetailData.users || currentCompanyDetailData.users.length === 0) {
+      usersContainer.innerHTML = '<p style="color:var(--ink-3); font-size:12px; margin:0;">Não existem utilizadores registados nesta empresa.</p>';
+    } else {
+      usersContainer.innerHTML = currentCompanyDetailData.users.map(u => {
+        const isAssigned = assignedIds.includes(u.id);
+        const isVerified = u.isEmailVerified;
+
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--rule);">
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:${isVerified ? 'pointer' : 'not-allowed'}; margin:0; ${!isVerified ? 'opacity:0.6;' : ''}">
+              <input type="checkbox" name="cfg-user-checkbox" value="${u.id}" ${isAssigned ? 'checked' : ''} ${!isVerified ? 'disabled' : ''}>
+              <span><strong>${u.name || u.email}</strong> (${u.email}) - <span style="font-size:11px; color:var(--ink-3);">${u.role}</span></span>
+            </label>
+            ${!isVerified ? `
+              <button type="button" class="btn btn-secondary" style="padding:2px 6px; font-size:11px;" onclick="resendUserVerificationLink('${u.id}', '${u.email}')">
+                📧 Enviar Link (Resend)
+              </button>
+            ` : `
+              <span style="font-size:11px; color:var(--state-success-text);">✅ Validado</span>
+            `}
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('configure-module-modal').classList.add('active');
+  }
+
+  function toggleLifetimeOption(isLifetime) {
+    const datesGroup = document.getElementById('cfg-dates-group');
+    const badgeMsg = document.getElementById('lifetime-badge-msg');
+    if (isLifetime) {
+      datesGroup.style.display = 'none';
+      badgeMsg.style.display = 'block';
+    } else {
+      datesGroup.style.display = 'block';
+      badgeMsg.style.display = 'none';
+    }
+  }
+
+  async function submitSaveModuleConfig(e) {
     e.preventDefault();
-    const id = document.getElementById('approve-req-id').value;
-    const tenantOpt = document.getElementById('approve-tenant-option').value;
-    const existingTenantId = document.getElementById('approve-existing-tenant-id').value;
-    const role = document.getElementById('approve-user-role').value;
+    const tenantId = document.getElementById('cfg-tenant-id').value;
+    const moduleKey = document.getElementById('cfg-module-key').value;
+    const status = document.getElementById('cfg-status').value;
+    const priceEur = parseFloat(document.getElementById('cfg-price').value || '0');
+    const priceCents = Math.round(priceEur * 100);
+    const isLifetime = document.getElementById('cfg-is-lifetime').checked;
+    const validUntilVal = document.getElementById('cfg-valid-until').value;
+    const graceDays = parseInt(document.getElementById('cfg-grace-days').value || '7', 10);
+    const billingNotes = document.getElementById('cfg-notes').value;
 
-    const modules = [];
-    if (document.getElementById('mod-crm')?.checked) modules.push('crm');
-    if (document.getElementById('mod-finance')?.checked) modules.push('finance');
-    if (document.getElementById('mod-hccall')?.checked) modules.push('hccall');
-    if (document.getElementById('mod-sellmais')?.checked) modules.push('sellmais');
-    if (document.getElementById('mod-condominios')?.checked) modules.push('condominios');
+    // Recolher utilizadores selecionados
+    const checkedUserCheckboxes = document.querySelectorAll('input[name="cfg-user-checkbox"]:checked');
+    const authorizedUserIds = Array.from(checkedUserCheckboxes).map(cb => cb.value);
 
     const payload = {
-      role,
-      modules,
-      ...(tenantOpt === 'EXISTING' && { tenantId: existingTenantId })
+      status,
+      priceCents,
+      billingPeriod: 'MONTHLY',
+      graceDays,
+      billingNotes: billingNotes || null,
+      validUntil: (isLifetime || !validUntilVal) ? null : new Date(validUntilVal).toISOString(),
+      authorizedUserIds
     };
 
     try {
-      await api(`/api/platform/account-requests/${id}/approve`, {
-        method: 'POST',
+      await api(`/api/platform/tenants/${tenantId}/licensing/${moduleKey}`, {
+        method: 'PUT',
         body: payload
       });
-      closeModal('approve-account-modal');
-      loadAccountRequests();
-      loadTenants();
-      alert('Conta aprovada e licenciada com sucesso!');
+      alert(`Configuração do módulo '${moduleKey}' guardada com sucesso!`);
+      closeModal('configure-module-modal');
+      openCompanyDetailModal(tenantId);
+      loadLicensingDashboard();
     } catch(err) {
-      alert('Erro ao aprovar conta: ' + err.message);
+      alert('Erro ao guardar configuração: ' + err.message);
     }
   }
 
-  function openRejectAccountModal(id) {
-    const req = globalAccountRequests.find(r => r.id === id);
-    if (!req) return;
-
-    document.getElementById('reject-req-id').value = req.id;
-    document.getElementById('reject-req-email').value = req.email;
-    document.getElementById('reject-reason').value = '';
-    document.getElementById('reject-account-modal').classList.add('active');
-  }
-
-  async function submitRejectAccount(e) {
-    e.preventDefault();
-    const id = document.getElementById('reject-req-id').value;
-    const reason = document.getElementById('reject-reason').value;
+  async function submitDisableModuleFromConfig() {
+    const tenantId = document.getElementById('cfg-tenant-id').value;
+    const moduleKey = document.getElementById('cfg-module-key').value;
+    if (!confirm(`Deseja realmente desativar o módulo '${moduleKey}' para esta empresa?`)) return;
 
     try {
-      await api(`/api/platform/account-requests/${id}/reject`, {
-        method: 'POST',
-        body: { reason }
+      await api(`/api/platform/tenants/${tenantId}/licensing/${moduleKey}`, {
+        method: 'DELETE'
       });
-      closeModal('reject-account-modal');
-      loadAccountRequests();
-      alert('Pedido rejeitado.');
+      alert(`Módulo '${moduleKey}' desativado com sucesso.`);
+      closeModal('configure-module-modal');
+      openCompanyDetailModal(tenantId);
+      loadLicensingDashboard();
     } catch(err) {
-      alert('Erro ao rejeitar pedido: ' + err.message);
+      alert('Erro ao desativar módulo: ' + err.message);
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // 4. REENVIO DE EMAIL DE VALIDAÇÃO VIA RESEND (24h)
+  // ---------------------------------------------------------------------------
+  async function resendUserVerificationLink(userId, email) {
+    if (!confirm(`Deseja enviar o link de validação de email (válido por 24h via Resend) para ${email}?`)) return;
+
+    try {
+      const res = await api(`/api/platform/users/${userId}/resend-verification`, {
+        method: 'POST'
+      });
+      alert(res.message || 'Link de validação enviado com sucesso via Resend!');
+      if (currentCompanyDetailData) {
+        openCompanyDetailModal(currentCompanyDetailData.tenantId);
+      }
+    } catch(err) {
+      alert('Erro ao enviar link de validação: ' + err.message);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. GESTÃO DE EMPRESAS & OUTRAS ROTINAS
+  // ---------------------------------------------------------------------------
   async function loadTenants() {
     try {
       const data = await api('/api/platform/tenants');
@@ -641,7 +1079,7 @@
         <td>${new Date(t.createdAt).toLocaleDateString('pt-PT')}</td>
         <td>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
-            <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="openTenantLicensingModal('${t.id}', '${t.name.replace(/'/g, "\\'")}')">📜 Licenciamento</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="openCompanyDetailModal('${t.id}')">📜 Ficha</button>
             <button class="btn btn-blue" style="padding:4px 8px; font-size:12px;" onclick="impersonateTenant('${t.id}')">🏢 Entrar</button>
             <button class="btn ${t.status === 'ACTIVE' ? 'btn-danger' : 'btn-primary'}" style="padding:4px 8px; font-size:12px;" onclick="toggleTenantStatus('${t.id}', '${t.status}')">
               ${t.status === 'ACTIVE' ? 'Suspender' : 'Ativar'}
@@ -676,173 +1114,24 @@
       });
       closeModal('create-tenant-modal');
       loadTenants();
+      loadLicensingDashboard();
       alert('Empresa criada com sucesso!');
     } catch(err) {
       alert('Erro ao criar empresa: ' + err.message);
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Ficha de Licenciamento por Empresa
-  // ---------------------------------------------------------------------------
-  let currentLicensingTenantId = null;
-
-  async function openTenantLicensingModal(tenantId, tenantName) {
-    currentLicensingTenantId = tenantId;
-    document.getElementById('licensing-modal-title').textContent = `📜 Ficha de Licenciamento — ${tenantName}`;
-    const bodyEl = document.getElementById('licensing-modal-body');
-    bodyEl.innerHTML = '<p style="color:var(--ink-3);">A carregar dados de licenciamento...</p>';
-    document.getElementById('tenant-licensing-modal').classList.add('active');
-
+  async function toggleTenantStatus(tenantId, currentStatus) {
+    const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
-      const data = await api(`/api/platform/tenants/${tenantId}/licensing`);
-      renderTenantLicensingUI(data);
-    } catch(err) {
-      bodyEl.innerHTML = `<p style="color:var(--red);">Erro ao carregar licenciamento: ${err.message}</p>`;
-    }
-  }
-
-  function renderTenantLicensingUI(data) {
-    const bodyEl = document.getElementById('licensing-modal-body');
-    const totalEuros = (data.totalMonthlyCents / 100).toFixed(2);
-
-    bodyEl.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--sheet-2); padding:12px 16px; border-radius:8px; margin-bottom:16px;">
-        <div>
-          <span style="font-size:12px; color:var(--ink-3);">Versão de Entitlements: #${data.entitlementsVersion}</span>
-          <h4 style="margin:2px 0 0 0; color:var(--pen);">Total Mensal Contratado: ${totalEuros} € / mês</h4>
-        </div>
-        <button class="btn btn-secondary" onclick="openTenantLicensingModal('${data.tenantId}', '${data.tenantName.replace(/'/g, "\\'")}')">🔄 Recarregar</button>
-      </div>
-      <div class="licensing-grid">
-        ${data.modules.map(m => {
-          const priceEur = (m.priceCents / 100).toFixed(2);
-          const validUntilStr = m.validUntil ? new Date(m.validUntil).toISOString().split('T')[0] : '';
-          const isLicensed = m.status === 'ACTIVE' || m.status === 'TRIAL';
-
-          return `
-            <div class="licensing-card" id="lic-card-${m.moduleKey}">
-              <div class="licensing-card-header">
-                <strong style="color:var(--pen);">${m.name}</strong>
-                <span class="status-badge ${m.status === 'ACTIVE' ? 'badge-active' : m.status === 'TRIAL' ? 'badge-trial' : 'badge-suspended'}">${m.status}</span>
-              </div>
-              <p style="font-size:12px; color:var(--ink-2); margin:0;">${m.description}</p>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                <div class="form-group" style="margin:0;">
-                  <label style="font-size:11px;">Estado</label>
-                  <select id="lic-status-${m.moduleKey}" style="padding:6px; font-size:12px;">
-                    <option value="ACTIVE" ${m.status === 'ACTIVE' ? 'selected' : ''}>ACTIVE (Ativo)</option>
-                    <option value="TRIAL" ${m.status === 'TRIAL' ? 'selected' : ''}>TRIAL (Experimental)</option>
-                    <option value="DISABLED" ${m.status === 'DISABLED' || m.status === 'UNLICENSED' ? 'selected' : ''}>DISABLED (Desativado)</option>
-                  </select>
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label style="font-size:11px;">Preço Mensal (€)</label>
-                  <input type="number" step="0.01" min="0" id="lic-price-${m.moduleKey}" value="${priceEur}" style="padding:6px; font-size:12px;">
-                </div>
-              </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                <div class="form-group" style="margin:0;">
-                  <label style="font-size:11px;">Renovação / Vencimento</label>
-                  <input type="date" id="lic-until-${m.moduleKey}" value="${validUntilStr}" style="padding:6px; font-size:12px;">
-                </div>
-                <div class="form-group" style="margin:0;">
-                  <label style="font-size:11px;">Tolerância (Dias)</label>
-                  <input type="number" min="0" id="lic-grace-${m.moduleKey}" value="${m.graceDays}" style="padding:6px; font-size:12px;">
-                </div>
-              </div>
-              <div class="form-group" style="margin:0;">
-                <label style="font-size:11px;">Notas de Faturação</label>
-                <input type="text" id="lic-notes-${m.moduleKey}" value="${m.billingNotes || ''}" placeholder="Ex: Faturado ao dia 1" style="padding:6px; font-size:12px;">
-              </div>
-              <div style="display:flex; justify-content:space-between; margin-top:8px;">
-                <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="disableModuleLicensing('${data.tenantId}', '${m.moduleKey}')">Desativar</button>
-                <button class="btn btn-primary" style="padding:4px 12px; font-size:11px;" onclick="saveModuleLicensing('${data.tenantId}', '${m.moduleKey}')">💾 Guardar Licença</button>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    `;
-  }
-
-  async function saveModuleLicensing(tenantId, moduleKey) {
-    const status = document.getElementById(`lic-status-${moduleKey}`).value;
-    const priceEur = parseFloat(document.getElementById(`lic-price-${moduleKey}`).value || '0');
-    const priceCents = Math.round(priceEur * 100);
-    const validUntilVal = document.getElementById(`lic-until-${moduleKey}`).value;
-    const graceDays = parseInt(document.getElementById(`lic-grace-${moduleKey}`).value || '7', 10);
-    const billingNotes = document.getElementById(`lic-notes-${moduleKey}`).value;
-
-    const payload = {
-      status,
-      priceCents,
-      billingPeriod: 'MONTHLY',
-      graceDays,
-      billingNotes: billingNotes || null,
-      validUntil: validUntilVal ? new Date(validUntilVal).toISOString() : null
-    };
-
-    try {
-      await api(`/api/platform/tenants/${tenantId}/licensing/${moduleKey}`, {
-        method: 'PUT',
-        body: payload
+      await api(`/api/platform/tenants/${tenantId}/status`, {
+        method: 'PATCH',
+        body: { status: nextStatus }
       });
-      alert(`Licença do módulo '${moduleKey}' atualizada com sucesso!`);
-      const tenant = globalTenants.find(t => t.id === tenantId);
-      openTenantLicensingModal(tenantId, tenant ? tenant.name : 'Empresa');
-    } catch(err) {
-      alert('Erro ao guardar licença: ' + err.message);
-    }
-  }
-
-  async function disableModuleLicensing(tenantId, moduleKey) {
-    if (!confirm(`Tem a certeza que deseja desativar o módulo '${moduleKey}' para esta empresa?`)) return;
-
-    try {
-      await api(`/api/platform/tenants/${tenantId}/licensing/${moduleKey}`, {
-        method: 'DELETE'
-      });
-      alert(`Módulo '${moduleKey}' desativado.`);
-      const tenant = globalTenants.find(t => t.id === tenantId);
-      openTenantLicensingModal(tenantId, tenant ? tenant.name : 'Empresa');
-    } catch(err) {
-      alert('Erro ao desativar módulo: ' + err.message);
-    }
-  }
-
-  async function loadUpcomingRenewals() {
-    const panel = document.getElementById('renewals-panel');
-    const listEl = document.getElementById('renewals-list');
-    panel.style.display = 'block';
-    listEl.innerHTML = '<p style="color:var(--ink-3);">A carregar...</p>';
-
-    try {
-      const data = await api('/api/platform/licensing/renewals?days=30');
-      if (!data.renewals || data.renewals.length === 0) {
-        listEl.innerHTML = '<p style="color:var(--ink-2); margin:0;">Nenhuma licença com renovação prevista para os próximos 30 dias.</p>';
-        return;
-      }
-      listEl.innerHTML = `
-        <table style="margin-top:8px;">
-          <thead>
-            <tr><th>Empresa</th><th>Módulo</th><th>Valor Mensal</th><th>Data Limite</th><th>Tolerância</th></tr>
-          </thead>
-          <tbody>
-            ${data.renewals.map(r => `
-              <tr>
-                <td><strong>${r.tenantName}</strong></td>
-                <td><span style="color:var(--pen); font-weight:600;">${r.moduleName}</span></td>
-                <td>${((r.priceCents || 0) / 100).toFixed(2)} €</td>
-                <td>${new Date(r.validUntil).toLocaleDateString('pt-PT')}</td>
-                <td>${r.graceDays} dias</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    } catch(err) {
-      listEl.innerHTML = `<p style="color:var(--red);">Erro: ${err.message}</p>`;
+      loadTenants();
+      loadLicensingDashboard();
+    } catch(e) {
+      alert('Erro ao alterar estado da empresa: ' + e.message);
     }
   }
 
@@ -861,85 +1150,194 @@
     }
   }
 
-  async function openModuleForTenant(tenantId, moduleKey, moduleName) {
+  // ---------------------------------------------------------------------------
+  // 6. APROVAÇÕES DE CONTAS
+  // ---------------------------------------------------------------------------
+  async function loadAccountRequests() {
     try {
-      const currentTenantId = session?.user?.tenantId;
-
-      if (currentTenantId && currentTenantId === tenantId) {
-        routeToModule(moduleKey || moduleName);
-        return;
-      }
-
-      const data = await api('/api/platform/impersonate', {
-        method: 'POST',
-        body: { targetTenantId: tenantId, reason: `Acesso operacional ao módulo ${moduleName || moduleKey}`, writeEnabled: true }
-      });
-
-      const sessionCopy = Object.assign({}, session, { token: data.token });
-      ERPAuth.setSession(sessionCopy);
-      routeToModule(moduleKey || moduleName);
-    } catch(e) {
-      alert('Erro ao abrir módulo: ' + e.message);
-    }
-  }
-
-  function routeToModule(target) {
-    const t = (target || '').toLowerCase();
-    if (t.includes('crm')) window.location.href = '/app.html#/crm';
-    else if (t.includes('condominio')) window.location.href = '/app.html#/condominios';
-    else if (t.includes('finan') || t.includes('finance')) window.location.href = '/app.html#/financas';
-    else if (t.includes('sellmais') || t.includes('2sellmais')) window.location.href = '/app.html#/sellmais';
-    else if (t.includes('hccall')) window.location.href = '/hccall.html';
-    else if (t.includes('audit')) window.location.href = '/app.html#/audit';
-    else window.location.href = '/workspace.html';
-  }
-
-  async function toggleTenantStatus(tenantId, currentStatus) {
-    const nextStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
-    try {
-      await api(`/api/platform/tenants/${tenantId}/status`, {
-        method: 'PATCH',
-        body: { status: nextStatus }
-      });
-      loadTenants();
-    } catch(e) {
-      alert('Erro ao alterar estado da empresa: ' + e.message);
-    }
-  }
-
-  async function loadApplications() {
-    try {
-      const data = await api('/api/platform/applications');
-      const container = document.getElementById('applications-list');
-      if (!data.applications || data.applications.length === 0) {
-        container.innerHTML = '<p style="color:var(--ink-3);">Nenhum aplicativo configurado.</p>';
-        return;
-      }
-      container.innerHTML = data.applications.map(app => `
-        <div style="background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; padding: 20px; display:flex; flex-direction:column; justify-content:space-between;">
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <h3 style="color: var(--pen); margin:0; font-size:16px;">${app.moduleName}</h3>
-              <span class="status-badge ${app.status === 'ACTIVE' ? 'badge-active' : app.status === 'TRIAL' ? 'badge-trial' : 'badge-suspended'}">${app.status}</span>
-            </div>
-            <p style="color: var(--ink); font-size:13.5px; margin:0 0 6px 0; font-weight:600;">🏢 ${app.tenantName}</p>
-            <p style="color: var(--ink-2); font-size:12px; margin:0 0 15px 0;">👥 ${app.usersCount} utilizador(es) atribuído(s)</p>
-          </div>
-          <div style="display:flex; gap:8px; margin-top:10px;">
-            <button class="btn btn-blue" style="flex:1; justify-content:center;" onclick="openModuleForTenant('${app.tenantId}', '${app.moduleKey || ''}', '${(app.moduleName || '').replace(/'/g, "\\'")}')">
-              🚀 Abrir Módulo
-            </button>
-            <button class="btn btn-secondary" style="flex:1; justify-content:center;" onclick="openTenantLicensingModal('${app.tenantId}', '${app.tenantName.replace(/'/g, "\\'")}')">
-              📜 Ficha
-            </button>
-          </div>
-        </div>
-      `).join('');
+      const data = await api('/api/platform/account-requests');
+      globalAccountRequests = data.requests || [];
+      renderAccountRequests(globalAccountRequests);
     } catch(e) {
       console.error(e);
     }
   }
 
+  function renderAccountRequests(list) {
+    const tbody = document.getElementById('account-requests-list');
+    const badge = document.getElementById('pending-badge');
+    
+    const pendingCount = list.filter(r => r.status === 'PENDING' || r.status === 'PENDING_VERIFICATION').length;
+    if (badge) {
+      if (pendingCount > 0) {
+        badge.textContent = pendingCount;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    if (!list || list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:var(--ink-3);">Nenhum pedido de conta registado.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = list.map(r => {
+      const isVerified = Boolean(r.emailVerifiedAt);
+      const isPending = r.status === 'PENDING';
+      const isPendingVerification = r.status === 'PENDING_VERIFICATION';
+
+      let deliveryBadge = '';
+      if (r.emailDeliveryStatus === 'SENT') {
+        deliveryBadge = '<div style="font-size:10px; color:var(--state-success-text); margin-top:2px;">✉️ Resend OK</div>';
+      } else if (r.emailDeliveryStatus === 'FAILED') {
+        const errorTip = (r.emailDeliveryError || 'Erro no envio').replace(/"/g, '&quot;');
+        deliveryBadge = `<div style="font-size:10px; color:var(--state-error-text); margin-top:2px;" title="${errorTip}">⚠️ Falha no Envio</div>`;
+      } else if (r.emailDeliveryStatus === 'PENDING') {
+        deliveryBadge = '<div style="font-size:10px; color:var(--ink-3); margin-top:2px;">⏳ Envio Pendente</div>';
+      }
+
+      return `
+      <tr>
+        <td><strong>${r.companyName || r.name || r.contactName || 'Sem nome'}</strong><br><span style="font-size:11px; color:var(--ink-3);">tel: ${r.phone || 'n/a'}</span></td>
+        <td>${r.email}</td>
+        <td><span style="color:var(--pen); font-weight:600;">${(r.intendedModule || 'todos').toUpperCase()}</span></td>
+        <td>
+          ${isVerified
+            ? '<span class="status-badge badge-active">✅ Validado</span>'
+            : '<span class="status-badge badge-trial" title="Código válido por 24 horas">⏳ A aguardar código (24h)</span>'
+          }
+          ${deliveryBadge}
+        </td>
+        <td><span class="status-badge ${r.status === 'APPROVED' ? 'badge-active' : isPending ? 'badge-trial' : isPendingVerification ? 'badge-trial' : 'badge-suspended'}">${r.status}</span></td>
+        <td>${new Date(r.createdAt).toLocaleDateString('pt-PT')}</td>
+        <td>
+          ${isPending ? `
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-primary" style="padding:4px 8px; font-size:12px;" onclick="openApproveAccountModal('${r.id}', false)">✅ Aprovar</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="openRejectAccountModal('${r.id}')">❌ Rejeitar</button>
+            </div>
+          ` : isPendingVerification ? `
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button class="btn btn-blue" style="padding:4px 8px; font-size:12px;" onclick="resendAccountRequestCode('${r.id}')" title="Reenviar código OTP de 6 dígitos válido por 24h">📧 Reenviar Código (24h)</button>
+              <button class="btn btn-primary" style="padding:4px 8px; font-size:12px;" onclick="openApproveAccountModal('${r.id}', true)" title="Validar manualmente e criar/ativar tenant em 1 clique">⚡ Validar & Aprovar</button>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:12px;" onclick="openRejectAccountModal('${r.id}')">❌</button>
+            </div>
+          ` : `
+            <span style="font-size:12px; color:var(--ink-3); font-weight:600;">${r.status === 'APPROVED' ? '✓ Aprovado' : '✗ Rejeitado'}</span>
+          `}
+        </td>
+      </tr>
+      `;
+    }).join('');
+  }
+
+  function openApproveAccountModal(id, forceVerify = false) {
+    const req = globalAccountRequests.find(r => r.id === id);
+    if (!req) return;
+
+    document.getElementById('approve-req-id').value = req.id;
+    document.getElementById('approve-req-force-verify').value = forceVerify ? 'true' : 'false';
+    document.getElementById('approve-req-email').value = req.email;
+    document.getElementById('approve-req-name').value = req.companyName || req.name || req.contactName || req.email;
+
+    const forceNotice = document.getElementById('approve-req-force-notice');
+    if (forceNotice) {
+      forceNotice.style.display = forceVerify ? 'block' : 'none';
+    }
+
+    const select = document.getElementById('approve-existing-tenant-id');
+    select.innerHTML = globalTenants.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+
+    document.getElementById('approve-account-modal').classList.add('active');
+  }
+
+  function toggleTenantSelectOption() {
+    const opt = document.getElementById('approve-tenant-option').value;
+    document.getElementById('approve-existing-tenant-group').style.display = opt === 'EXISTING' ? 'block' : 'none';
+  }
+
+  async function submitApproveAccount(e) {
+    e.preventDefault();
+    const id = document.getElementById('approve-req-id').value;
+    const forceVerify = document.getElementById('approve-req-force-verify').value === 'true';
+    const tenantOpt = document.getElementById('approve-tenant-option').value;
+    const existingTenantId = document.getElementById('approve-existing-tenant-id').value;
+    const role = document.getElementById('approve-user-role').value;
+
+    const modules = [];
+    if (document.getElementById('mod-crm')?.checked) modules.push('crm');
+    if (document.getElementById('mod-finance')?.checked) modules.push('finance');
+    if (document.getElementById('mod-hccall')?.checked) modules.push('hccall');
+    if (document.getElementById('mod-sellmais')?.checked) modules.push('sellmais');
+    if (document.getElementById('mod-condominios')?.checked) modules.push('condominios');
+
+    const payload = {
+      role,
+      modules,
+      forceVerify,
+      ...(tenantOpt === 'EXISTING' && { tenantId: existingTenantId })
+    };
+
+    try {
+      await api(`/api/platform/account-requests/${id}/approve`, {
+        method: 'POST',
+        body: payload
+      });
+      closeModal('approve-account-modal');
+      loadAccountRequests();
+      loadTenants();
+      loadLicensingDashboard();
+      alert('Conta aprovada e licenciada com sucesso!');
+    } catch(err) {
+      alert('Erro ao aprovar conta: ' + err.message);
+    }
+  }
+
+  async function resendAccountRequestCode(id) {
+    if (!confirm('Deseja reenviar o código de validação (válido por 24h) para o email deste pedido?')) return;
+    try {
+      const res = await api(`/api/platform/account-requests/${id}/resend-code`, {
+        method: 'POST'
+      });
+      alert(res.message || 'Código reenviado com sucesso.');
+      loadAccountRequests();
+    } catch(err) {
+      alert('Erro ao reenviar código: ' + err.message);
+    }
+  }
+
+  function openRejectAccountModal(id) {
+    const req = globalAccountRequests.find(r => r.id === id);
+    if (!req) return;
+
+    document.getElementById('reject-req-id').value = req.id;
+    document.getElementById('reject-req-email').value = req.email;
+    document.getElementById('reject-reason').value = '';
+    document.getElementById('reject-account-modal').classList.add('active');
+  }
+
+  async function submitRejectAccount(e) {
+    e.preventDefault();
+    const id = document.getElementById('reject-req-id').value;
+    const reason = document.getElementById('reject-reason').value;
+
+    try {
+      await api(`/api/platform/account-requests/${id}/reject`, {
+        method: 'POST',
+        body: { reason }
+      });
+      closeModal('reject-account-modal');
+      loadAccountRequests();
+      alert('Pedido rejeitado.');
+    } catch(err) {
+      alert('Erro ao rejeitar pedido: ' + err.message);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 7. UTILIZADORES ONLINE
+  // ---------------------------------------------------------------------------
   async function loadOnlineUsers() {
     try {
       const data = await api('/api/platform/users');
@@ -970,8 +1368,10 @@
   }
 
   // Inicialização
+  loadLicensingDashboard();
   loadTenants();
   loadAccountRequests();
 </script>
+<script src="/assets/js/connection-banner.js"></script>
 </body>
 </html>

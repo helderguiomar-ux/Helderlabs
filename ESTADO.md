@@ -1,18 +1,18 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-12 16:55 (WEST) · Responsável: `[antigravity]`
-> Versão: **v1.1.0 implantada em produção a 2026-09-12, commit f9bd32b. Verificação em curso: 0 de 15 critérios fechados.**
-
+> Última atualização: 2026-09-12 19:35 (WEST) · Responsável: `[antigravity]`
+> Versão: **v1.2.0 — Licenciamento Global Centrado na Empresa, Validação de Email Obrigatória via Resend (24h) e Licenças Vitalícias Ativas.**
+> Testes: **169 / 169 testes verdes (100% de sucesso).**
 
 ---
 
 ## 📌 1. Resumo Executivo
 - **Projeto**: HELDERLABS ERP
-- **Versão Atual**: `1.1.0`
-- **Ambiente de Produção**: Vercel (`https://helderlabs.eu`)
-- **Status de Segurança**: Backdoor eliminada, OTP seguro, CORS restrito, rate-limiting e CSRF/Zod protegidos.
-- **Bloqueador Operacional de Produção**: Rotação obrigatória da password do Super Administrador (dado residual da backdoor na base de dados).
+- **Versão Atual**: `1.2.0`
+- **Ambiente de Produção**: Vercel (`https://helderlabs.eu`) & Base de Dados Online Neon PostgreSQL
+- **Arquitetura**: Aplicação Web e Cliente Desktop ligam ambos exclusivamente à mesma API Online e Base de Dados Online Neon.
+- **Licenciamento Global**: Gestão centrada na **Empresa (Tenant)**, 4 cartões de métricas reais no topo, suporte a **Licenças Vitalícias** (`ATIVA · VITALÍCIA (∞)` sem expiração e excluídas de contagem a 30d), e **Regra de Segurança de Email Validado** (apenas utilizadores com email validado via Resend no prazo de 24h podem receber atribuição de licença de módulo).
 - **Ramo Atual**: `master`
 
 ---

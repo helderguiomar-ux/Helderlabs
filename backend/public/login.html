@@ -200,6 +200,8 @@
     .social-btn:hover { background: var(--rule); }
     .social-btn svg { width: 18px; height: 18px; }
   </style>
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/api.js"></script>
 </head>
 <body>
 
@@ -255,7 +257,7 @@
 
   <!-- Step 3: OTP -->
   <div id="step-otp" class="step">
-    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Insira o código de 6 dígitos enviado para o seu email</p>
+    <p style="text-align: center; font-size: 0.9rem; margin-bottom: 16px; color: var(--ink-2);">Insira o código de 6 dígitos enviado para o seu email (válido por 24h)</p>
     <div class="otp-inputs" id="otp-container">
       <input type="text" maxlength="1" inputmode="numeric">
       <input type="text" maxlength="1" inputmode="numeric">
@@ -265,6 +267,7 @@
       <input type="text" maxlength="1" inputmode="numeric">
     </div>
     <button class="btn" type="button" onclick="verifyOtp()">Verificar Código</button>
+    <button class="btn-link" type="button" onclick="resendCodeFromLogin()" style="margin-top: 10px; font-size: 0.8rem;">Não recebeu o código? Reenviar código (24h)</button>
     <button class="btn-link" type="button" onclick="showStep('step-email')">← Voltar</button>
   </div>
 
@@ -419,7 +422,7 @@
 
     currentEmail = email;
     try {
-      const res = await fetch('/api/auth/check-email', {
+      const res = await apiFetch('/api/auth/check-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -448,7 +451,7 @@
     currentEmail = email;
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -471,7 +474,7 @@
 
   async function sendOtpSilent() {
     try {
-      const res = await fetch('/api/auth/send-otp', {
+      const res = await apiFetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: currentEmail })
@@ -529,7 +532,7 @@
     if (code.length < 6) return showError('Introduza o código completo de 6 dígitos.');
 
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await apiFetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: currentEmail, code })
@@ -538,7 +541,7 @@
       
       // Se não for rota de login mas sim verificação de email de registo público
       if (!res.ok) {
-        const publicRes = await fetch('/api/public/verify-email', {
+        const publicRes = await apiFetch('/api/public/verify-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: currentEmail, code })
@@ -563,6 +566,33 @@
     }
   }
 
+  async function resendCodeFromLogin() {
+    if (!currentEmail) {
+      showStep('step-email');
+      return;
+    }
+    try {
+      let res = await apiFetch('/api/public/resend-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: currentEmail })
+      });
+      let data = await res.json();
+      if (!res.ok) {
+        res = await apiFetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: currentEmail })
+        });
+        data = await res.json();
+      }
+      showSuccess(data.message || 'Novo código de validação (24h) enviado para ' + currentEmail);
+      setupOtpInputs();
+    } catch(err) {
+      showError(err.message || 'Erro ao reenviar código.');
+    }
+  }
+
   async function setPassword() {
     const p1 = document.getElementById('new-password').value;
     const p2 = document.getElementById('confirm-password').value;
@@ -571,7 +601,7 @@
     if (p1 !== p2) return showError('As palavras-passe não coincidem.');
 
     try {
-      const res = await fetch('/api/auth/set-password', {
+      const res = await apiFetch('/api/auth/set-password', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -632,7 +662,7 @@
     if (!terms) return showError('Deverá aceitar os Termos e Condições e a Política de Privacidade.');
 
     try {
-      const res = await fetch('/api/public/register', {
+      const res = await apiFetch('/api/public/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

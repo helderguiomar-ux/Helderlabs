@@ -111,7 +111,7 @@ export async function publicRoutes(app: FastifyInstance) {
     // Gerar código OTP de 6 dígitos
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otpCode, 10);
-    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
+    const otpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas (prazo alargado)
 
     // -------------------------------------------------------------------------
     // ORDEM CRÍTICA: PERSISTIR PRIMEIRO, ENVIAR DEPOIS.
@@ -353,7 +353,7 @@ export async function publicRoutes(app: FastifyInstance) {
     const contactName = accountReq.contactName || accountReq.name || cleanEmail.split('@')[0];
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(otpCode, 10);
-    const otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const otpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
 
     // Persistir o novo código ANTES de tentar enviar (mesma regra do registo).
     await prisma.accountRequest.update({
@@ -493,6 +493,122 @@ export async function publicRoutes(app: FastifyInstance) {
       message: 'Mensagem enviada com sucesso. Entraremos em contacto brevemente.',
       leadId: lead.id,
       opportunityId: opportunity?.id
+    });
+  });
+
+  /**
+   * GET & POST /api/public/verify-user-email
+   * Validação de endereço de email via link pessoal e seguro (Resend)
+   */
+  app.get('/verify-user-email', async (request, reply) => {
+    const { token } = request.query as { token?: string };
+    if (!token) {
+      reply.type('text/html');
+      return reply.status(400).send(`
+        <!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Link Inválido — HelderLabs</title>
+        <style>body{font-family:-apple-system,sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}
+        .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;max-width:460px;text-align:center;}
+        h2{color:#ef4444;margin-top:0;}p{color:#94a3b8;font-size:15px;line-height:1.5;}</style></head>
+        <body><div class="card"><h2>⚠️ Link Inválido</h2><p>O token de validação de email não foi fornecido ou é inválido.</p></div></body></html>
+      `);
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { emailVerificationToken: token }
+    });
+
+    if (!user || (user.emailVerificationExpiresAt && user.emailVerificationExpiresAt < new Date())) {
+      reply.type('text/html');
+      return reply.status(400).send(`
+        <!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Link Expirado — HelderLabs</title>
+        <style>body{font-family:-apple-system,sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}
+        .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;max-width:460px;text-align:center;}
+        h2{color:#f59e0b;margin-top:0;}p{color:#94a3b8;font-size:15px;line-height:1.5;}
+        a{display:inline-block;margin-top:20px;background:#0d419f;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;}</style></head>
+        <body><div class="card"><h2>⚠️ Link Expirado ou Inválido</h2><p>Este link de validação já foi utilizado ou ultrapassou o prazo de 24 horas. Solicite um novo link ao administrador da sua organização.</p><a href="/login.html">Voltar ao Acesso</a></div></body></html>
+      `);
+    }
+
+    // Validação com sucesso
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        emailVerificationExpiresAt: null
+      }
+    });
+
+    await AuditService.audit({
+      action: 'user.email_verified',
+      category: 'SECURITY',
+      resource: 'User',
+      resourceId: user.id,
+      actorEmail: user.email,
+      actorType: 'USER',
+      tenantId: user.tenantId,
+      newValue: { email: user.email, method: 'LINK' },
+      result: 'SUCCESS',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    reply.type('text/html');
+    return reply.status(200).send(`
+      <!DOCTYPE html><html lang="pt"><head><meta charset="UTF-8"><title>Email Validado — HelderLabs</title>
+      <style>body{font-family:-apple-system,sans-serif;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}
+      .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:36px;max-width:460px;text-align:center;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);}
+      h2{color:#10b981;margin-top:0;}p{color:#94a3b8;font-size:15px;line-height:1.5;}
+      a{display:inline-block;margin-top:24px;background:#0d419f;color:#fff;padding:14px 28px;border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;transition:opacity 0.2s;}a:hover{opacity:0.9;}</style></head>
+      <body><div class="card">
+        <h2>✅ Email Validado com Sucesso!</h2>
+        <p>O seu endereço de email (<strong>${user.email}</strong>) foi verificado e associado à sua conta na plataforma HelderLabs.</p>
+        <p>A sua organização já lhe pode atribuir licenças e acessos aos módulos empresariais.</p>
+        <a href="/login.html">Entrar no HelderLabs ERP &rarr;</a>
+      </div></body></html>
+    `);
+  });
+
+  app.post('/verify-user-email', async (request, reply) => {
+    const { token } = z.object({ token: z.string().min(1) }).parse(request.body);
+
+    const user = await prisma.user.findFirst({
+      where: { emailVerificationToken: token }
+    });
+
+    if (!user || (user.emailVerificationExpiresAt && user.emailVerificationExpiresAt < new Date())) {
+      return reply.status(400).send({
+        error: 'INVALID_OR_EXPIRED_TOKEN',
+        message: 'O link de validação é inválido ou já expirou (limite de 24h).'
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        emailVerificationExpiresAt: null
+      }
+    });
+
+    await AuditService.audit({
+      action: 'user.email_verified',
+      category: 'SECURITY',
+      resource: 'User',
+      resourceId: user.id,
+      actorEmail: user.email,
+      actorType: 'USER',
+      tenantId: user.tenantId,
+      newValue: { email: user.email, method: 'API' },
+      result: 'SUCCESS',
+      ipAddress: request.ip,
+      userAgent: request.headers['user-agent']
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: 'Email validado com sucesso! A conta está autorizada a receber licenças.'
     });
   });
 }

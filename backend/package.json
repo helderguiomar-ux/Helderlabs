@@ -1,6 +1,6 @@
 {
   "name": "helderlabs-erp-backend",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "description": "HelderLabs ERP - backend modular (CRM, Condomínios, Finanças, Plataforma)",
   "main": "dist/server.js",
@@ -25,11 +25,13 @@
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/collect-and-run-tests.mjs",
+    "test": "npm run db:guard && node scripts/collect-and-run-tests.mjs",
     "test:e2e": "node scripts/run-e2e-audit.mjs",
     "test:browser": "node scripts/test-e2e-browser.mjs",
     "audit:verify": "tsx scripts/verify-audit-chain.ts",
-    "seed": "npm run db:seed"
+    "seed": "npm run db:seed",
+    "test:unsafe": "node scripts/collect-and-run-tests.mjs",
+    "dev:online": "node scripts/dev-online.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

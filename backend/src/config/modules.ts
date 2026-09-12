@@ -62,6 +62,39 @@ export const SYSTEM_MODULES: Record<string, SystemModuleDefinition> = {
     routePrefix: '/api/sellmais',
     appUrl: '/app.html#/sellmais'
   },
+  sales: {
+    key: 'sales',
+    name: 'Sales & Gestão Comercial',
+    description: 'Gestão de propostas, pipelines de vendas, metas comerciais e fecho de negócios.',
+    version: '1.0.0',
+    color: '#0284c7',
+    icon: 'trending-up',
+    status: 'ACTIVE',
+    routePrefix: '/api/sales',
+    appUrl: '/app.html#/sales'
+  },
+  tasks: {
+    key: 'tasks',
+    name: 'Tasks & Gestão de Tarefas',
+    description: 'Organização de tarefas, projetos colaborativos, prazos e fluxo operacional.',
+    version: '1.0.0',
+    color: '#6366f1',
+    icon: 'check-square',
+    status: 'ACTIVE',
+    routePrefix: '/api/tasks',
+    appUrl: '/app.html#/tasks'
+  },
+  invoicing: {
+    key: 'invoicing',
+    name: 'Invoicing & Faturação',
+    description: 'Emissão e certificação de faturas, recibos, notas de crédito e comunicação à AT.',
+    version: '1.0.0',
+    color: '#0d9488',
+    icon: 'file-text',
+    status: 'ACTIVE',
+    routePrefix: '/api/invoicing',
+    appUrl: '/app.html#/invoicing'
+  },
   condominios: {
     key: 'condominios',
     name: 'Gestão de Condomínios',
@@ -69,7 +102,7 @@ export const SYSTEM_MODULES: Record<string, SystemModuleDefinition> = {
     version: '1.0.0',
     color: '#0891b2',
     icon: 'building',
-    status: 'DORMANT',
+    status: 'ACTIVE',
     aliases: ['condo'],
     routePrefix: '/api/condominios',
     appUrl: '/app.html#/condominios'

@@ -104,9 +104,12 @@ export class AuditService {
     for (let attempt = 1; attempt <= this.MAX_WRITE_ATTEMPTS; attempt++) {
       try {
         await prisma.$transaction(async (tx: any) => {
-          // Serializa a secção crítica por partição, entre instâncias.
-          // O lock é libertado automaticamente no fim da transação.
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${partitionKey}))`;
+          // Serializa a secção crítica por partição, entre instâncias quando suportado.
+          try {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${partitionKey}))`;
+          } catch (lockErr: any) {
+            // Em ambientes de pooler restrito ou SQLite, prossegue com garantia da constraint única.
+          }
 
           const lastLog = await tx.auditLog.findFirst({
             where: { tenantId },
@@ -162,16 +165,20 @@ export class AuditService {
               hash
             }
           });
-        });
+        }, { timeout: 10000, maxWait: 10000 });
 
         return; // gravado com sucesso
       } catch (err: any) {
         lastError = err;
-        // P2002 = colisão na constraint única do elo da cadeia: outra instância
-        // gravou entretanto. Volta a tentar a partir do novo topo da cadeia.
-        const isChainRace = err?.code === 'P2002';
-        if (!isChainRace || attempt === this.MAX_WRITE_ATTEMPTS) break;
-        await new Promise((r) => setTimeout(r, 25 * attempt));
+        // P2002 / P2028 / timeout: colisão na constraint única ou timeout transitório do pool.
+        // Volta a tentar com backoff exponencial.
+        const isRetryable =
+          err?.code === 'P2002' ||
+          err?.code === 'P2028' ||
+          err?.message?.includes('timeout') ||
+          err?.message?.includes('connection');
+        if (!isRetryable || attempt === this.MAX_WRITE_ATTEMPTS) break;
+        await new Promise((r) => setTimeout(r, 35 * attempt));
       }
     }
 

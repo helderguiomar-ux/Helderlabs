@@ -150,7 +150,7 @@ export class AuthService {
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedOtp = await bcrypt.hash(code, 10);
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
 
     const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
 

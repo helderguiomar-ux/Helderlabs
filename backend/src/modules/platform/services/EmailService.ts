@@ -86,15 +86,16 @@ export class EmailService {
     }
 
     try {
-      const payload = {
-        from: fromAddress,
+      let activeFrom = fromAddress;
+      let payload = {
+        from: activeFrom,
         to: recipients,
         subject: options.subject,
         html: options.html,
         text: options.text
       };
 
-      const response = await fetch('https://api.resend.com/emails', {
+      let response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -103,7 +104,27 @@ export class EmailService {
         body: JSON.stringify(payload)
       });
 
-      const resData: any = await response.json().catch(() => ({}));
+      let resData: any = await response.json().catch(() => ({}));
+
+      // Caso o domínio de envio configurado não esteja ainda verificado no Resend, tenta fallback para onboarding@resend.dev
+      if (!response.ok && (response.status === 403 || String(resData?.message || '').toLowerCase().includes('domain') || String(resData?.name || '').toLowerCase().includes('validation'))) {
+        const fallbackFrom = 'HelderLabs ERP <onboarding@resend.dev>';
+        if (activeFrom !== fallbackFrom) {
+          console.warn(`[EMAIL SERVICE] Domínio não verificado no Resend para '${activeFrom}'. Tentando fallback para '${fallbackFrom}'...`);
+          activeFrom = fallbackFrom;
+          payload.from = activeFrom;
+
+          response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          resData = await response.json().catch(() => ({}));
+        }
+      }
 
       if (!response.ok) {
         const errorMsg = (resData && (resData.message || resData.name)) || `HTTP ${response.status} ${response.statusText}`;
@@ -194,7 +215,7 @@ export class EmailService {
           <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0d419f; font-family: monospace;">${otpCode}</span>
         </div>
         <p style="font-size: 13px; color: #6b7280; line-height: 1.4;">
-          Este código expira em <strong>15 minutos</strong>. Se não efetuou este pedido, ignore esta mensagem em segurança.
+          Este código expira em <strong>24 horas</strong>. Se não efetuou este pedido, ignore esta mensagem em segurança.
         </p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
@@ -231,7 +252,7 @@ export class EmailService {
           <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0d419f; font-family: monospace;">${otpCode}</span>
         </div>
         <p style="font-size: 13px; color: #6b7280; line-height: 1.4;">
-          Este código é de utilização única e é válido por <strong>15 minutos</strong>. Não o partilhe com terceiros.
+          Este código é de utilização única e é válido por <strong>24 horas</strong>. Não o partilhe com terceiros.
         </p>
         <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
         <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
@@ -291,6 +312,51 @@ export class EmailService {
       html,
       category: 'USER',
       tenantId: meta?.tenantId
+    });
+  }
+
+  /**
+   * Envia email com link seguro para validação de email de um utilizador de tenant
+   */
+  static async sendUserVerificationLinkEmail(to: string, name: string, verificationUrl: string, meta?: { tenantId?: string; ipAddress?: string; userAgent?: string }): Promise<EmailResult> {
+    const subject = 'Validação do seu endereço de email — HelderLabs Platform';
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 32px 24px; color: #1f2937; background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #0d419f; margin: 0; font-size: 24px; font-weight: 700;">HelderLabs</h2>
+          <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Validação do seu endereço de email</p>
+        </div>
+        <p style="font-size: 15px; line-height: 1.5;">Olá <strong>${name || 'Utilizador'}</strong>,</p>
+        <p style="font-size: 15px; line-height: 1.5; color: #374151;">
+          Foi criada ou associada uma conta para si na plataforma HelderLabs. Para poder receber licenças e aceder aos módulos empresariais, por favor valide o seu endereço de email clicando no botão abaixo:
+        </p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" style="background-color: #0d419f; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 15px; display: inline-block; letter-spacing: 0.5px;">
+            VALIDAR EMAIL &rarr;
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #6b7280; line-height: 1.4;">
+          Este link é pessoal, seguro e válido por <strong>24 horas</strong>. Se não solicitou esta conta ou não reconhece este registo, ignore este email em segurança.
+        </p>
+        <p style="font-size: 12px; color: #9ca3af; word-break: break-all; margin-top: 20px;">
+          Se o botão não funcionar, copie e abra este link no navegador:<br>
+          <a href="${verificationUrl}" style="color: #0d419f;">${verificationUrl}</a>
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #9ca3af; text-align: center; margin: 0;">
+          &copy; ${new Date().getFullYear()} HelderLabs. Todos os direitos reservados.
+        </p>
+      </div>
+    `;
+
+    return this.send({
+      to,
+      subject,
+      html,
+      category: 'SECURITY',
+      tenantId: meta?.tenantId,
+      ipAddress: meta?.ipAddress,
+      userAgent: meta?.userAgent
     });
   }
 }

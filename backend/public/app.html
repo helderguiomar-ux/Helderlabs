@@ -36,6 +36,8 @@
   <link rel="stylesheet" href="/assets/css/design-system/components.css">
   <link rel="stylesheet" href="/assets/css/styles.css">
   <link rel="stylesheet" href="/assets/css/app.css">
+<script src="/assets/js/config.js"></script>
+<script src="/assets/js/api.js"></script>
 </head>
 <body>
 
@@ -779,7 +781,6 @@
 
   <!-- Modular Scripts -->
   <script src="/assets/js/theme.js"></script>
-<script src="/assets/js/api.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
   <script src="/assets/js/crm.js"></script>
@@ -832,7 +833,7 @@
       window.ERPAuth ? window.ERPAuth.logout() : (function() {
         localStorage.clear();
         sessionStorage.clear();
-        fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+        apiFetch('/api/auth/logout', { method: 'POST' }).finally(() => {
           window.location.href = '/login.html';
         });
       })();
@@ -851,5 +852,6 @@
       switchTab(hash);
     });
   </script>
+  <script src="/assets/js/connection-banner.js"></script>
 </body>
 </html>

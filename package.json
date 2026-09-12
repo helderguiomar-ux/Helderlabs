@@ -1,10 +1,9 @@
 {
   "name": "helderlabs-erp-root",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate --schema=backend/prisma/schema.prisma",
-    "build": "prisma generate --schema=backend/prisma/schema.prisma && cd backend && npm install && node scripts/deploy-build.mjs"
+    "build": "cd backend && npm install && node scripts/deploy-build.mjs"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",

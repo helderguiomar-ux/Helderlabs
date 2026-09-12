@@ -37,16 +37,27 @@ export async function ensureDatabaseSchema(client?: PrismaClient): Promise<void>
   if (_schemaEnsured) return;
   const prismaClient = client || getOrCreateClient();
   try {
+    // 0. User verification fields
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerifiedAt" TIMESTAMP(3);`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationToken" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationExpiresAt" TIMESTAMP(3);`);
+
     // 1. AccountRequest onboarding resilience fields
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryStatus" TEXT DEFAULT 'PENDING';`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryError" TEXT;`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailLastAttemptAt" TIMESTAMP(3);`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailAttemptCount" INTEGER NOT NULL DEFAULT 0;`);
 
-    // 2. AuditLog forensic reseal fields
+    // 2. AuditLog forensic reseal fields and hashes
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "prevHash" TEXT;`);
+    await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "hash" TEXT;`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedAt" TIMESTAMP(3);`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedBy" TEXT;`);
     await prismaClient.$executeRawUnsafe(`ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealBatchId" TEXT;`);
+    try {
+      await prismaClient.$executeRawUnsafe(`UPDATE "audit_logs" SET "prevHash" = '0000000000000000000000000000000000000000000000000000000000000000' WHERE "prevHash" IS NULL;`);
+      await prismaClient.$executeRawUnsafe(`UPDATE "audit_logs" SET "hash" = '0000000000000000000000000000000000000000000000000000000000000000' WHERE "hash" IS NULL;`);
+    } catch {}
 
     // 3. Incidents table
     await prismaClient.$executeRawUnsafe(`

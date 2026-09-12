@@ -14,13 +14,29 @@ try {
   const prisma = new PrismaClient();
   try {
     console.log('[BUILD] A reparar NULLs legados e colunas em falta no PostgreSQL...');
-    await prisma.$executeRawUnsafe(`
-      UPDATE "audit_logs" SET "prevHash" = '0000000000000000000000000000000000000000000000000000000000000000' WHERE "prevHash" IS NULL;
-      UPDATE "audit_logs" SET "hash" = '0000000000000000000000000000000000000000000000000000000000000000' WHERE "hash" IS NULL;
-      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerifiedAt" TIMESTAMP(3);
-      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationToken" TEXT;
-      ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationExpiresAt" TIMESTAMP(3);
-    `);
+    const queries = [
+      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerifiedAt" TIMESTAMP(3)',
+      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationToken" TEXT',
+      'ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "emailVerificationExpiresAt" TIMESTAMP(3)',
+      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryStatus" TEXT DEFAULT \'PENDING\'',
+      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailDeliveryError" TEXT',
+      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailLastAttemptAt" TIMESTAMP(3)',
+      'ALTER TABLE "account_requests" ADD COLUMN IF NOT EXISTS "emailAttemptCount" INTEGER NOT NULL DEFAULT 0',
+      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "prevHash" TEXT',
+      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "hash" TEXT',
+      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedAt" TIMESTAMP(3)',
+      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealedBy" TEXT',
+      'ALTER TABLE "audit_logs" ADD COLUMN IF NOT EXISTS "resealBatchId" TEXT',
+      'UPDATE "audit_logs" SET "prevHash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "prevHash" IS NULL',
+      'UPDATE "audit_logs" SET "hash" = \'0000000000000000000000000000000000000000000000000000000000000000\' WHERE "hash" IS NULL'
+    ];
+    for (const q of queries) {
+      try {
+        await prisma.$executeRawUnsafe(q);
+      } catch (err) {
+        console.warn('[BUILD SQL WARN]', q.slice(0, 30), err.message);
+      }
+    }
   } catch (sqlErr) {
     console.warn('[BUILD WARNING] Aviso no SQL prévio:', sqlErr.message);
   } finally {

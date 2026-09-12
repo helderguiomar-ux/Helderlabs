@@ -1,4 +1,4 @@
-import { test, describe } from 'node:test';
+import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert';
 import bcrypt from 'bcrypt';
 import { buildApp } from '../../src/app';
@@ -6,7 +6,16 @@ import { prisma } from '../../src/database/prisma/client';
 import { AuthService } from '../../src/modules/auth/services/AuthService';
 
 describe('Public Routes Tests (/api/public)', () => {
-  const app = buildApp();
+  let app: any;
+
+  before(async () => {
+    app = buildApp();
+    await app.ready();
+  });
+
+  after(async () => {
+    await app.close();
+  });
 
   test('POST /api/public/register fails if RGPD terms or privacy not accepted', async () => {
     const res = await app.inject({

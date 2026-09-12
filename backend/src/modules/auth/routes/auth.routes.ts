@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { AuthService } from '../services/AuthService';
 import { EntitlementService } from '../../platform/services/EntitlementService';
+import { AuditService } from '../../platform/services/AuditService';
 
 const emailSchema = z.object({
   email: z.string().email('Email inválido')
@@ -25,6 +26,43 @@ const setPasswordSchema = z.object({
     .regex(/[A-Z]/, 'A palavra-passe deve conter pelo menos uma letra maiúscula')
     .regex(/[0-9]/, 'A palavra-passe deve conter pelo menos um algarismo')
 });
+
+
+/**
+ * AUD-08 — Auditoria explícita das rotas de autenticação.
+ *
+ * O hook global de `app.ts` preenche `actorEmail` a partir de `request.user`,
+ * que NÃO existe em rotas pré-autenticação. Resultado: 100% dos eventos de
+ * login, OTP e verificação ficavam gravados com actorEmail NULL, tornando
+ * impossível atribuir uma tentativa de acesso a uma conta — exatamente no
+ * cenário em que a auditoria mais vale.
+ *
+ * Aqui o email TENTADO é registado explicitamente, com o resultado e o IP real
+ * (ver trustProxy em app.ts). Categoria SECURITY: se não for possível registar
+ * a tentativa, a operação não se conclui.
+ */
+async function auditAuthAttempt(
+  request: any,
+  action: string,
+  attemptedEmail: string,
+  outcome: 'SUCCESS' | 'FAILURE',
+  detail?: Record<string, unknown>
+) {
+  await AuditService.audit({
+    action,
+    module: 'auth',
+    category: 'SECURITY',
+    resource: 'Authentication',
+    resourceId: attemptedEmail.toLowerCase().trim(),
+    actorEmail: attemptedEmail.toLowerCase().trim(),
+    actorType: 'USER',
+    result: outcome,
+    newValue: detail,
+    requestId: request.id,
+    ipAddress: request.ip,
+    userAgent: request.headers['user-agent'] as string | undefined
+  });
+}
 
 export async function authRoutes(app: FastifyInstance) {
   const authService = new AuthService();
@@ -62,6 +100,9 @@ export async function authRoutes(app: FastifyInstance) {
       ipAddress: request.ip,
       userAgent: request.headers['user-agent'] as string | undefined
     });
+    // Registado com o email tentado. A RESPOSTA ao cliente mantém-se neutra
+    // (ver AuthService.sendOtp) — a auditoria é interna, não revela nada.
+    await auditAuthAttempt(request, 'auth.send_otp', email, 'SUCCESS');
     return reply.status(200).send(result);
   });
 
@@ -72,8 +113,18 @@ export async function authRoutes(app: FastifyInstance) {
     }
   }, async (request, reply) => {
     const { email, code } = verifyOtpSchema.parse(request.body);
-    const result = await authService.verifyOtp(email, code);
-    return reply.status(200).send(result);
+    try {
+      const result = await authService.verifyOtp(email, code);
+      await auditAuthAttempt(request, 'auth.verify_otp', email, 'SUCCESS', {
+        outcome: (result as any).status ?? 'AUTHENTICATED'
+      });
+      return reply.status(200).send(result);
+    } catch (err: any) {
+      await auditAuthAttempt(request, 'auth.verify_otp', email, 'FAILURE', {
+        reason: err?.code || err?.message || 'UNKNOWN'
+      });
+      throw err;
+    }
   });
 
   // Passo 2b: Login com Password
@@ -83,8 +134,18 @@ export async function authRoutes(app: FastifyInstance) {
     }
   }, async (request, reply) => {
     const { email, password } = loginPasswordSchema.parse(request.body);
-    const result = await authService.loginWithPassword(email, password);
-    return reply.status(200).send(result);
+    try {
+      const result = await authService.loginWithPassword(email, password);
+      await auditAuthAttempt(request, 'auth.login', email, 'SUCCESS', {
+        outcome: (result as any).status ?? 'AUTHENTICATED'
+      });
+      return reply.status(200).send(result);
+    } catch (err: any) {
+      await auditAuthAttempt(request, 'auth.login', email, 'FAILURE', {
+        reason: err?.code || err?.message || 'UNKNOWN'
+      });
+      throw err;
+    }
   });
 
   // Rota Protegida: Definir password na BD

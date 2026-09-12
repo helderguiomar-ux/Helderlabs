@@ -26,7 +26,21 @@ import { APP_VERSION } from './version';
 
 export function buildApp() {
   const app = Fastify({
-    logger: true
+    logger: true,
+    // -------------------------------------------------------------------------
+    // AUD-09 — sem isto, request.ip devolve o endereço do proxy (127.0.0.1 no
+    // Vercel) e NUNCA o do cliente. Duas consequências, ambas confirmadas em
+    // produção, onde 100% dos registos de auditoria tinham ipAddress 127.0.0.1:
+    //
+    //   1. Forense: todos os IPs gravados na auditoria eram inúteis. Somado ao
+    //      actorEmail nulo nas rotas de autenticação (AUD-08), tornava-se
+    //      impossível atribuir qualquer tentativa de acesso.
+    //   2. Disponibilidade: @fastify/rate-limit chaveia por request.ip, logo o
+    //      limite global de 100 pedidos/minuto era PARTILHADO por todos os
+    //      utilizadores — um único cliente podia esgotá-lo para toda a gente,
+    //      e o limite por IP não protegia contra nada.
+    // -------------------------------------------------------------------------
+    trustProxy: true
   });
 
   // Helmet — Cabeçalhos de Segurança & CSP

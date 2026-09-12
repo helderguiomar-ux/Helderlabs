@@ -6,4 +6,4 @@
  * usava o literal '1.0.0' e VersionController devolvia schemaVersion '1.0.0'
  * fixo no código. Passa a existir aqui, e os package.json acompanham.
  */
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.1.1';

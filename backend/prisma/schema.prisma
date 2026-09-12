@@ -11,7 +11,7 @@ generator client {
 
 generator clientRoot {
   provider = "prisma-client-js"
-  output   = "../../node_modules/@prisma/client"
+  output   = "../../node_modules/.prisma/client"
 }
 
 datasource db {

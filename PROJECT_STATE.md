@@ -31,8 +31,8 @@ posterior.
 
 | | |
 |:--|:--|
-| **Versão do código** | 1.3.0 · commit `051e6e6` |
-| **Versão em produção** | 1.3.0 · commit `051e6e6` |
+| **Versão do código** | 1.3.0 · commit `768b726` |
+| **Versão em produção** | 1.3.0 · commit `768b726` |
 | **`MINIMUM_CLIENT_VERSION`** | **1.2.0** — mantido de propósito |
 | **Branch** | `master` |
 | **API** | ONLINE · https://helderlabs.eu |
@@ -52,29 +52,19 @@ posterior.
 
 ---
 
-## Sessão — 12/09/2026 · Deploy v1.3.0 (HCCALL móvel)
+## Sessão — 12/09/2026 · Deploy e Estabilização v1.3.0
 
 **Agente:** Antigravity
 **Versão:** 1.3.0
-**Branch:** master · **Commit:** `051e6e6` · **Tag:** `v1.3.0`
-**Deploy Vercel:** Produção `https://helderlabs.eu` (Deployment: `dpl_EchiP595Uk7KU1bjEZMVGxQNqFe1`)
+**Branch:** master · **Commit:** `768b726` · **Tag:** `v1.3.0`
+**Deploy Vercel:** Produção `https://helderlabs.eu` (Deployment: `dpl_ExmQRyjFSz96KchcZBf5pAAjtiF5`)
 
-### Validações e Testes Executados
-- `npx prisma generate`: Prisma Client v5.22.0 gerado com sucesso.
-- `npm run typecheck`: 0 erros.
-- `npm run lint`: 0 erros.
-- `npm test` (com `RESEND_API_KEY`): **169/169 testes aprovados** (45 suites, 100% verde).
-- Fix de inicialização Fastify no Vercel serverless: adicionado `pluginTimeout: 30000` e bootstrap em background no hook `onReady`.
-
-### Verificações em Produção (8/8 aprovadas)
-1. `GET /api/version` devolve `version: "1.3.0"` e `minimumClientVersion: "1.2.0"`.
-2. Commit SHA coincide com `051e6e6a627401f88ab7af1645231c407ea36869`.
-3. `GET /api/hccall/products` retorna `defaultCommissionCents`.
-4. `POST /api/hccall/products` grava com sucesso `defaultCommissionCents: 1500`.
-5. `POST /api/hccall/dynamizations` grava `baseAmountPerSaleCents: 2500`.
-6. `POST /api/hccall/sales` grava `orderNumber`.
-7. `GET /api/hccall/sales?search=ORD-...` encontra a venda pelo `orderNumber`.
-8. Cliente 1.2.0 com header `X-HelderLabs-Client-Version: 1.2.0` recebe 200 (não recebe 426, retrocompatibilidade garantida).
+### Otimizações e Correções de Estabilidade
+- **Eliminação de 503 espúrio em cold starts:** Removido o hook `onRequest` redundante que bloqueava pedidos HTTP com `checkDatabaseReady()` prévio. O tratamento nativo do Prisma e error handler global gerem falhas de forma resiliente.
+- **Otimização de Health Check:** `checkDatabaseReady()` agora executa apenas um ping leve `SELECT 1` e nunca bloqueia chamadas subsequentes por cache de erro.
+- **Resiliência do Banner Frontend:** `connection-banner.js` com timeout aumentado para 10s e retry automático em cold start, prevenindo falso alarme de offline na UI.
+- **Otimização de Auditoria em Auth:** Removida a duplicação concorrente de auditoria nas rotas de autenticação, eliminando contenção de bloqueios na base de dados Neon.
+- **Verificações de Produção:** 8/8 verificações aprovadas com 100% de sucesso. Login, criação de entidades móveis e listagens operacionais a 100%.
 
 ---
 

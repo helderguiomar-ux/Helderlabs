@@ -361,6 +361,20 @@
     <p>Selecione uma das suas aplicações para começar a trabalhar.</p>
   </div>
 
+  <!-- Cartão Corporativo de Licenciamento em Destaque -->
+  <div id="tenant-license-banner" style="background: var(--card-bg, #ffffff); border: 1px solid var(--border-color, #e2e8f0); border-left: 4px solid #2563eb; border-radius: 8px; padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div style="background: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 6px; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+        <span>🛡️</span> <span id="license-plan-badge">Licença Ativa</span>
+      </div>
+      <div>
+        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);" id="license-detail-text">A carregar licenciamento...</div>
+        <div style="font-size: 12px; color: var(--text-secondary);" id="license-validity-text">Validade contratual</div>
+      </div>
+    </div>
+    <div id="license-tags-container" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
+  </div>
+
   <div class="section-title">As Minhas Aplicações</div>
   <div id="active-apps-grid" class="apps-grid"></div>
 
@@ -612,18 +626,59 @@
       if (adminBtn) adminBtn.style.display = 'inline-flex';
     }
 
+    // Cartão de Licenciamento em Destaque
+    const licBanner = document.getElementById('tenant-license-banner');
+    const licBadge = document.getElementById('license-plan-badge');
+    const licDetail = document.getElementById('license-detail-text');
+    const licValidity = document.getElementById('license-validity-text');
+    const licTags = document.getElementById('license-tags-container');
+
+    const activeApps = apps.filter(a => a.state === 'ACTIVE' || a.state === 'TRIAL' || a.state === 'GRACE');
+    const licData = data.licensing || {};
+    const planName = licData.planName || 'Licença Corporativa';
+    const licStatus = licData.status || tenant.status || 'ACTIVE';
+
+    if (licBanner) {
+      licBanner.style.display = 'flex';
+      if (licBadge) {
+        licBadge.textContent = licStatus === 'ACTIVE' ? 'Licença Ativa' : (licStatus === 'TRIAL' ? 'Período Experimental' : licStatus);
+      }
+      if (licDetail) {
+        const companyName = branding.displayName || tenant.name || 'Empresa';
+        licDetail.textContent = `${planName} — ${activeApps.length} módulo(s) licenciado(s) para ${companyName}`;
+      }
+      if (licValidity) {
+        const trialApp = activeApps.find(a => a.state === 'TRIAL' && a.daysLeft);
+        if (trialApp) {
+          licValidity.textContent = `Estado Contratual: Período Experimental (${trialApp.daysLeft} dias restantes)`;
+        } else {
+          licValidity.textContent = 'Estado Contratual: Licença Ativa com Acesso Permanente';
+        }
+      }
+      if (licTags) {
+        licTags.innerHTML = activeApps.map(a => `
+          <span style="background: ${a.color ? a.color + '15' : 'rgba(13,65,159,0.1)'}; color: ${a.color || 'var(--primary-color)'}; border: 1px solid ${a.color ? a.color + '30' : 'rgba(13,65,159,0.2)'}; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+            ✓ ${a.name}
+          </span>
+        `).join('');
+      }
+    }
+
     // Render active vs upsell apps
     const activeGrid = document.getElementById('active-apps-grid');
     const upsellGrid = document.getElementById('upsell-apps-grid');
     if (activeGrid) activeGrid.innerHTML = '';
     if (upsellGrid) upsellGrid.innerHTML = '';
 
+    const isPrivileged = ['SUPER_ADMIN', 'PLATFORM_ADMIN'].includes(user.role) || isImp;
     let hasUpsell = false;
 
     apps.forEach(app => {
       if (app.state === 'NONE' || app.state === 'DISABLED') {
-        hasUpsell = true;
-        if (upsellGrid) upsellGrid.appendChild(createAppCard(app, true));
+        if (isPrivileged) {
+          hasUpsell = true;
+          if (upsellGrid) upsellGrid.appendChild(createAppCard(app, true));
+        }
       } else {
         if (activeGrid) activeGrid.appendChild(createAppCard(app, false));
       }
@@ -634,15 +689,15 @@
       emptyDiv.style.cssText = 'grid-column: 1 / -1; padding: 32px; text-align: center; color: var(--text-secondary); background: var(--card-bg, #ffffff); border-radius: 8px; border: 1px dashed var(--border-color, #e2e8f0);';
       emptyDiv.innerHTML = `
         <div style="font-size: 2rem; margin-bottom: 8px;">📦</div>
-        <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Nenhuma aplicação ativa configurada</div>
-        <div style="font-size: 0.85rem;">As aplicações configuradas para esta empresa aparecerão aqui.</div>
+        <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Nenhuma aplicação ativa licenciada</div>
+        <div style="font-size: 0.85rem;">As aplicações licenciadas para esta empresa aparecerão aqui.</div>
       `;
       activeGrid.appendChild(emptyDiv);
     }
 
-    if (hasUpsell && branding.showUpsell) {
-      const upsellSec = document.getElementById('upsell-section');
-      if (upsellSec) upsellSec.style.display = 'block';
+    const upsellSec = document.getElementById('upsell-section');
+    if (upsellSec) {
+      upsellSec.style.display = (isPrivileged && hasUpsell && branding.showUpsell) ? 'block' : 'none';
     }
   }
 

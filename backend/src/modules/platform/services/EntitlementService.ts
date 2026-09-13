@@ -47,6 +47,12 @@ export type WorkspaceManifest = {
     showUpsell: boolean;
   };
   apps: AppEntitlement[];
+  licensing?: {
+    status: string;
+    planName: string;
+    activeCount: number;
+    modules: Array<{ key: string; name: string; state: string; daysLeft: number | null }>;
+  };
   impersonation: {
     session: string;
     actorEmail: string;
@@ -254,6 +260,21 @@ export class EntitlementService {
       });
     }
 
+    // Resumo de Licenciamento do Tenant
+    const licensedApps = apps.filter(a => a.state !== 'NONE' && a.state !== 'DISABLED');
+    const activeLicensedApps = licensedApps.filter(a => a.state === 'ACTIVE' || a.state === 'TRIAL' || a.state === 'GRACE');
+    const licensingSummary = {
+      status: tenant.status,
+      planName: tenant.status === 'ACTIVE' ? 'Licença Corporativa' : (tenant.status === 'TRIAL' ? 'Período Experimental (Trial)' : 'Licença Restrita'),
+      activeCount: activeLicensedApps.length,
+      modules: licensedApps.map(a => ({ key: a.key, name: a.name, state: a.state, daysLeft: a.daysLeft }))
+    };
+
+    // Restrição Estrita: o tenant só pode ver os módulos que tiver licenciados para utilização!
+    // Super Admin ou Sessão de Suporte mantêm a visão de gestão dos módulos da plataforma
+    const isPrivileged = isSuperOrPlatformAdmin || isImpersonating;
+    const finalApps = isPrivileged ? apps : licensedApps;
+
     const branding = tenant.branding || {
       logoUrl: null,
       logoDarkUrl: null,
@@ -265,7 +286,7 @@ export class EntitlementService {
       locale: 'pt-PT',
       currency: 'EUR',
       timezone: 'Atlantic/Madeira',
-      showUpsell: true
+      showUpsell: isPrivileged
     };
 
     const issuedAt = now.toISOString();
@@ -277,7 +298,7 @@ export class EntitlementService {
       tenantId: tenant.id,
       issuedAt,
       expiresAt,
-      apps: apps.map(a => ({ key: a.key, state: a.state, writable: a.writable }))
+      apps: finalApps.map(a => ({ key: a.key, state: a.state, writable: a.writable }))
     });
 
     const secret = process.env.JWT_SECRET || 'dev_secret_key_change_in_production';
@@ -311,9 +332,10 @@ export class EntitlementService {
         locale: branding.locale,
         currency: branding.currency,
         timezone: branding.timezone,
-        showUpsell: branding.showUpsell ?? true
+        showUpsell: isPrivileged ? (branding.showUpsell ?? true) : false
       },
-      apps,
+      apps: finalApps,
+      licensing: licensingSummary,
       impersonation: impersonationData
     };
 

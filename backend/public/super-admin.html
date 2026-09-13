@@ -472,6 +472,63 @@
     </div>
   </div>
 
+  <!-- Modal: Editar Empresa (Tenant) -->
+  <div id="edit-tenant-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>✏️ Editar Empresa (Tenant)</h3>
+        <button class="btn btn-secondary" onclick="closeModal('edit-tenant-modal')">✕</button>
+      </div>
+      <form onsubmit="submitEditTenant(event)">
+        <input type="hidden" id="edit-tenant-id">
+        <div class="form-group">
+          <label>Nome da Empresa *</label>
+          <input type="text" id="edit-tenant-name" required placeholder="Nome da Empresa">
+        </div>
+        <div class="form-group">
+          <label>Email de Contacto</label>
+          <input type="email" id="edit-tenant-email" placeholder="geral@empresa.pt">
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label>Telefone</label>
+            <input type="text" id="edit-tenant-phone" placeholder="+351 210 000 000">
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select id="edit-tenant-status" style="width:100%; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet);">
+              <option value="ACTIVE">ACTIVE (Ativo)</option>
+              <option value="SUSPENDED">SUSPENDED (Suspenso)</option>
+              <option value="PENDING_VERIFICATION">PENDING_VERIFICATION (Pendente)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Morada</label>
+          <input type="text" id="edit-tenant-address" placeholder="Rua / Avenida, Nº">
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label>Cidade</label>
+            <input type="text" id="edit-tenant-city" placeholder="Lisboa / Porto">
+          </div>
+          <div class="form-group">
+            <label>Código Postal</label>
+            <input type="text" id="edit-tenant-postal" placeholder="1000-000">
+          </div>
+          <div class="form-group">
+            <label>País</label>
+            <input type="text" id="edit-tenant-country" placeholder="Portugal">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('edit-tenant-modal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal: Detalhe / Ficha Completa da Empresa (5 Abas) -->
   <div id="company-detail-modal" class="modal-overlay">
     <div class="modal-box modal-large">
@@ -866,7 +923,10 @@
         </div>
         <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
           <button class="btn btn-blue" onclick="impersonateTenant('${data.tenantId}')">🏢 Entrar nesta Empresa (Impersonate)</button>
-          <button class="btn btn-primary" onclick="switchDetailTab('modules', document.querySelectorAll('.detail-tab-btn')[1])">⚙️ Gerir Módulos & Licenças &rarr;</button>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary" onclick="openEditTenantModal('${data.tenantId}')">✏️ Editar Dados</button>
+            <button class="btn btn-primary" onclick="switchDetailTab('modules', document.querySelectorAll('.detail-tab-btn')[1])">⚙️ Gerir Módulos & Licenças &rarr;</button>
+          </div>
         </div>
       </div>
 
@@ -1185,6 +1245,7 @@
         <td>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="openCompanyDetailModal('${t.id}')">📜 Ficha</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="openEditTenantModal('${t.id}')">✏️ Editar</button>
             <button class="btn btn-blue" style="padding:4px 8px; font-size:12px;" onclick="impersonateTenant('${t.id}')">🏢 Entrar</button>
             <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="downloadTenantBackupById('${t.id}', '${t.slug || t.name}')" title="Cópia de segurança deste tenant">💾 Backup</button>
             <button class="btn ${t.status === 'ACTIVE' ? 'btn-danger' : 'btn-primary'}" style="padding:4px 8px; font-size:12px;" onclick="toggleTenantStatus('${t.id}', '${t.status}')">
@@ -1224,6 +1285,61 @@
       alert('Empresa criada com sucesso!');
     } catch(err) {
       alert('Erro ao criar empresa: ' + err.message);
+    }
+  }
+
+  function openEditTenantModal(tenantId) {
+    let t = globalTenants.find(x => x.id === tenantId);
+    if (!t && currentCompanyDetailData && currentCompanyDetailData.tenantId === tenantId) {
+      t = {
+        id: currentCompanyDetailData.tenantId,
+        name: currentCompanyDetailData.tenantName,
+        email: currentCompanyDetailData.email || '',
+        status: currentCompanyDetailData.tenantStatus || 'ACTIVE'
+      };
+    }
+
+    document.getElementById('edit-tenant-id').value = tenantId;
+    document.getElementById('edit-tenant-name').value = t ? (t.name || '') : '';
+    document.getElementById('edit-tenant-email').value = t ? (t.email || '') : '';
+    document.getElementById('edit-tenant-phone').value = t ? (t.phone || '') : '';
+    document.getElementById('edit-tenant-address').value = t ? (t.address || '') : '';
+    document.getElementById('edit-tenant-city').value = t ? (t.city || '') : '';
+    document.getElementById('edit-tenant-postal').value = t ? (t.postalCode || '') : '';
+    document.getElementById('edit-tenant-country').value = t ? (t.country || 'Portugal') : 'Portugal';
+    document.getElementById('edit-tenant-status').value = t ? (t.status || 'ACTIVE') : 'ACTIVE';
+
+    document.getElementById('edit-tenant-modal').classList.add('active');
+  }
+
+  async function submitEditTenant(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-tenant-id').value;
+    const name = document.getElementById('edit-tenant-name').value.trim();
+    const email = document.getElementById('edit-tenant-email').value.trim();
+    const phone = document.getElementById('edit-tenant-phone').value.trim();
+    const address = document.getElementById('edit-tenant-address').value.trim();
+    const city = document.getElementById('edit-tenant-city').value.trim();
+    const postalCode = document.getElementById('edit-tenant-postal').value.trim();
+    const country = document.getElementById('edit-tenant-country').value.trim();
+    const status = document.getElementById('edit-tenant-status').value;
+
+    if (!name) return alert('O nome da empresa é obrigatório.');
+
+    try {
+      await api(`/api/platform/tenants/${id}`, {
+        method: 'PUT',
+        body: { name, email, phone, address, city, postalCode, country, status }
+      });
+      closeModal('edit-tenant-modal');
+      await loadTenants();
+      await loadLicensingDashboard();
+      if (currentCompanyDetailData && currentCompanyDetailData.tenantId === id) {
+        await openCompanyDetailModal(id);
+      }
+      alert('Dados da empresa atualizados com sucesso!');
+    } catch(err) {
+      alert('Erro ao atualizar empresa: ' + err.message);
     }
   }
 

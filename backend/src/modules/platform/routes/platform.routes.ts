@@ -145,6 +145,106 @@ export async function platformRoutes(app: FastifyInstance) {
     return reply.status(200).send({ success: true, tenant });
   });
 
+  // PUT /api/platform/tenants/:id — Atualizar dados completos da empresa
+  app.put('/tenants/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+
+    const existing = await prisma.tenant.findUnique({ where: { id } });
+    if (!existing) {
+      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Empresa não encontrada.' });
+    }
+
+    const updateData: any = {};
+    if (body.name !== undefined && body.name.trim()) updateData.name = body.name.trim();
+    if (body.email !== undefined) updateData.email = body.email ? body.email.trim() : null;
+    if (body.phone !== undefined) updateData.phone = body.phone ? body.phone.trim() : null;
+    if (body.address !== undefined) updateData.address = body.address ? body.address.trim() : null;
+    if (body.city !== undefined) updateData.city = body.city ? body.city.trim() : null;
+    if (body.postalCode !== undefined) updateData.postalCode = body.postalCode ? body.postalCode.trim() : null;
+    if (body.country !== undefined) updateData.country = body.country ? body.country.trim() : 'Portugal';
+    if (body.status !== undefined && ['ACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION'].includes(body.status)) {
+      updateData.status = body.status;
+    }
+
+    const tenant = await prisma.tenant.update({
+      where: { id },
+      data: updateData
+    });
+
+    if (updateData.name) {
+      await prisma.tenantBranding.updateMany({
+        where: { tenantId: id },
+        data: { displayName: updateData.name, legalName: updateData.name }
+      });
+    }
+
+    await AuditService.audit({
+      actorId: request.user!.sub,
+      actorEmail: request.user!.email,
+      actorType: 'SUPER_ADMIN',
+      tenantId: tenant.id,
+      action: 'tenant.update',
+      resource: 'Tenant',
+      resourceId: tenant.id,
+      oldValue: existing,
+      newValue: tenant,
+      result: 'SUCCESS'
+    });
+
+    return reply.status(200).send({ success: true, tenant });
+  });
+
+  // PATCH /api/platform/tenants/:id — Atualização parcial dos dados da empresa
+  app.patch('/tenants/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+
+    const existing = await prisma.tenant.findUnique({ where: { id } });
+    if (!existing) {
+      return reply.status(404).send({ error: 'NOT_FOUND', message: 'Empresa não encontrada.' });
+    }
+
+    const updateData: any = {};
+    if (body.name !== undefined && body.name.trim()) updateData.name = body.name.trim();
+    if (body.email !== undefined) updateData.email = body.email ? body.email.trim() : null;
+    if (body.phone !== undefined) updateData.phone = body.phone ? body.phone.trim() : null;
+    if (body.address !== undefined) updateData.address = body.address ? body.address.trim() : null;
+    if (body.city !== undefined) updateData.city = body.city ? body.city.trim() : null;
+    if (body.postalCode !== undefined) updateData.postalCode = body.postalCode ? body.postalCode.trim() : null;
+    if (body.country !== undefined) updateData.country = body.country ? body.country.trim() : 'Portugal';
+    if (body.status !== undefined && ['ACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION'].includes(body.status)) {
+      updateData.status = body.status;
+    }
+
+    const tenant = await prisma.tenant.update({
+      where: { id },
+      data: updateData
+    });
+
+    if (updateData.name) {
+      await prisma.tenantBranding.updateMany({
+        where: { tenantId: id },
+        data: { displayName: updateData.name, legalName: updateData.name }
+      });
+    }
+
+    await AuditService.audit({
+      actorId: request.user!.sub,
+      actorEmail: request.user!.email,
+      actorType: 'SUPER_ADMIN',
+      tenantId: tenant.id,
+      action: 'tenant.update',
+      resource: 'Tenant',
+      resourceId: tenant.id,
+      oldValue: existing,
+      newValue: tenant,
+      result: 'SUCCESS'
+    });
+
+    return reply.status(200).send({ success: true, tenant });
+  });
+
   // GET /api/platform/users
   app.get('/users', async (request, reply) => {
     const { online } = request.query as { online?: string };

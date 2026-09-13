@@ -6,6 +6,15 @@ const prisma = new PrismaClient();
 async function bootstrap() {
   console.log('[PROD BOOTSTRAP] A verificar e sincronizar dados essenciais de produção...');
 
+  // 0. Sincronização Aditiva de Esquema Crítico
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TABLE "hccall_objectives" ADD COLUMN IF NOT EXISTS "productId" TEXT;`);
+    await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "hccall_objectives_tenant_product_idx" ON "hccall_objectives" ("tenantId", "productId");`);
+    console.log('[PROD BOOTSTRAP] Coluna hccall_objectives.productId e índice sincronizados com sucesso.');
+  } catch (err: any) {
+    console.warn('[PROD BOOTSTRAP] Aviso na verificação de coluna:', err.message);
+  }
+
   // 1. Módulos da Plataforma (Idempotente com upsert)
   const modulesToUpsert = [
     { key: 'crm', name: 'CRM', description: 'Gestão de Leads, Oportunidades e Clientes', icon: 'users', color: '#0d419f', category: 'Comercial', sortOrder: 10, isActive: true },

@@ -320,11 +320,16 @@
 </head>
 <body>
 
-<div id="impersonation-banner" style="display:none; background:#7c2d12; color:#fff; padding:10px 24px; align-items:center; justify-content:space-between; font-size:13px; font-weight:600;">
-  <div style="display:flex; align-items:center; gap:8px;">
-    <span>🛡️</span> <strong>Sessão de Suporte Ativa</strong> — A agir como Super Admin na empresa: <span id="imp-tenant-name" style="text-decoration:underline;"></span>.
+<div id="impersonation-banner" style="display:none; background:linear-gradient(90deg, #1e3a8a 0%, #0f172a 100%); color:#fff; padding:10px 24px; align-items:center; justify-content:space-between; font-size:13px; font-weight:500; border-bottom:2px solid #3b82f6; flex-wrap:wrap; gap:10px;">
+  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+    <span style="background:#2563eb; color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px;">🏢 TENANT ATIVO</span>
+    <strong>A intervir na Empresa:</strong> <span id="imp-tenant-name" style="font-size:14px; color:#93c5fd; font-weight:700;"></span>
+    <span style="color:#cbd5e1; font-size:12px;">(Sessão Super Admin)</span>
   </div>
-  <button class="btn" style="background:#fff; color:#7c2d12; border:none; padding:4px 12px; font-size:12px; font-weight:700; cursor:pointer;" onclick="endSupportSession()">Sair do Tenant / Voltar ao Core</button>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <button class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:4px 12px; font-size:12px; font-weight:600; border-radius:6px; cursor:pointer;" onclick="downloadWorkspaceTenantBackup()">💾 Backup deste Tenant</button>
+    <button class="btn" style="background:#ef4444; color:#fff; border:none; padding:4px 12px; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer;" onclick="endSupportSession()">🚪 Sair do Tenant</button>
+  </div>
 </div>
 
 <header>
@@ -883,8 +888,33 @@
       }
       localStorage.removeItem('erp_platform_token');
       localStorage.removeItem('erp_platform_user');
-    }
     window.location.href = '/super-admin.html';
+  }
+
+  async function downloadWorkspaceTenantBackup() {
+    try {
+      const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+      const tenantId = sess?.impersonation?.targetTenantId || sess?.user?.tenantId;
+      const tenantName = sess?.impersonation?.targetTenantName || sess?.user?.tenantName || 'tenant';
+      if (!tenantId) throw new Error('Tenant não identificado na sessão');
+
+      const res = await apiFetch(`/api/platform/backup/tenant/${tenantId}`);
+      if (!res.ok) throw new Error('Falha ao exportar cópia de segurança');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `helderlabs_backup_${tenantName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('Cópia de segurança do tenant descarregada com sucesso!\nTotal de registos: ' + (data.manifest?.totalRows || 0));
+    } catch(err) {
+      alert('Erro ao descarregar cópia de segurança: ' + err.message);
+    }
   }
 
   loadWorkspace();

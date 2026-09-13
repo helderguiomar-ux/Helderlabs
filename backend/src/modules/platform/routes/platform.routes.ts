@@ -4,6 +4,8 @@ import { applicationsRoutes } from './applications.routes';
 import { ApplicationController } from '../controllers/ApplicationController';
 import { AuditService } from '../services/AuditService';
 import { EmailService } from '../services/EmailService';
+import { PlatformBackupService } from '../services/PlatformBackupService';
+import { PlatformHealthService } from '../services/PlatformHealthService';
 import { seedFinancas } from '../../financas/services/seedFinancas';
 
 export async function platformRoutes(app: FastifyInstance) {
@@ -310,6 +312,44 @@ export async function platformRoutes(app: FastifyInstance) {
       take
     });
     return reply.status(200).send({ success: true, count: logs.length, logs });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cópias de Segurança (Backups) — Tenant Individual & Plataforma Global
+  // ---------------------------------------------------------------------------
+  app.get('/backup/all', async (_request, reply) => {
+    const backup = await PlatformBackupService.exportAllTenantsBackup();
+    reply.header('Content-Type', 'application/json');
+    reply.header('Content-Disposition', `attachment; filename="helderlabs_backup_ALL_TENANTS_${new Date().toISOString().slice(0, 10)}.json"`);
+    return reply.status(200).send(backup);
+  });
+
+  app.get('/backup/tenant/:tenantId', async (request, reply) => {
+    const { tenantId } = request.params as { tenantId: string };
+    const backup = await PlatformBackupService.exportTenantBackup(tenantId);
+    reply.header('Content-Type', 'application/json');
+    reply.header('Content-Disposition', `attachment; filename="helderlabs_backup_tenant_${backup.tenant.slug || tenantId}_${new Date().toISOString().slice(0, 10)}.json"`);
+    return reply.status(200).send(backup);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Armazenamento por Cliente & Diagnóstico de Saúde da Base de Dados
+  // ---------------------------------------------------------------------------
+  app.get('/storage-metrics', async (_request, reply) => {
+    const metrics = await PlatformHealthService.getStorageMetrics();
+    return reply.status(200).send(metrics);
+  });
+
+  app.get('/database-health', async (_request, reply) => {
+    const health = await PlatformHealthService.auditDatabaseHealth();
+    return reply.status(200).send(health);
+  });
+
+  app.post('/database-health/fix', async (request, reply) => {
+    const body = (request.body as any) || {};
+    const findingIds = Array.isArray(body.findingIds) ? body.findingIds : [];
+    const result = await PlatformHealthService.fixFindings(findingIds);
+    return reply.status(200).send(result);
   });
 
   // Módulos como Aplicativos — gestão por tenant

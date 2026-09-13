@@ -430,6 +430,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   <!-- ===================================================== NAVEGAÇÃO ===== -->
   <nav class="nav" aria-label="Secções">
     <span class="nav__brand">HCCALL</span>
+    <span id="nav-tenant-badge" style="display:none; font-size:11px; padding:2px 8px; border-radius:4px; background:rgba(42, 120, 214, 0.15); color:var(--pen); font-weight:700; margin-bottom:10px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Tenant Atual"></span>
 
     <button class="nav__item" data-go="registar" aria-current="page">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -451,11 +452,16 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
   <div class="shell">
     <!-- ============================================= BANNER SUPORTE ======= -->
-    <div id="hccall-impersonation-banner" style="display:none; background:#7c2d12; color:#fff; padding:8px 16px; font-size:12px; font-weight:600; align-items:center; justify-content:space-between; z-index:100; position:sticky; top:0;">
-      <div style="display:flex; align-items:center; gap:6px;">
-        <span>🛡️</span> <span>Modo de Suporte (Super Admin na Empresa)</span>
+    <div id="hccall-impersonation-banner" style="display:none; background:linear-gradient(90deg, #1e3a8a 0%, #0f172a 100%); color:#fff; padding:10px 18px; font-size:13px; font-weight:500; align-items:center; justify-content:space-between; z-index:1000; position:sticky; top:0; box-shadow:0 2px 10px rgba(0,0,0,0.25); border-bottom:2px solid #3b82f6; flex-wrap:wrap; gap:10px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span style="background:#2563eb; color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px;">🏢 TENANT ATIVO</span>
+        <strong id="banner-tenant-name" style="font-size:14px; color:#93c5fd; letter-spacing:0.2px;">Empresa</strong>
+        <span style="color:#cbd5e1; font-size:12px;" id="banner-admin-info">(Intervenção Super Admin)</span>
       </div>
-      <button class="btn" style="background:#fff; color:#7c2d12; border:none; border-radius:6px; min-height:28px; padding:0 10px; font-size:11px; font-weight:700; cursor:pointer;" onclick="endSupportSession()">Sair do Tenant</button>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button class="btn" style="background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:6px; min-height:28px; padding:0 12px; font-size:11px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="downloadActiveTenantBackup()" title="Descarregar Cópia de Segurança deste Tenant">💾 Backup deste Tenant</button>
+        <button class="btn" style="background:#ef4444; color:#fff; border:none; border-radius:6px; min-height:28px; padding:0 12px; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="endSupportSession()" title="Sair do Tenant e regressar à Consola Super Admin">🚪 Sair do Tenant</button>
+      </div>
     </div>
 
     <!-- ==================================================== BARRA TOPO ==== -->
@@ -1715,15 +1721,49 @@ async function endSupportSession() {
   window.location.href = '/super-admin.html';
 }
 
+async function downloadActiveTenantBackup() {
+  try {
+    toast('A gerar cópia de segurança do tenant...');
+    const data = await api('/backup');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const tenantName = (data.manifest && data.manifest.tenantName) || (data.tenant && data.tenant.name) || 'tenant';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `helderlabs_backup_${tenantName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Cópia de segurança descarregada com sucesso ✓');
+  } catch (err) {
+    toast('Erro ao descarregar cópia de segurança: ' + err.message);
+  }
+}
+
 async function boot() {
   $('fData').value = ymd(new Date());
 
-  // Verificar se estamos em sessão de suporte / impersonation
+  // Verificar se estamos em sessão de suporte / impersonation e assumir tenant
   const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
   const isImp = !!(sess?.isImpersonating || sess?.impersonation || sess?.user?.isImpersonating);
   const impBanner = $('hccall-impersonation-banner');
+  const tenantName = sess?.impersonation?.targetTenantName || sess?.user?.tenantName || sess?.tenantName || 'Tenant Atual';
+  const actorName = sess?.impersonation?.actorEmail || sess?.impersonation?.actorName || sess?.user?.email || 'Super Admin';
+
   if (impBanner) {
     impBanner.style.display = isImp ? 'flex' : 'none';
+    if (isImp) {
+      if ($('banner-tenant-name')) $('banner-tenant-name').textContent = tenantName;
+      if ($('banner-admin-info')) $('banner-admin-info').textContent = `(Intervenção: ${actorName})`;
+    }
+  }
+
+  const badge = $('nav-tenant-badge');
+  if (badge) {
+    badge.textContent = '🏢 ' + tenantName;
+    badge.style.display = 'inline-block';
   }
 
   try {

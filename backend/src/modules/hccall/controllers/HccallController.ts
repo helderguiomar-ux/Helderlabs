@@ -40,7 +40,8 @@ const CreateProductSchema = z.object({
   baseValueCents: z.number().int().optional(),
   // Comissão por omissão do serviço — aplicada quando não há dinamização activa.
   defaultCommissionCents: z.number().int().min(0).optional(),
-  sortOrder: z.number().int().optional()
+  sortOrder: z.number().int().optional(),
+  monthlyTarget: z.number().int().min(0).optional()
 });
 
 const CreateDynamizationSchema = z.object({

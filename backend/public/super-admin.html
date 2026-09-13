@@ -132,6 +132,8 @@
       <a href="#" class="nav-item" onclick="switchTab('approvals', this); return false;">📋 Aprovações de Contas <span id="pending-badge" style="background:var(--red); color:white; font-size:11px; padding:2px 6px; border-radius:10px; margin-left:4px; display:none;">0</span></a>
       <a href="#" class="nav-item" onclick="switchTab('users', this); return false;">👥 Utilizadores Online</a>
       <a href="#" class="nav-item" onclick="switchTab('monitoring', this); return false;">🔍 Monitorização</a>
+      <a href="#" class="nav-item" onclick="switchTab('storage', this); return false;">📊 Armazenamento Clientes</a>
+      <a href="#" class="nav-item" onclick="switchTab('dbhealth', this); return false;">🩺 Saúde da Base de Dados</a>
       <a href="#" class="nav-item" onclick="switchTab('roles', this); return false;">🔐 Perfis e Permissões</a>
 
       <div style="margin-top: 15px; padding: 6px 20px; font-size: 11px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px; border-top: 1px solid var(--rule); padding-top: 12px;">Módulos & Aplicações</div>
@@ -238,7 +240,10 @@
             <h2 style="margin:0; color:var(--pen); font-family:var(--font-serif);">Gestão de Empresas (Tenants)</h2>
             <p style="margin:4px 0 0 0; color:var(--ink-2); font-size:13px;">Gerencie as organizações registadas e configure fichas de licenciamento personalizadas.</p>
           </div>
-          <button class="btn btn-primary" onclick="openCreateTenantModal()">+ Nova Empresa</button>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="downloadAllTenantsBackup()" title="Exportar cópia de segurança consolidada de todos os tenants">💾 Cópia de Segurança Global</button>
+            <button class="btn btn-primary" onclick="openCreateTenantModal()">+ Nova Empresa</button>
+          </div>
         </div>
 
         <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
@@ -337,6 +342,99 @@
               <tr><td><strong>USER</strong></td><td>Colaborador base com permissões nos módulos atribuídos</td><td>Operações nos módulos licenciados</td></tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <!-- 6. Armazenamento por Cliente -->
+      <section id="storage-section" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="margin:0; color:var(--pen); font-family:var(--font-serif);">📊 Armazenamento por Cliente</h2>
+            <p style="margin:4px 0 0 0; color:var(--ink-2); font-size:13px;">Distribuição de espaço em base de dados, contagem de registos e consumo por organização.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" onclick="loadStorageMetrics()">🔄 Atualizar Métricas</button>
+            <button class="btn btn-primary" onclick="downloadAllTenantsBackup()">💾 Backup Global</button>
+          </div>
+        </div>
+
+        <!-- KPIs de Armazenamento -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin: 20px 0;">
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:var(--ink-3); font-weight:600; text-transform:uppercase;">Empresas / Tenants</div>
+            <div id="kpi-storage-tenants" style="font-size:26px; font-weight:700; color:var(--pen); margin-top:4px;">-</div>
+          </div>
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:var(--ink-3); font-weight:600; text-transform:uppercase;">Registos Totais</div>
+            <div id="kpi-storage-rows" style="font-size:26px; font-weight:700; color:var(--pen); margin-top:4px;">-</div>
+          </div>
+          <div style="background:var(--sheet); border:1px solid var(--rule); border-radius:8px; padding:16px;">
+            <div style="font-size:12px; color:var(--ink-3); font-weight:600; text-transform:uppercase;">Armazenamento Total Estimado</div>
+            <div id="kpi-storage-bytes" style="font-size:26px; font-weight:700; color:#2563eb; margin-top:4px;">-</div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Empresa (Tenant)</th>
+                <th>Utilizadores</th>
+                <th>Total Registos</th>
+                <th>Espaço Estimado</th>
+                <th>Repartição por Módulo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="storage-list">
+              <tr><td colspan="6" style="color:var(--ink-3); text-align:center; padding:20px;">A carregar métricas de armazenamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 7. Saúde & Auditoria da Base de Dados -->
+      <section id="dbhealth-section" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="margin:0; color:var(--pen); font-family:var(--font-serif);">🩺 Estado e Saúde da Base de Dados</h2>
+            <p style="margin:4px 0 0 0; color:var(--ink-2); font-size:13px;">Audita os achados de integridade, isolamento multi-tenant, RLS e blockchain antes de corrigir.</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" onclick="loadDatabaseHealth()" id="btn-audit-db">🔍 Auditar Agora</button>
+            <button class="btn btn-primary" onclick="confirmApplyDbFixes()" id="btn-fix-db" style="display:none;">🛠️ Corrigir Achados Auditados</button>
+          </div>
+        </div>
+
+        <!-- Banner de Diagnóstico Geral -->
+        <div id="dbhealth-summary-banner" style="margin-top:20px; padding:18px 22px; border-radius:8px; background:var(--sheet); border:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div id="health-icon" style="font-size:32px;">🩺</div>
+            <div>
+              <div style="font-size:16px; font-weight:700; color:var(--pen);" id="health-title">A aguardar auditoria...</div>
+              <div style="font-size:12px; color:var(--ink-2);" id="health-subtitle">Clique em "Auditar Agora" para verificar a saúde da base de dados.</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:16px; text-align:right;">
+            <div>
+              <div style="font-size:11px; color:var(--ink-3); text-transform:uppercase;">Score de Saúde</div>
+              <div id="health-score" style="font-size:24px; font-weight:700; color:var(--pen);">-</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--ink-3); text-transform:uppercase;">Achados</div>
+              <div id="health-findings-count" style="font-size:24px; font-weight:700; color:var(--ink-2);">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lista de Achados da Auditoria -->
+        <div style="margin-top:24px;">
+          <h3 style="margin:0 0 12px 0; font-size:15px; color:var(--pen);">Achados Diagnosticados da Base de Dados</h3>
+          <div id="health-findings-list" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="padding:20px; text-align:center; color:var(--ink-3); background:var(--sheet); border:1px solid var(--rule); border-radius:8px;">
+              Nenhuma auditoria executada nesta sessão. Clique em "Auditar Agora".
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -593,6 +691,8 @@
     if (tab === 'tenants') loadTenants();
     if (tab === 'approvals') loadAccountRequests();
     if (tab === 'users') loadOnlineUsers();
+    if (tab === 'storage') loadStorageMetrics();
+    if (tab === 'dbhealth') loadDatabaseHealth();
   }
 
   function closeModal(id) {
@@ -1086,6 +1186,7 @@
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="openCompanyDetailModal('${t.id}')">📜 Ficha</button>
             <button class="btn btn-blue" style="padding:4px 8px; font-size:12px;" onclick="impersonateTenant('${t.id}')">🏢 Entrar</button>
+            <button class="btn btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="downloadTenantBackupById('${t.id}', '${t.slug || t.name}')" title="Cópia de segurança deste tenant">💾 Backup</button>
             <button class="btn ${t.status === 'ACTIVE' ? 'btn-danger' : 'btn-primary'}" style="padding:4px 8px; font-size:12px;" onclick="toggleTenantStatus('${t.id}', '${t.status}')">
               ${t.status === 'ACTIVE' ? 'Suspender' : 'Ativar'}
             </button>
@@ -1386,6 +1487,233 @@
       `).join('');
     } catch(e) {
       console.error(e);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 8. CÓPIAS DE SEGURANÇA (BACKUPS)
+  // ---------------------------------------------------------------------------
+  async function downloadAllTenantsBackup() {
+    try {
+      const btn = event?.target;
+      const origText = btn ? btn.textContent : '';
+      if (btn) btn.textContent = '⏳ A gerar Backup Global...';
+      const res = await window.apiFetch('/api/platform/backup/all');
+      if (!res.ok) throw new Error('Falha ao gerar cópia de segurança global');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `helderlabs_backup_ALL_TENANTS_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      if (btn) btn.textContent = origText || '💾 Cópia de Segurança Global';
+      alert('Cópia de segurança de TODOS os tenants descarregada com sucesso!\nTotal de empresas incluídas: ' + (data.platform?.totalTenants || data.tenants?.length));
+    } catch(err) {
+      alert('Erro ao exportar backup global: ' + err.message);
+    }
+  }
+
+  async function downloadTenantBackupById(tenantId, tenantSlug) {
+    try {
+      const res = await window.apiFetch(`/api/platform/backup/tenant/${tenantId}`);
+      if (!res.ok) throw new Error('Falha ao gerar cópia de segurança do tenant');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `helderlabs_backup_tenant_${(tenantSlug || tenantId).toLowerCase().replace(/[^a-z0-9]/g, '_')}_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('Cópia de segurança da empresa descarregada com sucesso!\nTotal de registos: ' + (data.manifest?.totalRows || 0));
+    } catch(err) {
+      alert('Erro ao exportar backup do tenant: ' + err.message);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9. ARMAZENAMENTO POR CLIENTE
+  // ---------------------------------------------------------------------------
+  async function loadStorageMetrics() {
+    const tbody = document.getElementById('storage-list');
+    tbody.innerHTML = '<tr><td colspan="6" style="color:var(--ink-3); text-align:center; padding:20px;">A calcular métricas de armazenamento em tempo real...</td></tr>';
+    try {
+      const data = await api('/api/platform/storage-metrics');
+      if (!data || !data.tenants) return;
+
+      document.getElementById('kpi-storage-tenants').textContent = data.summary.totalTenants;
+      document.getElementById('kpi-storage-rows').textContent = data.summary.totalRows.toLocaleString('pt-PT');
+      document.getElementById('kpi-storage-bytes').textContent = data.summary.totalStorageFormatted;
+
+      if (data.tenants.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="color:var(--ink-3); text-align:center; padding:20px;">Nenhum tenant registado.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.tenants.map(t => {
+        const bd = t.breakdown || {};
+        return `
+          <tr>
+            <td>
+              <strong>${t.name}</strong><br>
+              <span style="font-size:11px; color:var(--ink-3); font-family:monospace;">${t.slug}</span>
+            </td>
+            <td><strong>${t.userCount}</strong></td>
+            <td><strong style="color:var(--pen);">${t.totalRows.toLocaleString('pt-PT')}</strong> registos</td>
+            <td>
+              <span style="background:rgba(37, 99, 235, 0.1); color:#2563eb; padding:3px 8px; border-radius:12px; font-weight:700; font-size:12px;">
+                ${t.storageFormatted}
+              </span>
+            </td>
+            <td style="font-size:11.5px; color:var(--ink-2);">
+              📞 HCCALL: <strong>${bd.hccall || 0}</strong> &bull;
+              💼 Finanças: <strong>${bd.finance || 0}</strong> &bull;
+              👥 CRM: <strong>${bd.crm || 0}</strong> &bull;
+              🛡️ Auditoria: <strong>${bd.audit || 0}</strong>
+            </td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-secondary" style="padding:4px 8px; font-size:11px;" onclick="downloadTenantBackupById('${t.id}', '${t.slug || t.name}')">💾 Backup</button>
+                <button class="btn btn-blue" style="padding:4px 8px; font-size:11px;" onclick="impersonateTenant('${t.id}')">🏢 Entrar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch(err) {
+      tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red); text-align:center; padding:20px;">Erro ao carregar métricas: ${err.message}</td></tr>`;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 10. SAÚDE DA BASE DE DADOS & AUDITORIA DE ACHADOS
+  // ---------------------------------------------------------------------------
+  let currentDbHealthData = null;
+
+  async function loadDatabaseHealth() {
+    const btn = document.getElementById('btn-audit-db');
+    if (btn) btn.textContent = '⏳ A auditar...';
+    try {
+      const data = await api('/api/platform/database-health');
+      currentDbHealthData = data;
+      renderDatabaseHealth(data);
+    } catch(err) {
+      alert('Erro ao auditar base de dados: ' + err.message);
+    } finally {
+      if (btn) btn.textContent = '🔍 Auditar Agora';
+    }
+  }
+
+  function renderDatabaseHealth(data) {
+    const iconEl = document.getElementById('health-icon');
+    const titleEl = document.getElementById('health-title');
+    const subtitleEl = document.getElementById('health-subtitle');
+    const scoreEl = document.getElementById('health-score');
+    const countEl = document.getElementById('health-findings-count');
+    const listEl = document.getElementById('health-findings-list');
+    const fixBtn = document.getElementById('btn-fix-db');
+
+    scoreEl.textContent = `${data.score}%`;
+    scoreEl.style.color = data.score >= 90 ? 'var(--state-success-text)' : data.score >= 60 ? 'var(--state-warning-text)' : 'var(--red)';
+    countEl.textContent = `${data.findings.length} achado(s)`;
+
+    if (data.status === 'SAUDAVEL') {
+      iconEl.textContent = '✅';
+      titleEl.textContent = 'Base de Dados Saudável & Íntegra';
+      subtitleEl.textContent = `Auditoria concluída em ${new Date(data.auditedAt).toLocaleTimeString('pt-PT')}. Todas as verificações passaram com sucesso.`;
+    } else if (data.status === 'ATENCAO') {
+      iconEl.textContent = '⚠️';
+      titleEl.textContent = 'Atenção Necessária na Base de Dados';
+      subtitleEl.textContent = `Foram detetadas não conformidades auditáveis. Analise a lista de achados abaixo antes de corrigir.`;
+    } else {
+      iconEl.textContent = '🚨';
+      titleEl.textContent = 'Estado Crítico da Base de Dados';
+      subtitleEl.textContent = `Existem achados críticos que afetam a operação dos módulos (ex.: schema mismatch).`;
+    }
+
+    const autoFixable = data.findings.filter(f => f.canAutoFix && f.severity !== 'OK');
+    if (fixBtn) {
+      fixBtn.style.display = autoFixable.length > 0 ? 'inline-flex' : 'none';
+      fixBtn.textContent = `🛠️ Corrigir ${autoFixable.length} Achado(s) Aprovados`;
+    }
+
+    if (!data.findings || data.findings.length === 0) {
+      listEl.innerHTML = '<div style="padding:20px; text-align:center; color:var(--ink-3);">Nenhum achado reportado.</div>';
+      return;
+    }
+
+    listEl.innerHTML = data.findings.map(f => {
+      const isOk = f.severity === 'OK';
+      const isWarn = f.severity === 'WARNING';
+      const borderColor = isOk ? 'var(--rule)' : isWarn ? '#f59e0b' : 'var(--red)';
+      const badgeClass = isOk ? 'badge-active' : isWarn ? 'badge-trial' : 'badge-suspended';
+      const badgeLabel = isOk ? '✓ CONFORME' : isWarn ? '⚠️ AVISO' : '🚨 CRÍTICO';
+
+      return `
+        <div style="background:var(--sheet); border:1px solid ${borderColor}; border-left:4px solid ${isOk ? 'var(--state-success-text)' : borderColor}; border-radius:8px; padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span class="status-badge ${badgeClass}">${badgeLabel}</span>
+                <span style="font-size:11px; font-weight:700; color:var(--ink-3); text-transform:uppercase;">${f.category}</span>
+              </div>
+              <h4 style="margin:4px 0 6px 0; font-size:14px; color:var(--pen);">${f.title}</h4>
+              <p style="margin:0; font-size:12.5px; color:var(--ink);">${f.description}</p>
+              ${f.recommendedAction ? `<div style="margin-top:8px; font-size:12px; color:var(--ink-2); background:var(--sheet-2); padding:6px 10px; border-radius:4px; border:1px solid var(--rule);"><strong>Ação se corrigido:</strong> ${f.recommendedAction}</div>` : ''}
+            </div>
+            <div>
+              ${f.canAutoFix && !isOk ? `<span style="font-size:11px; background:#dbeafe; color:#1e40af; padding:3px 8px; border-radius:4px; font-weight:600;">Auto-reparável</span>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function confirmApplyDbFixes() {
+    if (!currentDbHealthData) return;
+    const fixable = currentDbHealthData.findings.filter(f => f.canAutoFix && f.severity !== 'OK');
+    if (fixable.length === 0) {
+      alert('Não existem achados que necessitem de correção no momento.');
+      return;
+    }
+
+    const findingListText = fixable.map((f, i) => `${i + 1}. [${f.category}] ${f.title}`).join('\n');
+    const ok = confirm(
+      'AUDITORIA ANTES DE CORRIGIR\n\n' +
+      'Pretende autorizar a aplicação das seguintes correções auditadas na base de dados?\n\n' +
+      findingListText + '\n\n' +
+      'As correções são estritamente aditivas e todas as ações serão seladas na cadeia de auditoria.'
+    );
+
+    if (!ok) return;
+
+    try {
+      const fixBtn = document.getElementById('btn-fix-db');
+      if (fixBtn) fixBtn.textContent = '⏳ A aplicar correções...';
+
+      const res = await api('/api/platform/database-health/fix', {
+        method: 'POST',
+        body: { findingIds: fixable.map(f => f.id) }
+      });
+
+      alert(`Correções concluídas!\n${res.repairedCount} achado(s) reparado(s) com sucesso.`);
+      if (res.reAudited) {
+        currentDbHealthData = res.reAudited;
+        renderDatabaseHealth(res.reAudited);
+      } else {
+        loadDatabaseHealth();
+      }
+    } catch(err) {
+      alert('Erro ao aplicar correções na base de dados: ' + err.message);
     }
   }
 

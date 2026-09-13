@@ -39,7 +39,34 @@ posterior.
 | **Base de dados** | ONLINE · PostgreSQL (Neon) · RLS ativo em 22 tabelas · Schema sincronizado |
 | **Cliente desktop** | `local-client/` · porta 3400 · Edge em modo aplicação · Atalho atualizado |
 | **Infraestrutura de Email** | ONLINE · Resend (helderlabs.eu VERIFIED: DKIM, SPF, MX, DMARC) |
-| **Migrações aplicadas** | `20260913160000_hccall_production_hardening` aplicada e verificada |
+| **Migrações aplicadas** | `20260913214500_add_product_id_to_hccall_objectives` aplicada e verificada |
+
+---
+
+## Sessão — 13/09/2026 (Noite) · Resolução de Serviços no Tenant, Indicação de Contexto, Backups e Auditoria da Base de Dados
+
+**Agente:** Antigravity  
+**Versão:** 2.0.0  
+**Branch:** master  
+
+### Alterações Realizadas
+1. **Correção do Erro de Criação de Serviços no Tenant (P2022):**
+   - Criada a migração aditiva `20260913214500_add_product_id_to_hccall_objectives` adicionando a coluna `productId` e índice `hccall_objectives_tenant_product_idx` à tabela `hccall_objectives`.
+   - Incluído `monthlyTarget` em `CreateProductSchema` do `HccallController.ts`.
+   - Adicionada automação de alinhamento de esquema em `prod-bootstrap.ts` e `deploy-build.mjs`.
+2. **Indicação Clara e Assunção do Tenant em Intervenção:**
+   - Implementado banner de intervenção persistente com destaque em `hccall.html` e `workspace.html` com identificação expressa do tenant (`🏢 TENANT ATIVO: [Nome da Empresa]`), email do Super Administrador em intervenção, botão direto de cópia de segurança e botão de saída.
+   - Adicionado badge de identificação do tenant ativo na barra de navegação.
+3. **Sistema de Cópias de Segurança (Backups):**
+   - Implementado `PlatformBackupService` com descoberta dinâmica de esquema para exportação de dados com manifesto e assinatura SHA-256.
+   - Endpoint `GET /api/platform/backup/tenant/:tenantId` (individual) e `GET /api/platform/backup/all` (global).
+   - Botões de download direto integrados no banner de suporte, na tabela de empresas e na área de armazenamento da Consola Super Admin.
+4. **Consola de Super Administrador (Armazenamento & Auditoria de Saúde):**
+   - Adicionada secção **"📊 Armazenamento Clientes"** com contagem de registos, utilizadores, estimativa em KB/MB e distribuição por módulo.
+   - Adicionada secção **"🩺 Saúde & Auditoria da Base de Dados"** que analisa os achados (latência, integridade de esquema, RLS, registos órfãos e blockchain de auditoria) antes de aplicar correções, permitindo aprovação explícita.
+5. **Testes & Qualidade:**
+   - Adicionada nova suite `tests/platform/platform-health-backup.test.ts` (7 testes).
+   - Total de testes a passar: 205/205 em 56 suites (100% verde, 0 erros TypeScript).
 
 ---
 

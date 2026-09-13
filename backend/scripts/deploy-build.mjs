@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 
-console.log('[BUILD] 1/3: Executando Prisma Generate...');
+console.log('[BUILD] 1/4: Executando Prisma Generate...');
 try {
   execSync('npx prisma generate', { stdio: 'inherit' });
 } catch (e) {
@@ -8,7 +8,14 @@ try {
   throw e;
 }
 
-console.log('[BUILD] 2/3: Executando Bootstrap de Produção (Módulos & Super Admin)...');
+console.log('[BUILD] 2/4: Executando Prisma Migrate Deploy...');
+try {
+  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+} catch (e) {
+  console.warn('[BUILD WARNING] Aviso no Prisma Migrate Deploy:', e.message);
+}
+
+console.log('[BUILD] 3/4: Executando Bootstrap de Produção (Módulos & Super Admin)...');
 try {
   execSync('npx tsx scripts/prod-bootstrap.ts', { stdio: 'inherit' });
 } catch (e) {

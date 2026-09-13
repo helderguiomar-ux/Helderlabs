@@ -346,8 +346,8 @@ export class ApplicationController {
     const body = z.object({
       targetTenantId: z.string().min(1),
       targetUserId: z.string().optional(),
-      reason: z.string().min(5, 'Motivo de suporte obrigatório (mínimo 5 caracteres)'),
-      writeEnabled: z.boolean().default(false)
+      reason: z.string().min(3, 'Motivo de suporte obrigatório (mínimo 3 caracteres)').default('Acesso de Gestão aos Módulos'),
+      writeEnabled: z.boolean().default(true)
     }).parse(req.body);
 
     const targetTenant = await prisma.tenant.findUnique({ where: { id: body.targetTenantId } });
@@ -355,13 +355,26 @@ export class ApplicationController {
       return reply.status(404).send({ error: 'TENANT_NOT_FOUND', message: 'Tenant alvo não encontrado.' });
     }
 
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+    let targetUser = null;
+    if (body.targetUserId) {
+      targetUser = await prisma.user.findFirst({
+        where: { id: body.targetUserId, tenantId: body.targetTenantId, deletedAt: null }
+      });
+    }
+    if (!targetUser) {
+      targetUser = await prisma.user.findFirst({
+        where: { tenantId: body.targetTenantId, deletedAt: null },
+        orderBy: [{ role: 'asc' }, { createdAt: 'asc' }]
+      });
+    }
+
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
     const session = await prisma.impersonationSession.create({
       data: {
         actorUserId: user.sub,
         actorEmail: user.email,
         targetTenantId: body.targetTenantId,
-        targetUserId: body.targetUserId,
+        targetUserId: targetUser?.id || null,
         reason: body.reason,
         writeEnabled: body.writeEnabled,
         expiresAt,
@@ -372,22 +385,30 @@ export class ApplicationController {
     const token = signAuthToken({
       sub: user.sub,
       email: user.email,
+      name: user.name,
       role: user.role,
       tenantId: body.targetTenantId,
       aud: 'tenant',
       impersonationId: session.id,
       actingTenantId: body.targetTenantId,
-      actingUserId: body.targetUserId || user.sub,
-      onBehalfOfId: body.targetUserId,
+      actingUserId: targetUser?.id || user.sub,
+      onBehalfOfId: targetUser?.id,
       writeEnabled: body.writeEnabled
-    }, '30m');
+    }, '1h');
 
     return reply.send({
       success: true,
       token,
       session: {
         id: session.id,
+        actorEmail: user.email,
+        actorName: user.name || user.email || 'Super Administrador',
+        targetTenantId: targetTenant.id,
         targetTenantName: targetTenant.name,
+        targetUserId: targetUser ? targetUser.id : null,
+        targetUserName: targetUser ? (targetUser.name || targetUser.email) : 'Administrador do Tenant',
+        targetUserEmail: targetUser ? targetUser.email : null,
+        targetUserRole: targetUser ? targetUser.role : 'TENANT_ADMIN',
         writeEnabled: session.writeEnabled,
         expiresAt: session.expiresAt
       }

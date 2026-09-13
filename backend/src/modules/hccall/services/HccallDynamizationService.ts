@@ -1,7 +1,7 @@
-﻿export class HccallDynamizationService {
+export class HccallDynamizationService {
   static async listDynamizations(db: any, tenantId: string, userId: string) {
     let dyns = await db.hccallDynamization.findMany({
-      where: { tenantId, userId, deletedAt: null },
+      where: { tenantId, deletedAt: null },
       include: {
         tiers: { orderBy: { minQuantity: 'asc' } },
         bonuses: { orderBy: { thresholdCount: 'asc' } },
@@ -19,6 +19,7 @@
           name: 'Dinamização Geral de Vendas',
           description: 'Regra de escalões progressivos com bónus de superação',
           tierMode: 'RETROACTIVE',
+          bonusMode: 'milestone',
           startsAt: new Date(),
           active: true,
           tiers: {
@@ -51,7 +52,7 @@
 
   static async getDynamization(db: any, tenantId: string, userId: string, id: string) {
     return db.hccallDynamization.findFirst({
-      where: { id, tenantId, userId, deletedAt: null },
+      where: { id, tenantId, deletedAt: null },
       include: {
         tiers: { orderBy: { minQuantity: 'asc' } },
         bonuses: { orderBy: { thresholdCount: 'asc' } },
@@ -68,6 +69,7 @@
       name: string;
       description?: string;
       tierMode?: string;
+      bonusMode?: string;
       baseAmountPerSaleCents?: number;
       startsAt: string | Date;
       endsAt?: string | Date | null;
@@ -82,6 +84,7 @@
         name: data.name,
         description: data.description,
         tierMode: data.tierMode || 'RETROACTIVE',
+        bonusMode: data.bonusMode || 'milestone',
         baseAmountPerSaleCents: data.baseAmountPerSaleCents ?? 0,
         startsAt: new Date(data.startsAt),
         endsAt: data.endsAt ? new Date(data.endsAt) : null,
@@ -118,6 +121,7 @@
       name?: string;
       description?: string;
       tierMode?: string;
+      bonusMode?: string;
       baseAmountPerSaleCents?: number;
       startsAt?: string | Date;
       endsAt?: string | Date | null;
@@ -126,18 +130,19 @@
       bonuses?: { thresholdCount: number; bonusAmountCents: number }[];
     }
   ) {
-    // A alteração incrementa a versão da dinamização sem afetar retroativamente vendas passadas
     return db.$transaction(async (tx: any) => {
-      const existing = await tx.hccallDynamization.findUnique({ where: { id } });
-      if (!existing) throw new Error('Dinamização não encontrada');
+      const existing = await tx.hccallDynamization.findFirst({
+        where: { id, tenantId, deletedAt: null }
+      });
+      if (!existing) throw new Error('Dinamização não encontrada ou pertence a outro tenant.');
 
       const nextVersion = existing.version + 1;
 
       if (data.tiers) {
-        await tx.hccallDynamizationTier.deleteMany({ where: { dynamizationId: id } });
+        await tx.hccallDynamizationTier.deleteMany({ where: { dynamizationId: id, tenantId } });
       }
       if (data.bonuses) {
-        await tx.hccallDynamizationBonus.deleteMany({ where: { dynamizationId: id } });
+        await tx.hccallDynamizationBonus.deleteMany({ where: { dynamizationId: id, tenantId } });
       }
 
       return tx.hccallDynamization.update({
@@ -146,6 +151,7 @@
           name: data.name,
           description: data.description,
           tierMode: data.tierMode,
+          bonusMode: data.bonusMode,
           baseAmountPerSaleCents: data.baseAmountPerSaleCents,
           startsAt: data.startsAt ? new Date(data.startsAt) : undefined,
           endsAt: data.endsAt !== undefined ? (data.endsAt ? new Date(data.endsAt) : null) : undefined,
@@ -175,28 +181,13 @@
     });
   }
 
-  /**
-   * Arquiva uma dinamização (soft delete).
-   *
-   * NUNCA se apaga fisicamente: as comissões já calculadas referenciam a
-   * dinamização que lhes deu origem. Apagá-la invalidaria o histórico de
-   * comissões — precisamente o registo que dá ao vendedor o argumento factual
-   * numa reclamação. Se existirem vendas associadas, a dinamização é arquivada
-   * e deixa de estar disponível para novas vendas, mantendo o histórico intacto.
-   */
   static async deleteDynamization(db: any, tenantId: string, userId: string, id: string) {
-    const existing = await db.hccallDynamization.findFirst({
-      where: { id, tenantId, userId, deletedAt: null }
-    });
-    if (!existing) return null;
+    const existing = await db.hccallDynamization.findFirst({ where: { id, tenantId } });
+    if (!existing) throw new Error('Dinamização não encontrada ou pertence a outro tenant.');
 
-    const linkedSales = await db.hccallSale.count({ where: { tenantId, dynamizationId: id, deletedAt: null } });
-
-    const archived = await db.hccallDynamization.update({
+    return db.hccallDynamization.update({
       where: { id },
       data: { deletedAt: new Date() }
     });
-
-    return { ...archived, archived: true, linkedSales };
   }
 }

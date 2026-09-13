@@ -886,6 +886,13 @@ async function saveSale() {
   const svc = S.services.find((p) => p.id === S.pick.serviceId);
   if (!svc) return;
 
+  const saleDateVal = $('fData').value || ymd(new Date());
+  const todayStr = ymd(new Date());
+  if (saleDateVal > todayStr) {
+    const ok = window.confirm(`Esta venda fica agendada para ${saleDateVal} e só conta para objetivos e comissões a partir dessa data. Deseja confirmar?`);
+    if (!ok) return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'A registar…';
   banner('');
@@ -904,7 +911,7 @@ async function saveSale() {
         orderNumber: $('fOrdem').value.trim() || undefined,
         dynamizationId: S.pick.dynamizationId || undefined,
         commissionCents: cents,
-        soldAt: $('fData').value || ymd(new Date())
+        soldAt: saleDateVal
       }
     });
 
@@ -925,6 +932,25 @@ async function saveSale() {
 }
 
 /* ========================================================= ECRÃ · VENDAS == */
+async function deleteSalePrompt(saleId) {
+  const reason = window.prompt('Indique o motivo obrigatório do cancelamento/eliminação da venda (mínimo 10 carateres):');
+  if (!reason) return;
+  if (reason.trim().length < 10) {
+    alert('O motivo de eliminação deve ter pelo menos 10 carateres.');
+    return;
+  }
+  try {
+    await api('/sales/' + saleId, {
+      method: 'DELETE',
+      body: { deleteReason: reason.trim() }
+    });
+    toast('Venda eliminada.');
+    loadSales(false);
+  } catch (err) {
+    banner(err.message || 'Erro ao eliminar venda.');
+  }
+}
+
 function periodRange() {
   const now = new Date();
   if (S.period === 'month') return [monthStart(now), monthEnd(now)];
@@ -968,15 +994,20 @@ function renderSales() {
   box.innerHTML = S.sales.map((v) => {
     const d = new Date(v.soldAt);
     const bits = [`${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]}`];
+    if (v.statusId === 'scheduled') bits.push('⏳ Agendada');
+    if (v.isBackdated) bits.push('⏮ Retroativa');
     if (v.customerNumber && v.customerNumber !== 'N/A') bits.push('cl. ' + v.customerNumber);
     if (v.orderNumber) bits.push('ord. ' + v.orderNumber);
     if (v.dynamization && v.dynamization.name) bits.push(v.dynamization.name);
-    return `<div class="item">
+    return `<div class="item" style="position:relative">
       <div class="item__body">
         <div class="item__t">${esc(v.serviceName || 'Venda')}</div>
         <div class="item__s">${esc(bits.join(' · '))}</div>
       </div>
-      <div class="item__v">${eur(v.commissionCents)}</div>
+      <div class="item__v" style="display:flex;align-items:center;gap:8px">
+        <span>${eur(v.commissionCents)}</span>
+        <button type="button" class="iconbtn" style="width:28px;height:28px;border:none;color:var(--critical);cursor:pointer" onclick="deleteSalePrompt('${esc(v.id)}')" title="Eliminar venda">✕</button>
+      </div>
     </div>`;
   }).join('');
 }

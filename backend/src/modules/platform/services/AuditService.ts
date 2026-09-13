@@ -515,6 +515,7 @@ export class AuditService {
 
     await prisma.$transaction(async (tx: any) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId || '__global__'}))`;
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
 
       for (const log of logs) {
         const canonicalPayload = this.computeCanonicalDigest({

@@ -80,5 +80,11 @@ export async function hccallRoutes(app: FastifyInstance) {
     protectedApp.get('/reports/commissions', HccallController.getDashboard);
     protectedApp.get('/export', HccallController.exportSalesCsv);
     protectedApp.get('/reports/export.csv', HccallController.exportSalesCsv);
+
+    // 12. Integridade Determinística, Backup Autónomo e Perfil da Empresa
+    protectedApp.get('/integrity', HccallController.checkIntegrity);
+    protectedApp.post('/backup', HccallController.createTenantBackup);
+    protectedApp.get('/company-profile', HccallController.getCompanyProfile);
+    protectedApp.put('/company-profile', HccallController.updateCompanyProfile);
   });
 }

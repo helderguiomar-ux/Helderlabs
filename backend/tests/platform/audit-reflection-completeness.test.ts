@@ -57,7 +57,10 @@ describe('Bloco 0.2 — Auditoria Transversal Estrutural & Reflexão de Rotas', 
   });
 
   after(async () => {
-    await prisma.auditLog.deleteMany({ where: { tenantId } });
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
+      await tx.auditLog.deleteMany({ where: { tenantId } });
+    });
     await prisma.applicationAssignment.deleteMany({ where: { userId: user.id } });
     await prisma.applicationInstance.deleteMany({ where: { tenantId } });
     await prisma.user.deleteMany({ where: { id: user.id } });

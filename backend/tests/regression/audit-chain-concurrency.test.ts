@@ -24,7 +24,10 @@ describe('Cadeia de auditoria sob concorrência', () => {
   });
 
   after(async () => {
-    await prisma.auditLog.deleteMany({ where: { tenantId } });
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
+      await tx.auditLog.deleteMany({ where: { tenantId } });
+    });
     await prisma.tenant.deleteMany({ where: { id: tenantId } });
   });
 

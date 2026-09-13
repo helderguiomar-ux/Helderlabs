@@ -40,9 +40,12 @@ describe('Phase 6 Audit Logging & Hash Chain Integrity', () => {
     const originalHash = logToTamper.hash;
 
     // Tamper hash
-    await prisma.auditLog.update({
-      where: { id: logToTamper.id },
-      data: { hash: 'tampered_hash_value_12345' }
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
+      await tx.auditLog.update({
+        where: { id: logToTamper.id },
+        data: { hash: 'tampered_hash_value_12345' }
+      });
     });
 
     const verification = await AuditService.verifyAuditChain(tenant.id);
@@ -50,9 +53,12 @@ describe('Phase 6 Audit Logging & Hash Chain Integrity', () => {
     assert.equal(verification.invalidAtId, logToTamper.id);
 
     // Restaurar original
-    await prisma.auditLog.update({
-      where: { id: logToTamper.id },
-      data: { hash: originalHash }
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
+      await tx.auditLog.update({
+        where: { id: logToTamper.id },
+        data: { hash: originalHash }
+      });
     });
   });
 });

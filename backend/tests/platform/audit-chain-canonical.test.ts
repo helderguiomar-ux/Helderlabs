@@ -20,7 +20,10 @@ describe('Bloco 0.1 — Cadeia Criptográfica SHA-256 & Serialização Canónica
   });
 
   after(async () => {
-    await prisma.auditLog.deleteMany({ where: { tenantId } });
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
+      await tx.auditLog.deleteMany({ where: { tenantId } });
+    });
     await prisma.tenant.deleteMany({ where: { id: tenantId } });
   });
 
@@ -121,10 +124,13 @@ describe('Bloco 0.1 — Cadeia Criptográfica SHA-256 & Serialização Canónica
     const targetLog = logs[1];
 
     // Simular ataque SQL direto: alterar o valor de priceCents de 17500 para 5000 no newValue
-    await prisma.$executeRawUnsafe(
-      `UPDATE "audit_logs" SET "newValue" = '{"title":"Mesa de Nogueira Sec. XIX","priceCents":5000,"attributes":{"wood":"walnut","year":1890}}'::jsonb WHERE "id" = $1`,
-      targetLog.id
-    );
+    await prisma.$transaction(async (tx: any) => {
+      await tx.$executeRawUnsafe("SET LOCAL app.allow_audit_mutation = 'true';");
+      await tx.$executeRawUnsafe(
+        `UPDATE "audit_logs" SET "newValue" = '{"title":"Mesa de Nogueira Sec. XIX","priceCents":5000,"attributes":{"wood":"walnut","year":1890}}'::jsonb WHERE "id" = $1`,
+        targetLog.id
+      );
+    });
 
     // O verificador TEM de apanhar imediatamente a adulteração no payload
     const tamperedVerification = await AuditService.verifyAuditChain(tenantId);

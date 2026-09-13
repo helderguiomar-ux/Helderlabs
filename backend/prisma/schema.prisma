@@ -70,6 +70,7 @@ model Tenant {
   cashFlowProjections   CashFlowProjection[]
   bankReconciliations   BankReconciliation[]
   financialReports      FinancialReport[]
+  companyProfile        TenantCompanyProfile?
 
   @@map("tenants")
 }
@@ -1454,6 +1455,9 @@ model HccallService {
   color       String?
   sortOrder   Int       @default(100)
   active      Boolean   @default(true)
+  bonusMode   String    @default("milestone") @map("bonus_mode")
+  deletedBy   String?
+  deleteReason String?
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -1541,6 +1545,8 @@ model HccallProduct {
   defaultCommissionCents Int @default(0)
   active         Boolean   @default(true)
   sortOrder      Int       @default(100)
+  deletedBy      String?
+  deleteReason   String?
   deletedAt      DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -1560,6 +1566,7 @@ model HccallDynamization {
   name           String
   description    String?
   tierMode       String    @default("RETROACTIVE") // RETROACTIVE | MARGINAL | FLAT
+  bonusMode      String    @default("milestone") @map("bonus_mode")
   /// Comissão fixa por venda abrangida por esta dinamização, em cêntimos.
   /// O HccallCommissionEngine já sabia usá-la (baseAmountPerSaleCents); faltava
   /// a coluna e o campo na API para a poder configurar.
@@ -1663,6 +1670,12 @@ model HccallSale {
   statusId             String
   soldAt               DateTime            @db.Date
   notes                String?
+  scheduledConfirmedAt DateTime?           @map("scheduled_confirmed_at")
+  closedAt             DateTime?           @map("closed_at")
+  isBackdated          Boolean             @default(false) @map("is_backdated")
+  deletedBy            String?
+  deleteReason         String?
+  version              Int                 @default(1)
   deletedAt            DateTime?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
@@ -1670,6 +1683,7 @@ model HccallSale {
   items                HccallSaleItem[]
   commissionLines      HccallCommissionLine[]
   changes              HccallSaleChange[]
+  events               HccallSaleEvent[]
 
   @@unique([tenantId, code])
   @@unique([tenantId, clientUuid])
@@ -1692,6 +1706,46 @@ model HccallSaleItem {
 
   @@index([tenantId, saleId])
   @@map("hccall_sale_items")
+}
+
+model HccallSaleEvent {
+  id          String     @id @default(cuid())
+  tenantId    String
+  saleId      String
+  sale        HccallSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  action      String
+  actorUserId String
+  beforeState Json?
+  afterState  Json
+  reason      String?
+  timestamp   DateTime   @default(now())
+
+  @@index([tenantId, saleId])
+  @@index([timestamp(sort: Desc)])
+  @@map("hccall_sale_events")
+}
+
+model TenantCompanyProfile {
+  id                  String   @id @default(cuid())
+  tenantId            String   @unique
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  designacao          String
+  nif                 String
+  morada              String?
+  setor               String?
+  dimensao            String?
+  anoInicio           Int?     @map("ano_inicio")
+  responsavelNome     String?  @map("responsavel_nome")
+  responsavelEmail    String?  @map("responsavel_email")
+  responsavelTelefone String?  @map("responsavel_telefone")
+  moeda               String   @default("EUR")
+  fusoHorario         String   @default("Europe/Lisbon") @map("fuso_horario")
+  mesFechoComercial   Int      @default(12) @map("mes_fecho_comercial")
+  extras              Json     @default("{}")
+  updatedAt           DateTime @default(now()) @updatedAt
+
+  @@index([tenantId])
+  @@map("tenant_company_profile")
 }
 
 model HccallCommission {

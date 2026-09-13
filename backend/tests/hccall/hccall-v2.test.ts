@@ -1,4 +1,4 @@
-﻿import { describe, it, before, after } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildApp } from '../../src/app';
 import { prisma } from '../../src/database/prisma/client';
@@ -112,6 +112,13 @@ describe('HCCALL 2.0 — Comprehensive End-to-End & Architecture Suite', () => {
     await prisma.hccallSaleChange.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.hccallSale.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.hccallObjective.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallSaleEvent.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallSaleItem.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallSaleChange.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallSale.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallCustomer.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallService.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
+    await prisma.hccallPromotion.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.hccallAlert.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.hccallDynamizationTier.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });
     await prisma.hccallDynamizationBonus.deleteMany({ where: { tenantId: { in: [tenantA.id, tenantB.id] } } });

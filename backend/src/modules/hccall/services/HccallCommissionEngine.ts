@@ -28,6 +28,7 @@ export interface DynamizationConfig {
   id: string;
   name: string;
   tierMode: TierMode;
+  bonusMode?: 'milestone' | 'accumulate';
   baseAmountPerSaleCents?: number;
   tiers?: TierConfig[];
   bonuses?: BonusConfig[];
@@ -212,19 +213,33 @@ export class HccallCommissionEngine {
       }
     }
 
-    // 3. Bónus de Objetivo
+    // 3. Bónus de Objetivo (milestone vs accumulate)
+    const bonusMode = config.bonusMode || 'milestone';
     if (bonuses.length > 0 && salesCount > 0) {
       const achievedBonuses = bonuses.filter(b => salesCount >= b.thresholdCount);
       if (achievedBonuses.length > 0) {
-        const topBonus = achievedBonuses[achievedBonuses.length - 1];
-        bonusCommissionCents = topBonus.bonusAmountCents;
-        lines.push({
-          concept: `Bónus de Objetivo (≥ ${topBonus.thresholdCount} vendas)`,
-          quantity: 1,
-          unitAmountCents: topBonus.bonusAmountCents,
-          totalAmountCents: topBonus.bonusAmountCents,
-          explanation: `Meta de ${topBonus.thresholdCount} vendas superada: +${(topBonus.bonusAmountCents / 100).toFixed(2)} € de bónus`
-        });
+        if (bonusMode === 'accumulate') {
+          for (const b of achievedBonuses) {
+            bonusCommissionCents += b.bonusAmountCents;
+            lines.push({
+              concept: `Bónus Acumulativo (≥ ${b.thresholdCount} vendas)`,
+              quantity: 1,
+              unitAmountCents: b.bonusAmountCents,
+              totalAmountCents: b.bonusAmountCents,
+              explanation: `Escalão de ${b.thresholdCount} vendas atingido: +${(b.bonusAmountCents / 100).toFixed(2)} € (modo acumulativo)`
+            });
+          }
+        } else {
+          const topBonus = achievedBonuses[achievedBonuses.length - 1];
+          bonusCommissionCents = topBonus.bonusAmountCents;
+          lines.push({
+            concept: `Bónus de Objetivo (≥ ${topBonus.thresholdCount} vendas)`,
+            quantity: 1,
+            unitAmountCents: topBonus.bonusAmountCents,
+            totalAmountCents: topBonus.bonusAmountCents,
+            explanation: `Meta de ${topBonus.thresholdCount} vendas superada: +${(topBonus.bonusAmountCents / 100).toFixed(2)} € de bónus (escalão máximo)`
+          });
+        }
       }
     }
 

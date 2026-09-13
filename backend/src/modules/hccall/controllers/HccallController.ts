@@ -12,6 +12,8 @@ import { HccallCommissionEngine } from '../services/HccallCommissionEngine';
 import { HccallConfigService } from '../services/HccallConfigService';
 import { HccallCustomerService } from '../services/HccallCustomerService';
 import { HccallSyncService } from '../services/HccallSyncService';
+import { HccallIntegrityService } from '../services/HccallIntegrityService';
+import { HccallBackupService } from '../services/HccallBackupService';
 
 // Listeners SSE para atualização em tempo real do desktop
 const sseClients = new Map<string, Set<FastifyReply>>();
@@ -296,9 +298,11 @@ export class HccallController {
   static async deleteSale(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
     const { id } = req.params as { id: string };
+    const body = (req.body || {}) as { deleteReason?: string; reason?: string };
+    const reason = body.deleteReason || body.reason || 'Eliminação solicitada pelo utilizador';
     const db = forTenant(user.tenantId);
     try {
-      await HccallSaleService.deleteSale(db, user.tenantId, user.sub, id);
+      await HccallSaleService.deleteSale(db, user.tenantId, user.sub, id, reason);
       broadcastUserEvent(user.sub, 'sale_deleted', { id });
       return reply.send({ success: true });
     } catch (err: any) {
@@ -660,5 +664,83 @@ export class HccallController {
     reply.header('Content-Type', 'text/csv; charset=utf-8');
     reply.header('Content-Disposition', 'attachment; filename="hccall_vendas.csv"');
     return reply.send(header + lines);
+  }
+
+  // -------------------------------------------------------------------------
+  // INTEGRIDADE DETERMINÍSTICA (7 TESTES) & BACKUP AUTÓNOMO
+  // -------------------------------------------------------------------------
+  static async checkIntegrity(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const result = await HccallIntegrityService.runIntegrityCheck(user.tenantId);
+    return reply.send(result);
+  }
+
+  static async createTenantBackup(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const backup = await HccallBackupService.exportTenantBackup(user.tenantId);
+    return reply.send(backup);
+  }
+
+  // -------------------------------------------------------------------------
+  // PERFIL DA EMPRESA DO TENANT
+  // -------------------------------------------------------------------------
+  static async getCompanyProfile(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const db = forTenant(user.tenantId);
+    let profile = await db.tenantCompanyProfile.findUnique({
+      where: { tenantId: user.tenantId }
+    });
+    if (!profile) {
+      const tenant = await db.tenant.findUnique({ where: { id: user.tenantId } });
+      profile = await db.tenantCompanyProfile.create({
+        data: {
+          tenantId: user.tenantId,
+          designacao: tenant?.name || 'Empresa HCCALL',
+          nif: '999999990'
+        }
+      });
+    }
+    return reply.send({ success: true, profile });
+  }
+
+  static async updateCompanyProfile(req: FastifyRequest, reply: FastifyReply) {
+    const user = req.user as any;
+    const db = forTenant(user.tenantId);
+    const data = req.body as any;
+    const profile = await db.tenantCompanyProfile.upsert({
+      where: { tenantId: user.tenantId },
+      create: {
+        tenantId: user.tenantId,
+        designacao: data.designacao || 'Empresa HCCALL',
+        nif: data.nif || '999999990',
+        morada: data.morada,
+        setor: data.setor,
+        dimensao: data.dimensao,
+        anoInicio: data.anoInicio,
+        responsavelNome: data.responsavelNome,
+        responsavelEmail: data.responsavelEmail,
+        responsavelTelefone: data.responsavelTelefone,
+        moeda: data.moeda || 'EUR',
+        fusoHorario: data.fusoHorario || 'Europe/Lisbon',
+        mesFechoComercial: data.mesFechoComercial || 12,
+        extras: data.extras || {}
+      },
+      update: {
+        designacao: data.designacao,
+        nif: data.nif,
+        morada: data.morada,
+        setor: data.setor,
+        dimensao: data.dimensao,
+        anoInicio: data.anoInicio,
+        responsavelNome: data.responsavelNome,
+        responsavelEmail: data.responsavelEmail,
+        responsavelTelefone: data.responsavelTelefone,
+        moeda: data.moeda,
+        fusoHorario: data.fusoHorario,
+        mesFechoComercial: data.mesFechoComercial,
+        extras: data.extras
+      }
+    });
+    return reply.send({ success: true, profile });
   }
 }

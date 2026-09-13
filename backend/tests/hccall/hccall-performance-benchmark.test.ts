@@ -78,11 +78,15 @@ describe('HCCALL 2.0 & Platform — Declared Performance & Scalability Benchmark
   });
 
   after(async () => {
+    await prisma.hccallSaleEvent.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallSaleItem.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallSaleChange.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallSale.deleteMany({ where: { tenantId: benchmarkTenant.id } });
+    await prisma.hccallCustomer.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallObjective.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallAlert.deleteMany({ where: { tenantId: benchmarkTenant.id } });
+    await prisma.hccallDynamizationTier.deleteMany({ where: { tenantId: benchmarkTenant.id } });
+    await prisma.hccallDynamizationBonus.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallDynamization.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallProduct.deleteMany({ where: { tenantId: benchmarkTenant.id } });
     await prisma.hccallOrgContext.deleteMany({ where: { tenantId: benchmarkTenant.id } });

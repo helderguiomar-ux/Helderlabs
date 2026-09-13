@@ -1,15 +1,15 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-12 21:28 (WEST) · Responsável: `[antigravity]`
-> Versão: **v1.4.0 — Infraestrutura Central de Email Transacional Resend (helderlabs.eu VERIFIED), Prova de Entrega Externa Confirmada e Qualidade 100% Verde.**
-> Testes: **187 / 187 testes verdes (100% de sucesso).**
+> Última atualização: 2026-09-13 21:58 (WEST) · Responsável: `[antigravity]`
+> Versão: **v1.5.0 — Estabilização Integral da Plataforma, Resolução de Criação de Serviços no Tenant (P2022), Indicador Visual Proeminente de Tenant Ativo, Sistema de Backup e Auditor de Saúde da Base de Dados.**
+> Testes: **205 / 205 testes verdes (100% de sucesso).**
 
 ---
 
 ## 📌 1. Resumo Executivo
 - **Projeto**: HELDERLABS ERP
-- **Versão Atual**: `1.4.0`
+- **Versão Atual**: `1.5.0`
 - **Ambiente de Produção**: Vercel (`https://helderlabs.eu`) & Base de Dados Online Neon PostgreSQL
 - **Arquitetura**: Aplicação Web e Cliente Desktop ligam ambos exclusivamente à mesma API Online e Base de Dados Online Neon.
 - **Infraestrutura de Email**: Domínio `helderlabs.eu` verificado no Resend (DKIM, SPF, MX, DMARC), motor centralizado `EmailService` em toda a plataforma, e prova de entrega externa para `helder@mail.com` validada com `last_event = delivered`.

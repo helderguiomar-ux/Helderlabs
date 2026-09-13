@@ -26,7 +26,7 @@ const PUBLIC_DIR = join(__dirname, '..', 'backend', 'public');
 
 const PORT = Number(process.env.HELDERLABS_LOCAL_PORT || 3400);
 const API_BASE = (process.env.HELDERLABS_API_URL || 'https://helderlabs.eu').replace(/\/$/, '');
-const APP_VERSION = process.env.HELDERLABS_CLIENT_VERSION || '1.4.0';
+const APP_VERSION = process.env.HELDERLABS_CLIENT_VERSION || '1.5.0';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

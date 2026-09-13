@@ -2,7 +2,7 @@
 
 > ℹ️ **ATENÇÃO:** O contexto global canónico, arquitetura, catálogo de ecrãs e regras inegociáveis do projeto estão definidos em [AGENTS.md](file:///C:/Users/helde/Desktop/Dev/helderlabs-erp/AGENTS.md). Este ficheiro estende as diretivas do `AGENTS.md`.
 
-> **VERSÃO CANÓNICA OFICIAL: v0.3.0 (Módulo de Finanças, Aprovações & RGPD Completo)**
+> **VERSÃO CANÓNICA OFICIAL: v1.5.0 (Estabilização da Plataforma, Resolução P2022, Tenant Ativo & Auditor de BD)**
 > **Diretoria Única Canónica:** `C:\Users\helde\Desktop\Dev\helderlabs-erp`
 > **Base de Dados Local:** PostgreSQL 18 Local (`localhost:5432` / Docker)
 > **Base de Dados Produção:** Neon Cloud PostgreSQL (Vercel Managed)

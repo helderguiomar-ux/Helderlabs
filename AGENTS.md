@@ -53,5 +53,5 @@ Este documento define as regras arquiteturais, catálogo de ecrãs, registo de m
 ---
 
 ## ⚙️ 5. Versão e Identificação
-- **Versão Atual**: `0.3.0`
+- **Versão Atual**: `1.5.0`
 - **Ambiente**: Development / Staging / Production

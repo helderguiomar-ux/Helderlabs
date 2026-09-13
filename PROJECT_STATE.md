@@ -31,8 +31,8 @@ posterior.
 
 | | |
 |:--|:--|
-| **Versão do código** | 2.0.0 · Versão Canónica Multi-Tenant Hardened |
-| **Versão em produção** | 2.0.0 |
+| **Versão do código** | 1.5.0 · Estabilização Integral, Resolução P2022, Tenant Ativo, Backup & Auditor de BD |
+| **Versão em produção** | 1.5.0 |
 | **`MINIMUM_CLIENT_VERSION`** | **1.2.0** — mantido de propósito |
 | **Branch** | `master` |
 | **API** | ONLINE · https://helderlabs.eu |

@@ -10,6 +10,7 @@ export interface AuthTokenPayload {
   tenantId: string;
   role: UserRole;
   email: string;
+  name?: string;
   aud?: 'platform-admin' | 'tenant';
   impersonationId?: string;
   actingTenantId?: string;

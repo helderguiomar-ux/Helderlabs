@@ -546,14 +546,17 @@
     const user = data.user || {};
     const apps = Array.isArray(data.apps) ? data.apps : [];
 
-    // Suporte / Impersonation banner
+        // Suporte / Impersonation banner
     const isImp = !!(data.impersonation || (window.ERPAuth && window.ERPAuth.getSession()?.isImpersonating) || (window.ERPAuth && window.ERPAuth.getSession()?.impersonation));
     const impBanner = document.getElementById('impersonation-banner');
     if (impBanner) {
       if (isImp) {
         impBanner.style.display = 'flex';
         const impTenant = document.getElementById('imp-tenant-name');
-        if (impTenant) impTenant.textContent = tenant.name || 'Cliente';
+        if (impTenant) {
+          const impData = data.impersonation || {};
+          impTenant.textContent = impData.targetTenantName || impData.targetTenantId || 'Cliente';
+        }
       } else {
         impBanner.style.display = 'none';
       }

@@ -50,7 +50,15 @@ export type WorkspaceManifest = {
   impersonation: {
     session: string;
     actorEmail: string;
+    actorName?: string;
     writeEnabled: boolean;
+    reason?: string;
+    targetTenantId?: string;
+    targetTenantName?: string;
+    targetUserId?: string | null;
+    targetUserName?: string | null;
+    targetUserEmail?: string | null;
+    targetUserRole?: string | null;
   } | null;
 };
 
@@ -73,33 +81,37 @@ export class EntitlementService {
     }
   }
 
-  async resolveForUser(userId: string, tenantId: string, impersonationSessionId?: string): Promise<WorkspaceManifest> {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        applicationAssignments: {
-          include: {
-            application: true
-          }
-        }
-      }
-    });
-
-    if (!user) throw new Error('Utilizador não encontrado');
-
+  /**
+   * Resolve o Workspace Manifest completo para o par (tenantId, userId)
+   */
+  static async getWorkspaceManifest(
+    tenantId: string,
+    userId: string,
+    impersonationSessionId?: string
+  ): Promise<WorkspaceManifest> {
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
       include: {
         branding: true,
         applications: {
-          include: {
-            module: true
-          }
+          where: { deletedAt: null },
+          include: { module: true }
+        }
+      }
+    });
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        applicationAssignments: {
+          where: { status: 'ACTIVE' },
+          include: { application: true }
         }
       }
     });
 
     if (!tenant) throw new Error('Tenant não encontrado');
+    if (!user) throw new Error('Utilizador não encontrado');
 
     const cacheKey = `${tenantId}:${userId}:${tenant.entitlementsVersion}:${impersonationSessionId || 'none'}`;
     const cached = manifestCache.get(cacheKey);
@@ -124,10 +136,33 @@ export class EntitlementService {
         where: { id: impersonationSessionId }
       });
       if (impSession && !impSession.endedAt && impSession.expiresAt > now) {
+        let targetUser = null;
+        if (impSession.targetUserId) {
+          targetUser = await prisma.user.findUnique({
+            where: { id: impSession.targetUserId },
+            select: { id: true, name: true, email: true, role: true }
+          });
+        }
+        if (!targetUser) {
+          targetUser = await prisma.user.findFirst({
+            where: { tenantId: tenant.id, deletedAt: null },
+            select: { id: true, name: true, email: true, role: true },
+            orderBy: [{ role: 'asc' }, { createdAt: 'asc' }]
+          });
+        }
+
         impersonationData = {
           session: impSession.id,
           actorEmail: impSession.actorEmail,
-          writeEnabled: impSession.writeEnabled
+          actorName: user.name || user.email || 'Super Administrador',
+          writeEnabled: impSession.writeEnabled,
+          reason: impSession.reason,
+          targetTenantId: tenant.id,
+          targetTenantName: tenant.name,
+          targetUserId: targetUser?.id || null,
+          targetUserName: targetUser?.name || targetUser?.email || 'Administrador do Tenant',
+          targetUserEmail: targetUser?.email || null,
+          targetUserRole: targetUser?.role || 'TENANT_ADMIN'
         };
       }
     }
@@ -285,4 +320,19 @@ export class EntitlementService {
     manifestCache.set(cacheKey, { manifest, expiresAt: Date.now() + 60 * 1000 });
     return manifest;
   }
-}
+
+  /**
+   * Convenience wrapper used by API routes to obtain the workspace manifest for a user.
+   * Accepts optional impersonationSessionId for impersonation scenarios.
+   */
+  static async resolveForUser(userId: string, tenantId: string, impersonationSessionId?: string): Promise<WorkspaceManifest> {
+    return this.getWorkspaceManifest(tenantId, userId, impersonationSessionId);
+  }
+
+  // Instance method for compatibility with code that uses an instantiated EntitlementService.
+  async resolveForUser(userId: string, tenantId: string, impersonationSessionId?: string): Promise<WorkspaceManifest> {
+    return EntitlementService.getWorkspaceManifest(tenantId, userId, impersonationSessionId);
+  }
+
+  }
+

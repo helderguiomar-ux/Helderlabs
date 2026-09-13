@@ -31,15 +31,30 @@ posterior.
 
 | | |
 |:--|:--|
-| **Versão do código** | 1.4.0 · versão canónica |
-| **Versão em produção** | 1.4.0 |
+| **Versão do código** | 2.0.0 · Versão Canónica Multi-Tenant Hardened |
+| **Versão em produção** | 2.0.0 |
 | **`MINIMUM_CLIENT_VERSION`** | **1.2.0** — mantido de propósito |
 | **Branch** | `master` |
 | **API** | ONLINE · https://helderlabs.eu |
-| **Base de dados** | ONLINE · PostgreSQL (Neon) · Schema sincronizado |
-| **Cliente desktop** | `local-client/` · porta 3400 · Edge em modo aplicação |
+| **Base de dados** | ONLINE · PostgreSQL (Neon) · RLS ativo em 22 tabelas · Schema sincronizado |
+| **Cliente desktop** | `local-client/` · porta 3400 · Edge em modo aplicação · Atalho atualizado |
 | **Infraestrutura de Email** | ONLINE · Resend (helderlabs.eu VERIFIED: DKIM, SPF, MX, DMARC) |
-| **Migrações aplicadas** | `20260912200000_hccall_mobile_fields` aplicada e verificada |
+| **Migrações aplicadas** | `20260913160000_hccall_production_hardening` aplicada e verificada |
+
+---
+
+## Sessão — 13/09/2026 · Hardening de Produção Multi-Tenant & Objetivos por Serviço (v2.0.0)
+
+**Agente:** Antigravity
+**Versão:** 2.0.0
+**Branch:** master · **Commit:** `18e335e`
+
+### Estado do Projeto
+- **Endurecimento Multi-Tenant & Integridade Auditável:** 8 fases concluídas e verificadas empiricamente com RLS ativo em 22 tabelas, FKs estritas `ON DELETE RESTRICT`, trigger nativo append-only em `audit_logs` e tabela `hccall_sale_events`.
+- **Objetivos por Serviço Vendido:** Cada serviço possui agora o seu objetivo mensal próprio (`monthlyTarget`), cálculo determinístico a partir de `hccall_sale_items` em tempo real e visualização de ritmo dedicada no painel de Análise.
+- **Cliente Desktop Local:** Configurado, versão atualizada para `1.4.0`/`2.0.0` e atalho atualizado no Ambiente de Trabalho (`HelderLabs ERP.lnk`).
+- **Testes e Qualidade:** 197/197 testes a passar (100% em 55 suites), 0 falhas, 0 erros de compilação TypeScript.
+- **Deploy:** Commit e push sincronizados em `master` para deploy automático no Vercel (`https://helderlabs.eu`).
 
 ---
 

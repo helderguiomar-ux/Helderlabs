@@ -45,13 +45,13 @@ export function invalidateEntitlementCache(userId?: string, tenantId?: string) {
 export default fp(async (app: FastifyInstance) => {
   const entitlementService = new EntitlementService();
 
-  const resolveCached = async (userId: string, tenantId: string): Promise<WorkspaceManifest> => {
-    const key = `${userId}:${tenantId}`;
+  const resolveCached = async (userId: string, tenantId: string, impersonationSessionId?: string): Promise<WorkspaceManifest> => {
+    const key = `${userId}:${tenantId}:${impersonationSessionId || 'none'}`;
     const now = Date.now();
     const hit = entitlementCache.get(key);
     if (hit && hit.expiresAt > now) return hit.value;
 
-    const value = await entitlementService.resolveForUser(userId, tenantId);
+    const value = await entitlementService.resolveForUser(userId, tenantId, impersonationSessionId);
     entitlementCache.set(key, { value, expiresAt: now + ENTITLEMENT_TTL_MS });
 
     // Limite defensivo de memória por instância serverless.
@@ -70,7 +70,7 @@ export default fp(async (app: FastifyInstance) => {
       }
 
       const canonicalTarget = resolveCanonicalModuleKey(moduleKey);
-      const manifest = await resolveCached(request.user.sub, request.user.tenantId);
+      const manifest = await resolveCached(request.user.sub, request.user.tenantId, request.user.impersonationId);
       const appEnt = manifest.apps.find((a) => a.key === canonicalTarget && a.state !== 'NONE')
         || manifest.apps.find((a) => resolveCanonicalModuleKey(a.key) === canonicalTarget && a.state !== 'NONE')
         || manifest.apps.find((a) => a.key === canonicalTarget)
@@ -111,7 +111,7 @@ export default fp(async (app: FastifyInstance) => {
 
       if (request.user.role === 'SUPER_ADMIN' || request.user.role === 'TENANT_OWNER') return;
 
-      const manifest = await resolveCached(request.user.sub, request.user.tenantId);
+      const manifest = await resolveCached(request.user.sub, request.user.tenantId, request.user.impersonationId);
 
       const hasPermission = manifest.apps.some((a) => {
         if (a.state === 'NONE' || a.state === 'DISABLED' || a.state === 'SUSPENDED') return false;

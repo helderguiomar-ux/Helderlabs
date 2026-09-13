@@ -824,6 +824,12 @@
           const pcBtn = document.getElementById('app-platform-core-btn');
           if (pcBtn) pcBtn.style.display = 'inline-flex';
         }
+
+        const isImp = !!(data.impersonation || (window.ERPAuth && window.ERPAuth.getSession()?.isImpersonating) || (window.ERPAuth && window.ERPAuth.getSession()?.impersonation));
+        const impBanner = document.getElementById('impersonation-banner');
+        if (impBanner) {
+          impBanner.style.display = isImp ? 'flex' : 'none';
+        }
       } catch (e) {
         console.warn('Workspace check failed, using local session');
       }
@@ -839,10 +845,35 @@
       })();
     }
 
-    function endSupportSession() {
-      apiFetch('/api/platform/impersonate/end', { method: 'POST' }).finally(() => {
-        window.location.href = '/super-admin.html';
-      });
+    async function endSupportSession() {
+      try {
+        const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+        const sessionId = sess?.impersonation?.session || sess?.impersonation?.id;
+        await apiFetch('/api/platform/impersonate/end', { 
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId })
+        });
+      } catch(e) {
+        console.warn('Erro ao terminar suporte:', e);
+      }
+
+      const platformToken = localStorage.getItem('erp_platform_token');
+      const platformUser = localStorage.getItem('erp_platform_user');
+      if (platformToken) {
+        const restoredSession = {
+          token: platformToken,
+          user: platformUser ? JSON.parse(platformUser) : { role: 'SUPER_ADMIN' }
+        };
+        if (window.ERPAuth) {
+          window.ERPAuth.setSession(restoredSession);
+        } else {
+          localStorage.setItem('erp_session', JSON.stringify(restoredSession));
+        }
+        localStorage.removeItem('erp_platform_token');
+        localStorage.removeItem('erp_platform_user');
+      }
+      window.location.href = '/super-admin.html';
     }
 
     // Initialize default tab on page load

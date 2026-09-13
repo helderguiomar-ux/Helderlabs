@@ -450,6 +450,14 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   </nav>
 
   <div class="shell">
+    <!-- ============================================= BANNER SUPORTE ======= -->
+    <div id="hccall-impersonation-banner" style="display:none; background:#7c2d12; color:#fff; padding:8px 16px; font-size:12px; font-weight:600; align-items:center; justify-content:space-between; z-index:100; position:sticky; top:0;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>🛡️</span> <span>Modo de Suporte (Super Admin na Empresa)</span>
+      </div>
+      <button class="btn" style="background:#fff; color:#7c2d12; border:none; border-radius:6px; min-height:28px; padding:0 10px; font-size:11px; font-weight:700; cursor:pointer;" onclick="endSupportSession()">Sair do Tenant</button>
+    </div>
+
     <!-- ==================================================== BARRA TOPO ==== -->
     <header class="topbar">
       <div style="flex:1;min-width:0">
@@ -620,8 +628,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
         <div class="card">
           <div class="card__head">
             <span class="card__title">Objetivos mensais</span>
-            <button class="btn btn--ghost" style="min-height:36px;padding:0 12px;font-size:13px;margin-left:auto"
-                    id="btnAddObj">Novo</button>
+            <div style="display:flex; gap:6px; margin-left:auto; flex-wrap:wrap;">
+              <button class="btn btn--primary" style="min-height:36px; padding:0 12px; font-size:13px; font-weight:600;"
+                      id="btnBatchObj">🎯 Definir Metas por Serviço</button>
+              <button class="btn btn--ghost" style="min-height:36px; padding:0 12px; font-size:13px;"
+                      id="btnAddObj">+ Outro</button>
+            </div>
           </div>
           <div class="tablewrap"><table id="objTable"></table></div>
         </div>
@@ -1457,6 +1469,139 @@ function sheetDyn(dyn) {
   });
 }
 
+function sheetBatchObjectives() {
+  const now = new Date();
+  const defaultMonthVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const svcs = S.services.filter((s) => !s.deletedAt);
+
+  if (!svcs.length) {
+    toast('Cria serviços primeiro antes de definir metas');
+    return;
+  }
+
+  const getFormHtml = (monthStr) => {
+    const [y, m] = monthStr.split('-').map(Number);
+    const startStr = ymd(new Date(y, m - 1, 1));
+    const endStr = ymd(new Date(y, m, 0));
+
+    // Encontrar objetivos já existentes para este mês
+    const monthObjs = S.objectives.filter(o => 
+      !o.deletedAt && 
+      o.type === 'PRODUCT_COUNT' && 
+      o.productId &&
+      new Date(o.periodStart) <= new Date(endStr) &&
+      new Date(o.periodEnd) >= new Date(startStr)
+    );
+
+    return `
+      <div class="field">
+        <label class="field__label" for="boMonth">Mês das Metas</label>
+        <input class="input" id="boMonth" type="month" value="${monthStr}">
+      </div>
+      <p style="font-size:13px; color:var(--ink-2); margin-bottom:12px;">
+        Define abaixo o número de vendas pretendido para cada um dos teus serviços neste mês:
+      </p>
+      <div style="display:flex; flex-direction:column; gap:10px; max-height:48vh; overflow-y:auto; padding-right:4px;">
+        ${svcs.map(s => {
+          const existing = monthObjs.find(o => o.productId === s.id);
+          const currentTarget = existing ? existing.targetValue : (s.monthlyTarget || '');
+          return `
+            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; gap:12px;">
+              <div style="flex:1; min-width:0;">
+                <div style="font-weight:600; font-size:14px; color:var(--ink-1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(s.name)}</div>
+                <div style="font-size:12px; color:var(--ink-3);">${esc(s.category || 'Geral')} &bull; ${eur(s.defaultCommissionCents || 0)} comissão</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <input class="input" data-svc-target="${esc(s.id)}" type="number" min="0" placeholder="0" 
+                       value="${currentTarget}" style="width:75px; text-align:center; padding:6px; min-height:38px; font-weight:700;">
+                <span style="font-size:12px; color:var(--ink-2);">vendas</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <button class="btn btn--primary btn--block" id="boSave" style="margin-top:16px;">💾 Guardar Metas dos Serviços</button>
+    `;
+  };
+
+  openSheet('🎯 Metas por Serviço', getFormHtml(defaultMonthVal), () => {
+    const bindActions = () => {
+      $('boMonth').onchange = (e) => {
+        const val = e.target.value || defaultMonthVal;
+        $('sheetBody').innerHTML = getFormHtml(val);
+        bindActions();
+      };
+
+      $('boSave').onclick = async () => {
+        const [y, m] = ($('boMonth').value || '').split('-').map(Number);
+        if (!y || !m) return toast('Escolhe o mês');
+
+        const periodStart = ymd(new Date(y, m - 1, 1));
+        const periodEnd = ymd(new Date(y, m, 0));
+        const inputs = document.querySelectorAll('[data-svc-target]');
+        
+        let savedCount = 0;
+        for (const input of inputs) {
+          const svcId = input.dataset.svcTarget;
+          const svc = svcs.find(s => s.id === svcId);
+          if (!svc) continue;
+
+          const rawVal = input.value.trim();
+          const targetValue = rawVal !== '' ? parseInt(rawVal, 10) : 0;
+
+          const existing = S.objectives.find(o => 
+            !o.deletedAt && 
+            o.type === 'PRODUCT_COUNT' && 
+            o.productId === svcId &&
+            new Date(o.periodStart) <= new Date(periodEnd) &&
+            new Date(o.periodEnd) >= new Date(periodStart)
+          );
+
+          if (targetValue > 0) {
+            const body = {
+              name: `Meta: ${svc.name}`,
+              type: 'PRODUCT_COUNT',
+              productId: svcId,
+              targetValue,
+              unit: 'vendas',
+              periodStart,
+              periodEnd
+            };
+
+            if (existing) {
+              await api('/objectives/' + existing.id, { method: 'PUT', body }).catch(() => {});
+            } else {
+              await api('/objectives', { method: 'POST', body }).catch(() => {});
+            }
+            savedCount++;
+          } else if (existing && targetValue === 0) {
+            await api('/objectives/' + existing.id, { method: 'DELETE' }).catch(() => {});
+          }
+
+          if (svc.monthlyTarget !== targetValue) {
+            await api('/products/' + svc.id, {
+              method: 'PUT',
+              body: {
+                name: svc.name,
+                category: svc.category || 'Geral',
+                defaultCommissionCents: svc.defaultCommissionCents || 0,
+                monthlyTarget: targetValue
+              }
+            }).catch(() => {});
+          }
+        }
+
+        closeSheet();
+        await loadConfig();
+        renderSettings();
+        toast('Metas por serviço atualizadas com sucesso ✓');
+      };
+    };
+
+    bindActions();
+  });
+}
+
 function sheetObjective() {
   const now = new Date();
   const svcs = S.services.filter((s) => !s.deletedAt);
@@ -1477,7 +1622,7 @@ function sheetObjective() {
     </div>
     <div class="field">
       <label class="field__label" for="oName">Nome do objetivo</label>
-      <input class="input" id="oName" value="Objetivo de ${MONTHS[now.getMonth()]}">
+      <input class="input" id="oName" value="Meta: ${esc(svcs[0]?.name || 'Serviço')}">
     </div>
     <div class="row2">
       <div class="field">
@@ -1497,7 +1642,7 @@ function sheetObjective() {
       $('oProductField').style.display = isProduct ? 'block' : 'none';
       if (isProduct) {
         const prod = svcs.find((s) => s.id === $('oProduct').value);
-        if (prod) $('oName').value = `Objetivo ${prod.name}`;
+        if (prod) $('oName').value = `Meta: ${prod.name}`;
       }
     };
     $('oType').onchange = updateVisibility;
@@ -1539,8 +1684,47 @@ async function loadConfig() {
   S.objectives = (o && (o.objectives || o.items)) || [];
 }
 
+async function endSupportSession() {
+  try {
+    const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+    const sessionId = sess?.impersonation?.session || sess?.impersonation?.id;
+    await apiFetch('/api/platform/impersonate/end', { 
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId })
+    });
+  } catch(e) {
+    console.warn('Erro ao terminar suporte:', e);
+  }
+
+  const platformToken = localStorage.getItem('erp_platform_token');
+  const platformUser = localStorage.getItem('erp_platform_user');
+  if (platformToken) {
+    const restoredSession = {
+      token: platformToken,
+      user: platformUser ? JSON.parse(platformUser) : { role: 'SUPER_ADMIN' }
+    };
+    if (window.ERPAuth) {
+      window.ERPAuth.setSession(restoredSession);
+    } else {
+      localStorage.setItem('erp_session', JSON.stringify(restoredSession));
+    }
+    localStorage.removeItem('erp_platform_token');
+    localStorage.removeItem('erp_platform_user');
+  }
+  window.location.href = '/super-admin.html';
+}
+
 async function boot() {
   $('fData').value = ymd(new Date());
+
+  // Verificar se estamos em sessão de suporte / impersonation
+  const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+  const isImp = !!(sess?.isImpersonating || sess?.impersonation || sess?.user?.isImpersonating);
+  const impBanner = $('hccall-impersonation-banner');
+  if (impBanner) {
+    impBanner.style.display = isImp ? 'flex' : 'none';
+  }
 
   try {
     await loadConfig();
@@ -1568,6 +1752,7 @@ $('fData').onchange = () => { renderDynField(); refreshPreview(); };
 $('btnAddSvc').onclick = () => sheetService(null);
 $('btnAddDyn').onclick = () => sheetDyn(null);
 $('btnAddObj').onclick = () => sheetObjective();
+if ($('btnBatchObj')) $('btnBatchObj').onclick = () => sheetBatchObjectives();
 $('sheetClose').onclick = closeSheet;
 $('sheet').onclick = (e) => { if (e.target === $('sheet')) closeSheet(); };
 

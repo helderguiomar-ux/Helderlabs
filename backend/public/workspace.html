@@ -320,6 +320,13 @@
 </head>
 <body>
 
+<div id="impersonation-banner" style="display:none; background:#7c2d12; color:#fff; padding:10px 24px; align-items:center; justify-content:space-between; font-size:13px; font-weight:600;">
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span>🛡️</span> <strong>Sessão de Suporte Ativa</strong> — A agir como Super Admin na empresa: <span id="imp-tenant-name" style="text-decoration:underline;"></span>.
+  </div>
+  <button class="btn" style="background:#fff; color:#7c2d12; border:none; padding:4px 12px; font-size:12px; font-weight:700; cursor:pointer;" onclick="endSupportSession()">Sair do Tenant / Voltar ao Core</button>
+</div>
+
 <header>
   <div class="brand-section">
     <img id="tenant-logo" class="brand-logo" src="" alt="" style="display: none;">
@@ -503,7 +510,26 @@
       }
 
       workspaceData = await res.json();
-      localStorage.setItem('erp_session', JSON.stringify({ token, user: workspaceData.user }));
+      const prevSession = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+      const isImpersonating = !!(workspaceData.impersonation || prevSession?.isImpersonating || prevSession?.impersonation);
+      
+      const newSession = {
+        ...prevSession,
+        token,
+        user: { 
+          ...workspaceData.user, 
+          tenantId: workspaceData.tenant?.id,
+          isImpersonating 
+        },
+        impersonation: workspaceData.impersonation || prevSession?.impersonation || null
+      };
+
+      if (window.ERPAuth) {
+        window.ERPAuth.setSession(newSession);
+      } else {
+        localStorage.setItem('erp_session', JSON.stringify(newSession));
+      }
+
       renderWorkspace(workspaceData);
 
     } catch (err) {
@@ -519,6 +545,19 @@
     const tenant = data.tenant || {};
     const user = data.user || {};
     const apps = Array.isArray(data.apps) ? data.apps : [];
+
+    // Suporte / Impersonation banner
+    const isImp = !!(data.impersonation || (window.ERPAuth && window.ERPAuth.getSession()?.isImpersonating) || (window.ERPAuth && window.ERPAuth.getSession()?.impersonation));
+    const impBanner = document.getElementById('impersonation-banner');
+    if (impBanner) {
+      if (isImp) {
+        impBanner.style.display = 'flex';
+        const impTenant = document.getElementById('imp-tenant-name');
+        if (impTenant) impTenant.textContent = tenant.name || 'Cliente';
+      } else {
+        impBanner.style.display = 'none';
+      }
+    }
 
     // Branding CSS variables
     if (branding.primaryColor) {
@@ -814,6 +853,35 @@
       errEl.innerText = err.message;
       errEl.style.display = 'block';
     }
+  async function endSupportSession() {
+    try {
+      const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+      const sessionId = sess?.impersonation?.session || sess?.impersonation?.id;
+      await apiFetch('/api/platform/impersonate/end', { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      });
+    } catch(e) {
+      console.warn('Erro ao terminar suporte:', e);
+    }
+
+    const platformToken = localStorage.getItem('erp_platform_token');
+    const platformUser = localStorage.getItem('erp_platform_user');
+    if (platformToken) {
+      const restoredSession = {
+        token: platformToken,
+        user: platformUser ? JSON.parse(platformUser) : { role: 'SUPER_ADMIN' }
+      };
+      if (window.ERPAuth) {
+        window.ERPAuth.setSession(restoredSession);
+      } else {
+        localStorage.setItem('erp_session', JSON.stringify(restoredSession));
+      }
+      localStorage.removeItem('erp_platform_token');
+      localStorage.removeItem('erp_platform_user');
+    }
+    window.location.href = '/super-admin.html';
   }
 
   loadWorkspace();

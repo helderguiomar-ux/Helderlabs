@@ -399,11 +399,16 @@ export class ApplicationController {
    * Encerra uma sessão de suporte
    */
   static async endImpersonation(req: FastifyRequest, reply: FastifyReply) {
-    const body = z.object({ sessionId: z.string().min(1) }).parse(req.body);
-    await prisma.impersonationSession.update({
-      where: { id: body.sessionId },
-      data: { endedAt: new Date() }
-    });
+    const user = req.user as any;
+    const body = z.object({ sessionId: z.string().optional() }).parse(req.body || {});
+    const sessionId = body.sessionId || user?.impersonationId;
+
+    if (sessionId) {
+      await prisma.impersonationSession.updateMany({
+        where: { id: sessionId },
+        data: { endedAt: new Date() }
+      });
+    }
     return reply.send({ success: true, message: 'Sessão de suporte encerrada.' });
   }
 

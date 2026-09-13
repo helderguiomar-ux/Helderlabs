@@ -1146,7 +1146,21 @@
         body: { targetTenantId: tenantId, reason: 'Acesso de Gestão aos Módulos', writeEnabled: true }
       });
 
-      const sessionCopy = Object.assign({}, session, { token: data.token });
+      // Guardar token original de Super Admin para restauro transparente ao sair
+      if (session && session.token) {
+        localStorage.setItem('erp_platform_token', session.token);
+        localStorage.setItem('erp_platform_user', JSON.stringify(session.user));
+      }
+
+      const sessionCopy = {
+        token: data.token,
+        user: {
+          ...(session ? session.user : {}),
+          tenantId: tenantId,
+          isImpersonating: true
+        },
+        impersonation: data.session
+      };
       ERPAuth.setSession(sessionCopy);
       window.location.href = '/workspace.html';
     } catch(e) {

@@ -344,7 +344,11 @@ export function buildApp() {
   const entitlementService = new EntitlementService();
   app.register(async (instance) => {
     instance.get('/api/me/workspace', { preHandler: [instance.authenticate] }, async (request, reply) => {
-      const manifest = await entitlementService.resolveForUser(request.user!.sub, request.user!.tenantId);
+      const manifest = await entitlementService.resolveForUser(
+        request.user!.sub,
+        request.user!.tenantId,
+        request.user!.impersonationId
+      );
       return reply.status(200).send(manifest);
     });
   });

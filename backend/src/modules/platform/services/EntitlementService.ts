@@ -114,6 +114,24 @@ export class EntitlementService {
     const now = new Date();
     const apps: AppEntitlement[] = [];
 
+    // Obter dados da sessão de Impersonation se existir
+    let impersonationData: WorkspaceManifest['impersonation'] = null;
+    const isSuperOrPlatformAdmin = user.role === 'SUPER_ADMIN' || user.role === 'PLATFORM_ADMIN';
+    const isImpersonating = !!impersonationSessionId;
+
+    if (impersonationSessionId) {
+      const impSession = await prisma.impersonationSession.findUnique({
+        where: { id: impersonationSessionId }
+      });
+      if (impSession && !impSession.endedAt && impSession.expiresAt > now) {
+        impersonationData = {
+          session: impSession.id,
+          actorEmail: impSession.actorEmail,
+          writeEnabled: impSession.writeEnabled
+        };
+      }
+    }
+
     // Calcular contagens de uso por módulo
     const leadCount = await prisma.lead.count({ where: { tenantId } });
     const buildingCount = await prisma.building.count({ where: { tenantId } });
@@ -161,21 +179,8 @@ export class EntitlementService {
       }
 
       // Desabilitar escrita global se em Impersonation só-leitura
-      let impersonationData: WorkspaceManifest['impersonation'] = null;
-      if (impersonationSessionId) {
-        const impSession = await prisma.impersonationSession.findUnique({
-          where: { id: impersonationSessionId }
-        });
-        if (impSession && !impSession.endedAt && impSession.expiresAt > now) {
-          impersonationData = {
-            session: impSession.id,
-            actorEmail: impSession.actorEmail,
-            writeEnabled: impSession.writeEnabled
-          };
-          if (!impSession.writeEnabled) {
-            writable = false;
-          }
-        }
+      if (impersonationData && !impersonationData.writeEnabled) {
+        writable = false;
       }
 
       // Limites e uso específicos por módulo
@@ -189,6 +194,12 @@ export class EntitlementService {
         if (!limits['edificios']) limits['edificios'] = 50;
       }
 
+      // Super Admin ou utilizador em Impersonation recebe papel e permissões totais de Admin nos módulos ativos
+      const roleInApp = (isSuperOrPlatformAdmin || isImpersonating) ? 'ADMIN' : (assignment ? assignment.roleInApp : null);
+      const permissions = (isSuperOrPlatformAdmin || isImpersonating) 
+        ? [`${mod.key}.*`, `${mod.key}.access`, `${mod.key}.admin`] 
+        : (assignment ? [`${mod.key}.access`] : []);
+
       apps.push({
         key: mod.key,
         name: mod.name,
@@ -200,8 +211,8 @@ export class EntitlementService {
         limits,
         usage,
         daysLeft,
-        roleInApp: assignment ? assignment.roleInApp : null,
-        permissions: assignment ? [`${mod.key}.access`] : []
+        roleInApp,
+        permissions
       });
     }
 
@@ -265,7 +276,7 @@ export class EntitlementService {
         showUpsell: branding.showUpsell ?? true
       },
       apps,
-      impersonation: null
+      impersonation: impersonationData
     };
 
     manifestCache.set(cacheKey, { manifest, expiresAt: Date.now() + 60 * 1000 });

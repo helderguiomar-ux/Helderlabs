@@ -12,7 +12,14 @@ console.log('[BUILD] 2/4: Executando Prisma Migrate Deploy...');
 try {
   execSync('npx prisma migrate deploy', { stdio: 'inherit' });
 } catch (e) {
-  console.warn('[BUILD WARNING] Aviso no Prisma Migrate Deploy:', e.message);
+  console.warn('[BUILD WARNING] Aviso no Prisma Migrate Deploy, a tentar resolver estado anterior:', e.message);
+  try {
+    execSync('npx prisma migrate resolve --rolled-back 20260913214500_add_product_id_to_hccall_objectives', { stdio: 'inherit' });
+    execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+    console.log('[BUILD] Migrações recuperadas e aplicadas com sucesso!');
+  } catch (err) {
+    console.warn('[BUILD WARNING] Erro ao recuperar migração:', err.message);
+  }
 }
 
 console.log('[BUILD] 3/4: Executando Bootstrap de Produção (Módulos & Super Admin)...');

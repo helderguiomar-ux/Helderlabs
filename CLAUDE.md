@@ -46,23 +46,29 @@ helderlabs-erp/
 │   │       ├── auth/            ← Autenticação (OTP seguro cifrado com bcrypt, Passwords, OAuth, Resend)
 │   │       ├── crm/             ← Leads, Oportunidades, Clientes, Métricas, module.manifest.ts
 │   │       ├── condominios/     ← Edifícios, Frações, Proprietários, Quotas, module.manifest.ts
-│   │       └── platform/        ← Super Admin, EntitlementService, AuditService, Impersonation, Workspace Manifest
+│   │       ├── financas/        ← Gestão Financeira, Contabilidade, Tesouraria, Recorrências
+│   │       ├── hccall/          ← HCCALL Telecom (Campanhas, Objetivos por Produto, Comissões, Agentes)
+│   │       ├── sellmais/        ← 2SELLMAIS (Inventário, Leilões, Providência, Restauro, IA)
+│   │       └── platform/        ← Super Admin, EntitlementService, AuditService, Impersonation, Backups, Saúde BD
 │   ├── scripts/
 │   │   ├── guard-db.mjs         ← Guarda contra execuções destrutivas fora de localhost
 │   │   ├── env-check.mjs        ← Validador de paridade de variáveis de ambiente
 │   │   ├── db-mirror.mjs        ← Espelho de produção para local com anonimização
+│   │   ├── deploy-build.mjs     ← Pipeline de build na Vercel (generate, migrate, bootstrap, tsc)
+│   │   ├── prod-bootstrap.ts    ← Bootstrap determinístico de módulos e super admin em produção
 │   │   └── anonymize.sql        ← SQL de sanitização de dados pessoais em dumps
 │   ├── public/                  ← Frontend estático
 │   │   ├── index.html           ← Landing page institucional
 │   │   ├── login.html           ← Ecrã de Login (Check Email, OTP, Set Password)
-│   │   ├── workspace.html       ← User Workspace & App Launcher (Hub Multi-App + Tenant Admin)
+│   │   ├── workspace.html       ← User Workspace (Banner Licenciamento, App Launcher Estrito)
 │   │   ├── app.html             ← Shell legado do ERP
-│   │   └── super-admin.html     ← Painel de controlo Super Admin (Gestão, Módulos, Impersonation)
+│   │   ├── hccall.html          ← Painel HCCALL Telecom & Vendas
+│   │   └── super-admin.html     ← Painel Super Admin (Tenants, Armazenamento, Saúde BD, Backups)
 │   ├── prisma/
-│   │   ├── schema.prisma        ← Schema unificado PostgreSQL
-│   │   ├── seed.ts              ← População de dados fictícios (4 cenários de tenant)
-│   │   └── migrations/          ← Histórico de migrações SQL
-│   └── tests/                   ← Testes automatizados (Node Test Runner nativo - 44 testes)
+│   │   ├── schema.prisma        ← Schema unificado PostgreSQL (22 tabelas RLS, 10 migrações)
+│   │   ├── seed.ts              ← População de dados fictícios (cenários de teste)
+│   │   └── migrations/          ← Histórico de migrações SQL aplicadas
+│   └── tests/                   ← Testes automatizados (Node Test Runner nativo - 205 testes em 56 suites)
 ├── docs/                        ← Documentação histórica e técnica detalhada
 │   ├── ENVIRONMENTS.md          ← Guia oficial de ambientes, deploy pipeline e rollback
 │   ├── Architecture.md          ← Arquitetura de referência Fastify + Prisma + Entitlements

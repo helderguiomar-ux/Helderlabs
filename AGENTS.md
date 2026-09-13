@@ -19,13 +19,14 @@ Este documento define as regras arquiteturais, catálogo de ecrãs, registo de m
 
 ---
 
-## 🖥️ 2. Catálogo dos 5 Ecrãs Principais
+## 🖥️ 2. Catálogo dos 6 Ecrãs Principais
 
 1. **`index.html`** — Landing Page pública da plataforma (SEO, Formulário de Lead comercial, Internacionalização, Apresentação da Plataforma).
 2. **`login.html`** — Portal Corporativo de Autenticação (Login com Email + Password ou OTP, Alternância de Visibilidade com Olho SVG, Confirmação de Password e Solicitação de Acesso).
-3. **`workspace.html`** — Painel de Controlo da Empresa (Manifesto de Módulos Licenciados, Atalho Ctrl+K, Alteração de Password com Modal e Definições de Empresa).
+3. **`workspace.html`** — Painel de Controlo da Empresa (Banner de Licenciamento com status e validade, Manifesto Estrito de Módulos Licenciados, Atalho Ctrl+K, Alteração de Password com Modal e Definições de Empresa).
 4. **`app.html`** — Aplicação SPA Unificada para execução dos módulos ERP ativos (CRM, Condomínios, Finanças).
-5. **`super-admin.html`** — Consola de Administração Central da Plataforma HelderLabs (Gestão de Tenants, Aprovação de Contas, Atribuição de Módulos, Impersonation e Audit Log).
+5. **`hccall.html`** — Módulo de Telecomunicações & Vendas HCCALL (Gestão de Serviços, Objetivos por Serviço, Comissões, Agentes, Promoções e Análise de Desempenho).
+6. **`super-admin.html`** — Consola de Administração Central da Plataforma HelderLabs (Gestão de Tenants com Edição de Dados, Aprovação de Contas, Atribuição de Módulos, Métricas de Armazenamento por Cliente, Auditoria de Saúde da BD, Backups e Impersonation com Banner de Suporte).
 
 ---
 
@@ -36,6 +37,8 @@ Este documento define as regras arquiteturais, catálogo de ecrãs, registo de m
 | `crm` | CRM Comercial | `ACTIVE` | Gestão de Leads, Oportunidades, Contactos e Pipeline |
 | `condominios` | Gestão de Condomínios | `IN_CONSTRUCTION` | Gestão de Frações, Atas, Quotas e Manutenção |
 | `financas` | Gestão Financeira | `BETA` | Faturação, Tesouraria, Contabilidade e Recorrências |
+| `hccall` | HCCALL Telecom | `ACTIVE` | Campanhas Telecom, Objetivos por Produto, Comissões e Vendas |
+| `sellmais` | 2SELLMAIS | `ACTIVE` | Inventário de Antiguidades, Leilões, Providência e Avaliação com IA |
 | `rent_a_car` | Frota & Aluguer | `PLANNED` | Gestão de Veículos, Contratos e Reservas |
 | `rh` | Recursos Humanos | `PLANNED` | Gestão de Colaboradores, Processamento de Salários e Assiduidade |
 
@@ -43,15 +46,19 @@ Este documento define as regras arquiteturais, catálogo de ecrãs, registo de m
 
 ## 🛡️ 4. Regras Inegociáveis (Strict Rules)
 
-- **O Tenant vem da Sessão**: Nunca aceitar `tenantId` nos parâmetros da query ou body vindos do cliente; extrair sempre de `request.user.tenantId`.
-- **Sem ESCRITAS sem Auditoria**: Toda as operações administrativas e de suporte registam evento no `AuditService`.
+- **O Tenant vem da Sessão**: Nunca aceitar `tenantId` nos parâmetros da query ou body vindos do cliente; extrair sempre de `request.user.tenantId` (ou `actingUserId`/`actingTenantId` se em impersonation).
+- **Restrição Estrita de Visibilidade de Módulos**: O tenant só pode ver módulos com licença efetiva (`ACTIVE`, `TRIAL`, `GRACE`, `SUSPENDED`). Módulos `NONE` e `DISABLED` nunca são enviados ao cliente do tenant, e `showUpsell` é sempre `false` para o tenant comum.
+- **Indicação Clara de Licenciamento**: O tenant vê no topo do workspace o seu plano, estado, número de módulos licenciados e validade do contrato via `manifest.licensing`.
+- **Edição de Tenants Auditada**: Alteração de dados cadastrais e operacionais de tenants ocorre exclusivamente via `PUT /api/platform/tenants/:id` com registo em `AuditService`.
+- **Sem ESCRITAS sem Auditoria**: Toda as operações administrativas, mutações de dados e sessões de suporte registam evento no `AuditService` com hash chaining imutável.
 - **NADA é Apagado**: Registos de sistema e dados de tenants utilizam eliminação lógica (`status = 'INACTIVE'` ou `deletedAt`) quando aplicável.
 - **Paridade Tipográfica**: As quatro famílias de letra oficiais (`Archivo`, `Spectral`, `IBM Plex Mono`, `Caveat`) têm de carregar validadamente (`document.fonts.check`).
 - **Zero Emojis na Interface**: Utilizar exclusivamente ícones SVG inline do design system.
-- **Trabalho por Ramos (Git Flow)**: Nunca enviar commits diretamente para `main`/`master` sem PR e verificações verdes no CI.
+- **Proteção Absoluta de Dados**: Estritamente proibido efetuar `DROP TABLE`, `TRUNCATE`, `DELETE` em massa ou `prisma migrate reset`.
 
 ---
 
 ## ⚙️ 5. Versão e Identificação
 - **Versão Atual**: `1.5.0`
+- **Commit em Produção**: `1e50983` (Verificado e Ativo em `https://helderlabs.eu`)
 - **Ambiente**: Development / Staging / Production

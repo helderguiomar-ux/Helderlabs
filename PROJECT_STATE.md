@@ -31,8 +31,8 @@ posterior.
 
 | | |
 |:--|:--|
-| **Versão do código** | 1.5.0 · Estabilização Integral, Resolução P2022, Tenant Ativo, Backup & Auditor de BD |
-| **Versão em produção** | 1.5.0 |
+| **Versão do código** | 1.5.0 · Licenciamento Estrito de Módulos, Edição de Tenants, Banner Workspace & Estabilização |
+| **Versão em produção** | 1.5.0 (Commit 1e50983) |
 | **`MINIMUM_CLIENT_VERSION`** | **1.2.0** — mantido de propósito |
 | **Branch** | `master` |
 | **API** | ONLINE · https://helderlabs.eu |
@@ -43,7 +43,37 @@ posterior.
 
 ---
 
-## Sessão — 13/09/2026 (Noite) · Resolução de Serviços no Tenant, Indicação de Contexto, Backups e Auditoria da Base de Dados
+## Sessão — 13/09/2026 (Noite 2) · Restrição de Módulos Licenciados, Edição de Tenants & Banner de Licenciamento (v1.5.0)
+
+**Agente:** Antigravity  
+**Versão:** 1.5.0 · Commit `1e50983`  
+**Branch:** master  
+**Deploy Produção:** https://helderlabs.eu (Aliased & Verificado com sucesso)
+
+### Alterações Realizadas
+1. **Restrição Estrita de Visualização de Módulos para o Tenant:**
+   - Em `backend/src/modules/platform/services/EntitlementService.ts`, o manifesto de aplicações (`apps`) foi estritamente filtrado para utilizadores de tenant sem privilégios de plataforma nem sessão de suporte: **apenas módulos com licença efetiva (`ACTIVE`, `TRIAL`, `GRACE`, `SUSPENDED`) são devolvidos**.
+   - Módulos desativados (`DISABLED`) e não contratados (`NONE`) são estritamente excluídos do payload.
+   - A flag `showUpsell` é forçada a `false` para tenants comuns, eliminando a secção de módulos adicionais (upsell).
+   - Super Admins e utilizadores em suporte mantêm a visão de gestão global de todos os módulos (`isPrivileged = true`).
+2. **Edição Completa de Dados do Tenant na Consola Super Admin:**
+   - Implementadas as rotas `PUT /api/platform/tenants/:id` e `PATCH /api/platform/tenants/:id` em `platform.routes.ts` com suporte para atualizar `name`, `email`, `phone`, `address`, `city`, `postalCode`, `country` e `status`.
+   - Atualização automática de `branding` (`displayName` e `legalName`) quando o nome da empresa é alterado.
+   - Registo em auditoria imutável via `AuditService.audit({ action: 'tenant.update', ... })`.
+   - Criado modal interativo `#edit-tenant-modal` e botões `✏️ Editar` na tabela de tenants e no modal de detalhes em `super-admin.html`.
+3. **Indicação Clara de Licenciamento no Workspace:**
+   - Adicionado nó `licensing` no payload de `GET /api/me/workspace` contendo `{ status, planName, activeCount, modules }`.
+   - Adicionado banner `#tenant-license-banner` em `workspace.html` com badge de status, identificação da modalidade corporativa, empresa, validade e tags dos módulos licenciados.
+4. **Resolução de Erro de Sintaxe no `workspace.html` (Impersonate Blank Screen):**
+   - Corrigido encerramento de blocos em `saveNewPasswordFromModal` e `endSupportSession` que causavam `SyntaxError: Unexpected token ')'` no navegador.
+5. **Ajuste de Tipos e Suíte de Testes (100% Verde):**
+   - Restaurada a propriedade `apps: AppEntitlement[]` no tipo `WorkspaceManifest`.
+   - Inclusão do estado `SUSPENDED` no conjunto de módulos licenciados de modo só leitura, garantindo paridade em `guards.test.ts`.
+   - Total de testes a passar: **205/205 testes em 56 suites** (0 falhas, 0 erros de compilação TypeScript).
+
+---
+
+## Sessão — 13/09/2026 (Noite 1) · Resolução de Serviços no Tenant, Indicação de Contexto, Backups e Auditoria da Base de Dados
 
 **Agente:** Antigravity  
 **Versão:** 2.0.0  

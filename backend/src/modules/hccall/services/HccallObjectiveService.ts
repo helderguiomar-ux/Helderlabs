@@ -145,22 +145,69 @@ export class HccallObjectiveService {
       orderBy: { periodEnd: 'asc' }
     });
 
-    // Recalcular métricas de ritmo para cada objetivo
-    const now = new Date();
-    return objectives.map((obj: any) => {
-      const pace = this.calculatePace(
-        obj.currentValue,
-        obj.targetValue,
-        obj.periodStart,
-        obj.periodEnd,
-        undefined,
-        now
-      );
-      return {
-        ...obj,
-        pace
-      };
+    const products = await db.hccallProduct.findMany({
+      where: { tenantId, userId, deletedAt: null }
     });
+    const productMap = new Map<string, any>(products.map((p: any) => [p.id, p]));
+
+    const now = new Date();
+
+    const enriched = await Promise.all(
+      objectives.map(async (obj: any) => {
+        let realCurrentValue = obj.currentValue;
+
+        if (obj.productId) {
+          const itemAgg = await db.hccallSaleItem.aggregate({
+            _sum: { quantity: true },
+            where: {
+              tenantId,
+              productId: obj.productId,
+              sale: {
+                ownerUserId: userId,
+                deletedAt: null,
+                statusId: { not: 'scheduled' },
+                soldAt: {
+                  gte: obj.periodStart,
+                  lte: obj.periodEnd
+                }
+              }
+            }
+          });
+          realCurrentValue = itemAgg._sum?.quantity || 0;
+        } else if (obj.type === 'SALES_COUNT') {
+          realCurrentValue = await db.hccallSale.count({
+            where: {
+              tenantId,
+              ownerUserId: userId,
+              deletedAt: null,
+              statusId: { not: 'scheduled' },
+              soldAt: {
+                gte: obj.periodStart,
+                lte: obj.periodEnd
+              }
+            }
+          });
+        }
+
+        const pace = this.calculatePace(
+          realCurrentValue,
+          obj.targetValue,
+          obj.periodStart,
+          obj.periodEnd,
+          undefined,
+          now
+        );
+
+        return {
+          ...obj,
+          currentValue: realCurrentValue,
+          product: obj.productId ? productMap.get(obj.productId) || null : null,
+          pace
+        };
+      })
+    );
+
+    return enriched;
   }
 
   /**

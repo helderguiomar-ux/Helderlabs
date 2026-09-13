@@ -1061,17 +1061,17 @@ async function renderAnalysis() {
 
 function renderObjective(inMonth, earned, elapsed, totalWd, remaining, perDay) {
   const now = new Date();
-  const obj = S.objectives.find((o) => {
+  const activeObjs = S.objectives.filter((o) => {
     if (o.deletedAt) return false;
     const a = new Date(o.periodStart), b = new Date(o.periodEnd);
     return now >= a && now <= b;
   });
 
-  if (!obj) {
+  if (!activeObjs.length) {
     $('objBox').innerHTML =
       `<div class="empty" style="padding:18px 6px">
-         <div class="empty__t">Sem objetivo definido</div>
-         <div class="empty__s">Define-o em Definições para acompanhares o progresso.</div>
+         <div class="empty__t">Sem objetivos definidos para este mês</div>
+         <div class="empty__s">Define objetivos por serviço em Definições para acompanhares o progresso.</div>
        </div>`;
     $('objHint').textContent = '';
     $('pcHoje').textContent = '—'; $('pcNec').textContent = '—';
@@ -1080,59 +1080,99 @@ function renderObjective(inMonth, earned, elapsed, totalWd, remaining, perDay) {
     return;
   }
 
-  const isCommission = (obj.type || '').toUpperCase() === 'COMMISSION';
-  const current = isCommission ? Math.round(earned / 100) : inMonth.length;
-  const target = obj.targetValue || 0;
-  const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
   const pacePct = Math.round((elapsed / totalWd) * 100);
-  const missing = Math.max(0, target - current);
-  const needPerDay = remaining > 0 ? missing / remaining : missing;
-  const fmt = (n) => isCommission ? eurShort(n * 100) : String(n);
 
-  // Não repetir o título do cartão quando o objetivo tem nome genérico.
-  const hint = (obj.name || '').trim();
-  $('objHint').textContent = /^objetivo (do )?m[eê]s/i.test(hint) ? '' : hint;
-  $('objBox').innerHTML = `
-    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
-      <span style="font-size:26px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(current)}</span>
-      <span style="color:var(--ink-3);font-size:14px">de ${fmt(target)} ${esc(obj.unit || '')}</span>
-      <span style="margin-left:auto;font-size:20px;font-weight:700">${pct}%</span>
-    </div>
-    <div class="meter">
-      <div class="meter__track">
-        <div class="meter__fill" style="width:${pct}%"></div>
-        <div class="meter__pace" style="left:calc(${Math.min(100, pacePct)}% - 1px)"
-             title="Ritmo esperado a esta altura do mês"></div>
-      </div>
-      <div class="meter__legend">
-        <span>ritmo esperado ${pacePct}%</span>
-        <span>faltam ${fmt(missing)}</span>
-      </div>
-    </div>`;
+  let totalTarget = 0;
+  let totalCurrent = 0;
 
-  $('pcHoje').textContent = isCommission ? eurShort(perDay) : (current / elapsed).toFixed(1).replace('.', ',');
-  $('pcNec').textContent = remaining > 0 ? (isCommission ? eurShort(needPerDay * 100) : needPerDay.toFixed(1).replace('.', ',')) : '—';
+  const html = activeObjs.map((obj) => {
+    const isCommission = (obj.type || '').toUpperCase() === 'COMMISSION';
+    const isProduct = !!obj.productId || (obj.type || '').toUpperCase() === 'PRODUCT_COUNT';
+
+    let current = obj.currentValue ?? 0;
+    if (isProduct && obj.productId) {
+      const matchCount = inMonth.filter((v) => {
+        if (v.items && v.items.length) return v.items.some((it) => it.productId === obj.productId);
+        return v.serviceName === (obj.product?.name || obj.name.replace(/^Objetivo\s+/i, ''));
+      }).length;
+      if (matchCount > 0 && current === 0) current = matchCount;
+    } else if (isCommission) {
+      current = Math.round(earned / 100);
+    } else if (!isProduct) {
+      current = inMonth.length;
+    }
+
+    const target = obj.targetValue || 0;
+    totalTarget += target;
+    totalCurrent += current;
+
+    const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
+    const missing = Math.max(0, target - current);
+    const needPerDay = remaining > 0 ? (missing / remaining).toFixed(1).replace('.', ',') : missing;
+    const fmt = (n) => isCommission ? eurShort(n * 100) : String(n);
+
+    let kind = 'good', label = 'A cumprir ritmo';
+    if (current >= target) { kind = 'good'; label = 'Atingido'; }
+    else if (pct < pacePct - 12) { kind = 'critical'; label = 'Em risco'; }
+    else if (pct < pacePct) { kind = 'warning'; label = 'Abaixo do ritmo'; }
+
+    const labelName = obj.product?.name || obj.name;
+
+    return `
+      <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--line)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+          <span style="font-weight:600;font-size:14.5px">${esc(labelName)}</span>
+          <span class="status status--${kind}" style="font-size:12px">${label}</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+          <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">${fmt(current)}</span>
+          <span style="color:var(--ink-3);font-size:13.5px">de ${fmt(target)} ${esc(obj.unit || 'vendas')}</span>
+          <span style="margin-left:auto;font-size:17px;font-weight:700">${pct}%</span>
+        </div>
+        <div class="meter">
+          <div class="meter__track">
+            <div class="meter__fill" style="width:${pct}%"></div>
+            <div class="meter__pace" style="left:calc(${Math.min(100, pacePct)}% - 1px)"
+                 title="Ritmo esperado: ${pacePct}%"></div>
+          </div>
+          <div class="meter__legend">
+            <span>ritmo esperado: ${pacePct}%</span>
+            <span>faltam ${fmt(missing)} (${needPerDay}/dia)</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  $('objHint').textContent = `${activeObjs.length} objetivo${activeObjs.length > 1 ? 's' : ''} ativo${activeObjs.length > 1 ? 's' : ''}`;
+  $('objBox').innerHTML = html;
+
+  // Atualizar cartão consolidado de Ritmo
+  const totalPct = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+  const totalMissing = Math.max(0, totalTarget - totalCurrent);
+  const totalNeedPerDay = remaining > 0 ? (totalMissing / remaining) : totalMissing;
+
+  $('pcHoje').textContent = (totalCurrent / elapsed).toFixed(1).replace('.', ',');
+  $('pcNec').textContent = remaining > 0 ? totalNeedPerDay.toFixed(1).replace('.', ',') : '—';
   $('pcDias').textContent = remaining;
 
-  // Estado: cor acompanhada SEMPRE de ícone e texto — nunca cor sozinha.
-  let kind, label, icon;
-  if (current >= target) {
-    kind = 'good'; label = 'Objetivo atingido';
-    icon = '<path d="M20 6 9 17l-5-5"/>';
-  } else if (pct >= pacePct) {
-    kind = 'good'; label = 'A cumprir o ritmo';
-    icon = '<path d="M12 19V5M5 12l7-7 7 7"/>';
-  } else if (pct >= pacePct - 12) {
-    kind = 'warning'; label = 'Ligeiramente abaixo do ritmo';
-    icon = '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>';
+  let gKind, gLabel, gIcon;
+  if (totalCurrent >= totalTarget && totalTarget > 0) {
+    gKind = 'good'; gLabel = 'Objetivos atingidos';
+    gIcon = '<path d="M20 6 9 17l-5-5"/>';
+  } else if (totalPct >= pacePct) {
+    gKind = 'good'; gLabel = 'A cumprir o ritmo global';
+    gIcon = '<path d="M12 19V5M5 12l7-7 7 7"/>';
+  } else if (totalPct >= pacePct - 12) {
+    gKind = 'warning'; gLabel = 'Ligeiramente abaixo do ritmo';
+    gIcon = '<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>';
   } else {
-    kind = 'critical'; label = 'Em risco de não atingir';
-    icon = '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>';
+    gKind = 'critical'; gLabel = 'Em risco de não atingir';
+    gIcon = '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>';
   }
   $('pcStatus').innerHTML =
-    `<span class="status status--${kind}">
+    `<span class="status status--${gKind}">
        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">${icon}</svg>${label}
+            stroke-linecap="round" stroke-linejoin="round">${gIcon}</svg>${gLabel}
      </span>`;
 }
 
@@ -1157,20 +1197,17 @@ function renderMonthsChart(now) {
   let svg = `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"
     style="height:${H}px" role="img" aria-label="Comissão por mês">`;
 
-  // Linha de base recessiva. Sem grelha adicional: seis barras não precisam dela.
   svg += `<line class="gridline" x1="0" y1="${H - padB}" x2="${W}" y2="${H - padB}"/>`;
 
   buckets.forEach((b, i) => {
     const h = Math.max(b.cents > 0 ? 3 : 0, Math.round((b.cents / max) * plot));
     const x = i * slot + (slot - bw) / 2;
     const y = H - padB - h;
-    // Topo arredondado, base ancorada na linha de referência.
     svg += `<rect class="bar" x="${x}" y="${y}" width="${bw}" height="${h}"
               rx="4" ry="4" data-lab="${b.label}" data-val="${b.cents}" data-n="${b.n}"/>`;
     if (h > 0) svg += `<rect class="bar" x="${x}" y="${H - padB - 5}" width="${bw}" height="5"
               data-lab="${b.label}" data-val="${b.cents}" data-n="${b.n}"/>`;
     svg += `<text x="${x + bw / 2}" y="${H - padB + 15}" text-anchor="middle">${b.label}</text>`;
-    // Rótulo directo apenas no mês corrente — nunca um número em cada barra.
     if (i === buckets.length - 1 && b.cents > 0) {
       svg += `<text class="barlabel" x="${x + bw / 2}" y="${y - 7}" text-anchor="middle">${eurShort(b.cents)}</text>`;
     }
@@ -1178,7 +1215,6 @@ function renderMonthsChart(now) {
   svg += '</svg>';
   $('chartMonths').outerHTML = svg;
 
-  // Camada de leitura: alvo de toque maior do que a barra.
   const chart = document.querySelector('#scr-analise .chart');
   const tip = $('tip');
   if (chart) {
@@ -1198,7 +1234,6 @@ function renderMonthsChart(now) {
     });
   }
 
-  // Vista em tabela — a alternativa acessível ao gráfico.
   $('tblMonths').innerHTML =
     '<thead><tr><th>Mês</th><th class="num">Vendas</th><th class="num">Comissão</th></tr></thead><tbody>' +
     buckets.map((b) => `<tr><td>${b.label} ${b.y}</td><td class="num">${b.n}</td>
@@ -1245,7 +1280,7 @@ function renderSettings() {
     <div class="item">
       <div class="item__body">
         <div class="item__t">${esc(s.name)}</div>
-        <div class="item__s">${esc(s.category || 'Geral')}</div>
+        <div class="item__s">${esc(s.category || 'Geral')}${s.monthlyTarget ? ` · Meta: <strong>${s.monthlyTarget}</strong> vendas/mês` : ''}</div>
       </div>
       <div class="item__v">${eur(s.defaultCommissionCents || 0)}</div>
       <div class="item__act">
@@ -1289,12 +1324,14 @@ function renderSettings() {
   const objs = S.objectives.filter((o) => !o.deletedAt)
     .sort((a, b) => new Date(b.periodStart) - new Date(a.periodStart));
   $('objTable').innerHTML = objs.length
-    ? '<thead><tr><th>Mês</th><th>Objetivo</th><th class="num">Meta</th><th class="num">Atual</th><th></th></tr></thead><tbody>' +
+    ? '<thead><tr><th>Mês</th><th>Objetivo</th><th>Tipo / Serviço</th><th class="num">Meta</th><th class="num">Atual</th><th></th></tr></thead><tbody>' +
       objs.map((o) => {
         const d = new Date(o.periodStart);
+        const sub = o.product ? esc(o.product.name) : (o.type === 'COMMISSION' ? 'Comissão' : 'Vendas gerais');
         return `<tr>
           <td>${MONTHS[d.getMonth()]} ${d.getFullYear()}</td>
           <td>${esc(o.name)}</td>
+          <td><span style="font-size:12px;color:var(--ink-2)">${sub}</span></td>
           <td class="num">${o.targetValue} ${esc(o.unit || '')}</td>
           <td class="num">${o.currentValue || 0}</td>
           <td class="num"><button class="iconbtn" style="width:32px;height:32px"
@@ -1341,14 +1378,24 @@ function sheetService(svc) {
                value="${fromCents(svc?.defaultCommissionCents || 0)}">
       </div>
     </div>
+    <div class="field">
+      <label class="field__label" for="sTarget">Objetivo mensal (vendas/mês) <span class="opt">· opcional</span></label>
+      <input class="input" id="sTarget" inputmode="numeric" placeholder="Ex.: 15"
+             value="${svc?.monthlyTarget || ''}">
+    </div>
     <button class="btn btn--primary btn--block" id="sSave">${isNew ? 'Criar serviço' : 'Guardar'}</button>
     ${isNew ? '' : '<button class="btn btn--danger btn--block" style="margin-top:8px" id="sDel">Eliminar</button>'}
   `, () => {
     $('sSave').onclick = async () => {
       const name = $('sName').value.trim();
       if (!name) return toast('O nome é obrigatório');
-      const body = { name, category: $('sCat').value.trim() || 'Geral',
-                     defaultCommissionCents: toCents($('sCom').value) };
+      const targetVal = $('sTarget').value.trim();
+      const body = {
+        name,
+        category: $('sCat').value.trim() || 'Geral',
+        defaultCommissionCents: toCents($('sCom').value),
+        monthlyTarget: targetVal !== '' ? parseInt(targetVal, 10) : 0
+      };
       try {
         if (isNew) await api('/products', { method: 'POST', body });
         else await api('/products/' + svc.id, { method: 'PUT', body });
@@ -1412,22 +1459,30 @@ function sheetDyn(dyn) {
 
 function sheetObjective() {
   const now = new Date();
+  const svcs = S.services.filter((s) => !s.deletedAt);
   openSheet('Novo objetivo mensal', `
     <div class="field">
-      <label class="field__label" for="oName">Nome</label>
-      <input class="input" id="oName" value="Objetivo de ${MONTHS[now.getMonth()]}">
-    </div>
-    <div class="field">
-      <label class="field__label" for="oType">Medir</label>
+      <label class="field__label" for="oType">Tipo de objetivo</label>
       <select class="select" id="oType">
-        <option value="SALES_COUNT">Número de vendas</option>
+        <option value="PRODUCT_COUNT">Por serviço vendido</option>
+        <option value="SALES_COUNT">Total geral de vendas</option>
         <option value="COMMISSION">Comissão em euros</option>
       </select>
+    </div>
+    <div class="field" id="oProductField">
+      <label class="field__label" for="oProduct">Serviço</label>
+      <select class="select" id="oProduct">
+        ${svcs.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="oName">Nome do objetivo</label>
+      <input class="input" id="oName" value="Objetivo de ${MONTHS[now.getMonth()]}">
     </div>
     <div class="row2">
       <div class="field">
         <label class="field__label" for="oTarget">Meta</label>
-        <input class="input" id="oTarget" inputmode="numeric" value="0">
+        <input class="input" id="oTarget" inputmode="numeric" value="10">
       </div>
       <div class="field">
         <label class="field__label" for="oMonth">Mês</label>
@@ -1437,13 +1492,27 @@ function sheetObjective() {
     </div>
     <button class="btn btn--primary btn--block" id="oSave">Criar objetivo</button>
   `, () => {
+    const updateVisibility = () => {
+      const isProduct = $('oType').value === 'PRODUCT_COUNT';
+      $('oProductField').style.display = isProduct ? 'block' : 'none';
+      if (isProduct) {
+        const prod = svcs.find((s) => s.id === $('oProduct').value);
+        if (prod) $('oName').value = `Objetivo ${prod.name}`;
+      }
+    };
+    $('oType').onchange = updateVisibility;
+    $('oProduct').onchange = updateVisibility;
+    updateVisibility();
+
     $('oSave').onclick = async () => {
       const [y, m] = ($('oMonth').value || '').split('-').map(Number);
       if (!y || !m) return toast('Escolhe o mês');
       const type = $('oType').value;
+      const productId = type === 'PRODUCT_COUNT' ? $('oProduct').value : undefined;
       const body = {
         name: $('oName').value.trim() || 'Objetivo mensal',
         type,
+        productId,
         targetValue: parseInt($('oTarget').value, 10) || 0,
         unit: type === 'COMMISSION' ? 'euros' : 'vendas',
         periodStart: ymd(new Date(y, m - 1, 1)),

@@ -323,7 +323,7 @@ export class HccallSaleService {
           });
 
           for (const obj of activeObjectives) {
-            if (obj.type === 'SALES_COUNT') {
+            if (obj.type === 'SALES_COUNT' && !obj.productId) {
               await tx.hccallObjective.update({
                 where: { id: obj.id },
                 data: { currentValue: { increment: 1 } }
@@ -333,6 +333,14 @@ export class HccallSaleService {
                 where: { id: obj.id },
                 data: { currentValue: { increment: sale.saleValueCents || 0 } }
               });
+            } else if (obj.productId || obj.type === 'PRODUCT_COUNT') {
+              const matchedItem = itemsToCreate.find(i => i.productId === obj.productId);
+              if (matchedItem && matchedItem.quantity > 0) {
+                await tx.hccallObjective.update({
+                  where: { id: obj.id },
+                  data: { currentValue: { increment: matchedItem.quantity } }
+                });
+              }
             }
           }
         } catch (_) {}

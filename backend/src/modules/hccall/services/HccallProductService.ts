@@ -1,4 +1,4 @@
-﻿export class HccallProductService {
+export class HccallProductService {
   static async listProducts(db: any, tenantId: string, userId: string) {
     let prods = await db.hccallProduct.findMany({
       where: { tenantId, userId, deletedAt: null },
@@ -35,7 +35,29 @@
       });
     }
 
-    return prods;
+    // Associar objetivo mensal do mês corrente a cada produto
+    const now = new Date();
+    const activeObjectives = await db.hccallObjective.findMany({
+      where: {
+        tenantId,
+        userId,
+        periodStart: { lte: now },
+        periodEnd: { gte: now },
+        deletedAt: null
+      }
+    });
+
+    const objMap = new Map<string, number>();
+    for (const obj of activeObjectives) {
+      if (obj.productId) {
+        objMap.set(obj.productId, obj.targetValue);
+      }
+    }
+
+    return prods.map((p: any) => ({
+      ...p,
+      monthlyTarget: objMap.get(p.id) || 0
+    }));
   }
 
   static async createProduct(
@@ -49,9 +71,10 @@
       baseValueCents?: number;
       defaultCommissionCents?: number;
       sortOrder?: number;
+      monthlyTarget?: number;
     }
   ) {
-    return db.hccallProduct.create({
+    const prod = await db.hccallProduct.create({
       data: {
         tenantId,
         userId,
@@ -64,6 +87,29 @@
         active: true
       }
     });
+
+    if (data.monthlyTarget !== undefined && data.monthlyTarget > 0) {
+      const now = new Date();
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      await db.hccallObjective.create({
+        data: {
+          tenantId,
+          userId,
+          productId: prod.id,
+          name: `Objetivo ${prod.name}`,
+          type: 'PRODUCT_COUNT',
+          targetValue: data.monthlyTarget,
+          unit: 'vendas',
+          periodStart,
+          periodEnd,
+          currentValue: 0
+        }
+      });
+    }
+
+    return { ...prod, monthlyTarget: data.monthlyTarget || 0 };
   }
 
   static async updateProduct(
@@ -79,12 +125,69 @@
       defaultCommissionCents?: number;
       active?: boolean;
       sortOrder?: number;
+      monthlyTarget?: number;
     }
   ) {
-    return db.hccallProduct.update({
+    const updated = await db.hccallProduct.update({
       where: { id },
-      data
+      data: {
+        name: data.name,
+        sku: data.sku,
+        category: data.category,
+        baseValueCents: data.baseValueCents,
+        defaultCommissionCents: data.defaultCommissionCents,
+        active: data.active,
+        sortOrder: data.sortOrder
+      }
     });
+
+    if (data.monthlyTarget !== undefined) {
+      const now = new Date();
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+      const existingObj = await db.hccallObjective.findFirst({
+        where: {
+          tenantId,
+          userId,
+          productId: id,
+          periodStart: { lte: now },
+          periodEnd: { gte: now },
+          deletedAt: null
+        }
+      });
+
+      if (existingObj) {
+        if (data.monthlyTarget > 0) {
+          await db.hccallObjective.update({
+            where: { id: existingObj.id },
+            data: { targetValue: data.monthlyTarget, name: `Objetivo ${updated.name}` }
+          });
+        } else {
+          await db.hccallObjective.update({
+            where: { id: existingObj.id },
+            data: { deletedAt: new Date() }
+          });
+        }
+      } else if (data.monthlyTarget > 0) {
+        await db.hccallObjective.create({
+          data: {
+            tenantId,
+            userId,
+            productId: id,
+            name: `Objetivo ${updated.name}`,
+            type: 'PRODUCT_COUNT',
+            targetValue: data.monthlyTarget,
+            unit: 'vendas',
+            periodStart,
+            periodEnd,
+            currentValue: 0
+          }
+        });
+      }
+    }
+
+    return { ...updated, monthlyTarget: data.monthlyTarget ?? 0 };
   }
 
   static async deleteProduct(db: any, tenantId: string, userId: string, id: string) {

@@ -87,9 +87,12 @@ export class PlatformBackupService {
       WHERE table_schema = 'public' AND column_name = 'tenantId'
       ORDER BY table_name;
     `);
-    const tablesToExport = tenantTableRecords.map(r => r.table_name);
+    const tablesToExport = tenantTableRecords
+      .map(r => r.table_name)
+      .filter(name => typeof name === 'string' && /^[a-zA-Z0-9_]+$/.test(name));
 
     for (const table of tablesToExport) {
+      if (!table) continue;
       try {
         const rows = await prisma.$queryRawUnsafe<any[]>(
           `SELECT * FROM "${table}" WHERE "tenantId" = $1;`,

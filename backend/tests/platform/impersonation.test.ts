@@ -78,4 +78,89 @@ describe('Phase 5 Impersonation & Super Admin Control Plane', () => {
     assert.equal(postBody.error, 'IMPERSONATION_READ_ONLY');
     await app.close();
   });
+
+  test('Sessão de suporte com escrita permite acesso total aos módulos, resolução de Workspace e operações no HCCALL', async () => {
+    const app = buildApp();
+    const superAdmin = await prisma.user.findFirst({ where: { email: 'helderguiomar@gmail.com' } });
+    const targetTenant = await prisma.tenant.findFirst({ where: { slug: 'consultoria-alfa' } });
+    assert.ok(superAdmin && targetTenant);
+
+    // 1. Iniciar impersonation com escrita
+    const token = signAuthToken({
+      sub: superAdmin.id,
+      email: superAdmin.email,
+      role: superAdmin.role,
+      tenantId: superAdmin.tenantId
+    });
+
+    const startRes = await app.inject({
+      method: 'POST',
+      url: '/api/platform/impersonate',
+      headers: { authorization: `Bearer ${token}` },
+      payload: {
+        targetTenantId: targetTenant.id,
+        reason: 'Gestão e parametrização de objetivos HCCALL',
+        writeEnabled: true
+      }
+    });
+
+    assert.equal(startRes.statusCode, 200);
+    const startBody = JSON.parse(startRes.payload);
+    const impToken = startBody.token;
+    const sessionId = startBody.session.id;
+
+    // 2. Obter Workspace Manifest
+    const wsRes = await app.inject({
+      method: 'GET',
+      url: '/api/me/workspace',
+      headers: { authorization: `Bearer ${impToken}` }
+    });
+    assert.equal(wsRes.statusCode, 200);
+    const wsBody = JSON.parse(wsRes.payload);
+    assert.equal(wsBody.tenant.id, targetTenant.id);
+    assert.ok(wsBody.impersonation);
+    assert.equal(wsBody.impersonation.writeEnabled, true);
+
+    const hccallApp = wsBody.apps.find((a: any) => a.key === 'hccall');
+    assert.ok(hccallApp);
+    assert.equal(hccallApp.state, 'ACTIVE');
+    assert.equal(hccallApp.roleInApp, 'ADMIN');
+
+    // 3. Criar produto/serviço no HCCALL para o tenant alvo
+    const prodName = 'Serviço Criado em Suporte ' + Date.now();
+    const prodRes = await app.inject({
+      method: 'POST',
+      url: '/api/hccall/products',
+      headers: { authorization: `Bearer ${impToken}` },
+      payload: {
+        name: prodName,
+        category: 'Telecom',
+        defaultCommissionCents: 3500,
+        monthlyTarget: 12
+      }
+    });
+    assert.equal(prodRes.statusCode, 201);
+    const prodBody = JSON.parse(prodRes.payload);
+    assert.equal(prodBody.product.name, prodName);
+    assert.equal(prodBody.product.tenantId, targetTenant.id);
+
+    // 4. Encerrar sessão de suporte
+    const endRes = await app.inject({
+      method: 'POST',
+      url: '/api/platform/impersonate/end',
+      headers: { authorization: `Bearer ${impToken}` },
+      payload: { sessionId }
+    });
+    assert.equal(endRes.statusCode, 200);
+
+    // 5. Após encerrar, token expirado/inválido
+    const expiredRes = await app.inject({
+      method: 'GET',
+      url: '/api/me/workspace',
+      headers: { authorization: `Bearer ${impToken}` }
+    });
+    assert.equal(expiredRes.statusCode, 401);
+
+    await app.close();
+  });
 });

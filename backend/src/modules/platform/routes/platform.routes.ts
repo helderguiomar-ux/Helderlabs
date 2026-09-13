@@ -4,6 +4,7 @@ import { applicationsRoutes } from './applications.routes';
 import { ApplicationController } from '../controllers/ApplicationController';
 import { AuditService } from '../services/AuditService';
 import { EmailService } from '../services/EmailService';
+import { seedFinancas } from '../../financas/services/seedFinancas';
 
 export async function platformRoutes(app: FastifyInstance) {
   app.addHook('preHandler', async (request, reply) => {
@@ -63,6 +64,7 @@ export async function platformRoutes(app: FastifyInstance) {
       }
     });
 
+    // Criar Branding
     await prisma.tenantBranding.create({
       data: {
         tenantId: tenant.id,
@@ -75,6 +77,31 @@ export async function platformRoutes(app: FastifyInstance) {
         country: 'PT'
       }
     });
+
+    // Provisionar instâncias de módulos base
+    const defaultModules = ['crm', 'finance', 'condominios', 'hccall', 'sellmais'];
+    for (const modKey of defaultModules) {
+      let mod = await prisma.module.findFirst({ where: { key: modKey } });
+      if (!mod) {
+        mod = await prisma.module.create({
+          data: { key: modKey, name: modKey.toUpperCase(), isActive: true }
+        });
+      }
+      await prisma.applicationInstance.upsert({
+        where: { tenantId_moduleId: { tenantId: tenant.id, moduleId: mod.id } },
+        create: {
+          tenantId: tenant.id,
+          moduleId: mod.id,
+          status: 'ACTIVE',
+          createdBy: request.user!.sub
+        },
+        update: { status: 'ACTIVE' }
+      });
+    }
+
+    try {
+      await seedFinancas(tenant.id);
+    } catch (_) {}
 
     await AuditService.audit({
       actorId: request.user!.sub,

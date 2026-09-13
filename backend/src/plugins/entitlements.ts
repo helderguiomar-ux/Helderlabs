@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { EntitlementService, AppEntitlement, WorkspaceManifest } from '../modules/platform/services/EntitlementService';
-import { resolveCanonicalModuleKey } from '../config/modules';
+import { resolveCanonicalModuleKey, isModuleRegistered } from '../config/modules';
 import { AppError } from '../utils/errors';
 
 declare module 'fastify' {
@@ -76,7 +76,29 @@ export default fp(async (app: FastifyInstance) => {
         || manifest.apps.find((a) => a.key === canonicalTarget)
         || manifest.apps.find((a) => resolveCanonicalModuleKey(a.key) === canonicalTarget);
 
-      if (!appEnt || appEnt.state === 'NONE' || appEnt.state === 'DISABLED') {
+      // Super Admin ou utilizador em sessão de Impersonation têm acesso total de gestão aos módulos da plataforma
+      const isSuperAdminOrImpersonating = request.user.role === 'SUPER_ADMIN' || request.user.role === 'PLATFORM_ADMIN' || !!request.user.impersonationId;
+      const isRegistered = isModuleRegistered(canonicalTarget);
+
+      if (isSuperAdminOrImpersonating && isRegistered) {
+        request.entitlement = appEnt || {
+          key: canonicalTarget,
+          name: canonicalTarget.toUpperCase(),
+          icon: '',
+          color: '#0d419f',
+          state: 'ACTIVE',
+          writable: request.user.writeEnabled !== false,
+          features: [],
+          limits: {},
+          usage: {},
+          daysLeft: null,
+          roleInApp: 'ADMIN',
+          permissions: [`${canonicalTarget}.*`, `${canonicalTarget}.access`, `${canonicalTarget}.admin`]
+        };
+        return;
+      }
+
+      if (!appEnt || appEnt.state === 'NONE' || appEnt.state === 'DISABLED' || !isRegistered) {
         throw new AppError('APP_NOT_LICENSED', `O módulo '${moduleKey}' não está licenciado para a sua empresa.`, 403);
       }
 

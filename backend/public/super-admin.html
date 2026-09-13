@@ -764,7 +764,8 @@
             <p style="margin:4px 0; font-size:13px;"><strong>Utilizadores Registados:</strong> ${data.users.length}</p>
           </div>
         </div>
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-blue" onclick="impersonateTenant('${data.tenantId}')">🏢 Entrar nesta Empresa (Impersonate)</button>
           <button class="btn btn-primary" onclick="switchDetailTab('modules', document.querySelectorAll('.detail-tab-btn')[1])">⚙️ Gerir Módulos & Licenças &rarr;</button>
         </div>
       </div>

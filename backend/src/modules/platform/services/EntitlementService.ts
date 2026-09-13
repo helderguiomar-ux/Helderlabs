@@ -147,6 +147,9 @@ export class EntitlementService {
       if (!mod.isActive) {
         state = 'DISABLED';
         writable = false;
+      } else if (isSuperOrPlatformAdmin || isImpersonating) {
+        state = 'ACTIVE';
+        writable = impersonationData ? impersonationData.writeEnabled : true;
       } else if (!appInst) {
         state = 'NONE';
         writable = false;

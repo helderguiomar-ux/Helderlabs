@@ -518,15 +518,23 @@
       const prevSession = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
       const isImpersonating = !!(workspaceData.impersonation || prevSession?.isImpersonating || prevSession?.impersonation);
       
+      const targetTenantName = workspaceData.tenant?.name || workspaceData.branding?.displayName || prevSession?.impersonation?.targetTenantName || 'Empresa';
       const newSession = {
         ...prevSession,
         token,
+        tenantId: workspaceData.tenant?.id,
+        tenantName: targetTenantName,
         user: { 
           ...workspaceData.user, 
           tenantId: workspaceData.tenant?.id,
+          tenantName: targetTenantName,
           isImpersonating 
         },
-        impersonation: workspaceData.impersonation || prevSession?.impersonation || null
+        impersonation: workspaceData.impersonation || prevSession?.impersonation || (isImpersonating ? {
+          targetTenantId: workspaceData.tenant?.id,
+          targetTenantName: targetTenantName,
+          writeEnabled: true
+        } : null)
       };
 
       if (window.ERPAuth) {
@@ -551,7 +559,7 @@
     const user = data.user || {};
     const apps = Array.isArray(data.apps) ? data.apps : [];
 
-        // Suporte / Impersonation banner
+    // Suporte / Impersonation banner
     const isImp = !!(data.impersonation || (window.ERPAuth && window.ERPAuth.getSession()?.isImpersonating) || (window.ERPAuth && window.ERPAuth.getSession()?.impersonation));
     const impBanner = document.getElementById('impersonation-banner');
     if (impBanner) {
@@ -559,8 +567,8 @@
         impBanner.style.display = 'flex';
         const impTenant = document.getElementById('imp-tenant-name');
         if (impTenant) {
-          const impData = data.impersonation || {};
-          impTenant.textContent = impData.targetTenantName || impData.targetTenantId || 'Cliente';
+          const impData = data.impersonation || (window.ERPAuth ? window.ERPAuth.getSession()?.impersonation : null) || {};
+          impTenant.textContent = impData.targetTenantName || tenant.name || branding.displayName || impData.targetTenantId || 'Cliente';
         }
       } else {
         impBanner.style.display = 'none';
@@ -620,6 +628,17 @@
         if (activeGrid) activeGrid.appendChild(createAppCard(app, false));
       }
     });
+
+    if (activeGrid && activeGrid.children.length === 0) {
+      const emptyDiv = document.createElement('div');
+      emptyDiv.style.cssText = 'grid-column: 1 / -1; padding: 32px; text-align: center; color: var(--text-secondary); background: var(--card-bg, #ffffff); border-radius: 8px; border: 1px dashed var(--border-color, #e2e8f0);';
+      emptyDiv.innerHTML = `
+        <div style="font-size: 2rem; margin-bottom: 8px;">📦</div>
+        <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-primary);">Nenhuma aplicação ativa configurada</div>
+        <div style="font-size: 0.85rem;">As aplicações configuradas para esta empresa aparecerão aqui.</div>
+      `;
+      activeGrid.appendChild(emptyDiv);
+    }
 
     if (hasUpsell && branding.showUpsell) {
       const upsellSec = document.getElementById('upsell-section');
@@ -861,6 +880,8 @@
       errEl.innerText = err.message;
       errEl.style.display = 'block';
     }
+  }
+
   async function endSupportSession() {
     try {
       const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
@@ -888,6 +909,7 @@
       }
       localStorage.removeItem('erp_platform_token');
       localStorage.removeItem('erp_platform_user');
+    }
     window.location.href = '/super-admin.html';
   }
 

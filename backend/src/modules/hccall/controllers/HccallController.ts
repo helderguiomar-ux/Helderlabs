@@ -166,7 +166,8 @@ export class HccallController {
   static async listProducts(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
     const db = forTenant(user.tenantId);
-    const products = await HccallProductService.listProducts(db, user.tenantId, user.sub);
+    const effectiveUserId = user.actingUserId || user.sub;
+    const products = await HccallProductService.listProducts(db, user.tenantId, effectiveUserId);
     return reply.send({ success: true, products });
   }
 
@@ -174,7 +175,8 @@ export class HccallController {
     const user = req.user as any;
     const body = CreateProductSchema.parse(req.body);
     const db = forTenant(user.tenantId);
-    const product = await HccallProductService.createProduct(db, user.tenantId, user.sub, body);
+    const effectiveUserId = user.actingUserId || user.sub;
+    const product = await HccallProductService.createProduct(db, user.tenantId, effectiveUserId, body);
     broadcastUserEvent(user.sub, 'products_updated', product);
     return reply.status(201).send({ success: true, product });
   }
@@ -184,7 +186,8 @@ export class HccallController {
     const { id } = req.params as { id: string };
     const body = CreateProductSchema.partial().parse(req.body);
     const db = forTenant(user.tenantId);
-    const product = await HccallProductService.updateProduct(db, user.tenantId, user.sub, id, body);
+    const effectiveUserId = user.actingUserId || user.sub;
+    const product = await HccallProductService.updateProduct(db, user.tenantId, effectiveUserId, id, body);
     return reply.send({ success: true, product });
   }
 
@@ -192,7 +195,8 @@ export class HccallController {
     const user = req.user as any;
     const { id } = req.params as { id: string };
     const db = forTenant(user.tenantId);
-    await HccallProductService.deleteProduct(db, user.tenantId, user.sub, id);
+    const effectiveUserId = user.actingUserId || user.sub;
+    await HccallProductService.deleteProduct(db, user.tenantId, effectiveUserId, id);
     return reply.send({ success: true });
   }
 
@@ -202,7 +206,8 @@ export class HccallController {
   static async listDynamizations(req: FastifyRequest, reply: FastifyReply) {
     const user = req.user as any;
     const db = forTenant(user.tenantId);
-    const dynamizations = await HccallDynamizationService.listDynamizations(db, user.tenantId, user.sub);
+    const effectiveUserId = user.actingUserId || user.sub;
+    const dynamizations = await HccallDynamizationService.listDynamizations(db, user.tenantId, effectiveUserId);
     return reply.send({ success: true, dynamizations });
   }
 
@@ -210,7 +215,8 @@ export class HccallController {
     const user = req.user as any;
     const body = CreateDynamizationSchema.parse(req.body);
     const db = forTenant(user.tenantId);
-    const dynamization = await HccallDynamizationService.createDynamization(db, user.tenantId, user.sub, body as any);
+    const effectiveUserId = user.actingUserId || user.sub;
+    const dynamization = await HccallDynamizationService.createDynamization(db, user.tenantId, effectiveUserId, body as any);
     broadcastUserEvent(user.sub, 'dynamizations_updated', dynamization);
     return reply.status(201).send({ success: true, dynamization });
   }

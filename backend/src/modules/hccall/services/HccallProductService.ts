@@ -89,24 +89,28 @@ export class HccallProductService {
     });
 
     if (data.monthlyTarget !== undefined && data.monthlyTarget > 0) {
-      const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      try {
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      await db.hccallObjective.create({
-        data: {
-          tenantId,
-          userId,
-          productId: prod.id,
-          name: `Objetivo ${prod.name}`,
-          type: 'PRODUCT_COUNT',
-          targetValue: data.monthlyTarget,
-          unit: 'vendas',
-          periodStart,
-          periodEnd,
-          currentValue: 0
-        }
-      });
+        await db.hccallObjective.create({
+          data: {
+            tenantId,
+            userId,
+            productId: prod.id,
+            name: `Objetivo ${prod.name}`,
+            type: 'PRODUCT_COUNT',
+            targetValue: data.monthlyTarget,
+            unit: 'vendas',
+            periodStart,
+            periodEnd,
+            currentValue: 0
+          }
+        });
+      } catch (err) {
+        console.warn('[HCCALL] Aviso ao sincronizar objetivo com o produto criado:', err);
+      }
     }
 
     return { ...prod, monthlyTarget: data.monthlyTarget || 0 };
@@ -142,48 +146,52 @@ export class HccallProductService {
     });
 
     if (data.monthlyTarget !== undefined) {
-      const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      try {
+        const now = new Date();
+        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      const existingObj = await db.hccallObjective.findFirst({
-        where: {
-          tenantId,
-          userId,
-          productId: id,
-          periodStart: { lte: now },
-          periodEnd: { gte: now },
-          deletedAt: null
-        }
-      });
-
-      if (existingObj) {
-        if (data.monthlyTarget > 0) {
-          await db.hccallObjective.update({
-            where: { id: existingObj.id },
-            data: { targetValue: data.monthlyTarget, name: `Objetivo ${updated.name}` }
-          });
-        } else {
-          await db.hccallObjective.update({
-            where: { id: existingObj.id },
-            data: { deletedAt: new Date() }
-          });
-        }
-      } else if (data.monthlyTarget > 0) {
-        await db.hccallObjective.create({
-          data: {
+        const existingObj = await db.hccallObjective.findFirst({
+          where: {
             tenantId,
             userId,
             productId: id,
-            name: `Objetivo ${updated.name}`,
-            type: 'PRODUCT_COUNT',
-            targetValue: data.monthlyTarget,
-            unit: 'vendas',
-            periodStart,
-            periodEnd,
-            currentValue: 0
+            periodStart: { lte: now },
+            periodEnd: { gte: now },
+            deletedAt: null
           }
         });
+
+        if (existingObj) {
+          if (data.monthlyTarget > 0) {
+            await db.hccallObjective.update({
+              where: { id: existingObj.id },
+              data: { targetValue: data.monthlyTarget, name: `Objetivo ${updated.name}` }
+            });
+          } else {
+            await db.hccallObjective.update({
+              where: { id: existingObj.id },
+              data: { deletedAt: new Date() }
+            });
+          }
+        } else if (data.monthlyTarget > 0) {
+          await db.hccallObjective.create({
+            data: {
+              tenantId,
+              userId,
+              productId: id,
+              name: `Objetivo ${updated.name}`,
+              type: 'PRODUCT_COUNT',
+              targetValue: data.monthlyTarget,
+              unit: 'vendas',
+              periodStart,
+              periodEnd,
+              currentValue: 0
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('[HCCALL] Aviso ao sincronizar objetivo com o produto atualizado:', err);
       }
     }
 

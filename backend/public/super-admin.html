@@ -487,7 +487,7 @@
 
       <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
         <button class="btn btn-secondary" onclick="closeModal('super-admin-pwd-modal')">Cancelar</button>
-        <button class="btn btn-primary" onclick="submitSuperAdminPassword()">💾 Guardar na BD</button>
+        <button id="sa-pwd-save-btn" class="btn btn-primary" onclick="submitSuperAdminPassword()">💾 Guardar na BD</button>
       </div>
     </div>
   </div>
@@ -802,6 +802,11 @@
     if (tab === 'users') loadOnlineUsers();
     if (tab === 'storage') loadStorageMetrics();
     if (tab === 'dbhealth') loadDatabaseHealth();
+  }
+
+  function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('active');
   }
 
   function closeModal(id) {
@@ -1894,7 +1899,8 @@
     document.getElementById('sa-pwd-success').style.display = 'none';
     const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
     document.getElementById('sa-pwd-email').textContent = sess?.user?.email || 'helderguiomar@gmail.com';
-    openModal('super-admin-pwd-modal');
+    const modal = document.getElementById('super-admin-pwd-modal');
+    if (modal) modal.classList.add('active');
   }
 
   function togglePasswordVisibility(fieldId, btn) {
@@ -1908,7 +1914,7 @@
           <line x1="1" y1="1" x2="23" y2="23"></line>
          </svg>`
       : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
           <circle cx="12" cy="12" r="3"></circle>
          </svg>`;
   }
@@ -1918,10 +1924,11 @@
     const p2 = document.getElementById('sa-confirm-pwd').value;
     const errEl = document.getElementById('sa-pwd-error');
     const succEl = document.getElementById('sa-pwd-success');
+    const saveBtn = document.getElementById('sa-pwd-save-btn');
     errEl.style.display = 'none';
     succEl.style.display = 'none';
 
-    if (p1.length < 4) {
+    if (!p1 || p1.length < 4) {
       errEl.innerText = 'A palavra-passe deve ter pelo menos 4 caracteres.';
       errEl.style.display = 'block';
       return;
@@ -1932,18 +1939,38 @@
       return;
     }
 
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'A guardar na BD...';
+    }
+
     try {
       const email = document.getElementById('sa-pwd-email').textContent || 'helderguiomar@gmail.com';
-      const data = await api('/api/platform/super-admin/password', {
+      const platformToken = sessionStorage.getItem('erp_platform_token') || localStorage.getItem('erp_platform_token');
+      const headers = { 'Content-Type': 'application/json' };
+      if (platformToken) {
+        headers['Authorization'] = 'Bearer ' + platformToken;
+      }
+      const res = await window.apiFetch('/api/platform/super-admin/password', {
         method: 'POST',
+        headers,
         body: { password: p1, email }
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Erro ao guardar na Base de Dados');
+      }
       succEl.innerText = '✅ ' + (data.message || 'Palavra-passe guardada na Base de Dados com sucesso!');
       succEl.style.display = 'block';
       setTimeout(() => closeModal('super-admin-pwd-modal'), 1800);
     } catch (err) {
-      errEl.innerText = err.message;
+      errEl.innerText = err.message || 'Erro ao processar pedido.';
       errEl.style.display = 'block';
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Guardar na BD';
+      }
     }
   }
 

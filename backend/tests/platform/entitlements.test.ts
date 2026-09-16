@@ -49,4 +49,29 @@ describe('Phase 2 EntitlementService & Workspace Manifest', () => {
     assert.ok(Array.isArray(body.apps));
     await app.close();
   });
+
+  test('Em suporte/impersonation, o workspace restringe-se estritamente aos módulos licenciados pelo tenant', async () => {
+    const service = new EntitlementService();
+    // Administra Condo só tem 'condominios', não tem 'crm' nem 'hccall'
+    const tenant = await prisma.tenant.findFirst({
+      where: { slug: 'administra-condo' },
+      include: { applications: { include: { module: true } }, users: true }
+    });
+    assert.ok(tenant, 'Tenant Administra Condo deve existir');
+
+    const superAdmin = await prisma.user.findFirst({
+      where: { role: 'SUPER_ADMIN' }
+    });
+    assert.ok(superAdmin, 'Super Admin deve existir');
+
+    // Super Admin entra no tenant Administra Condo
+    const manifest = await service.resolveForUser(superAdmin.id, tenant.id);
+    assert.ok(manifest);
+    // Deve incluir apenas o módulo licenciado 'condominios'
+    const appKeys = manifest.apps.map(a => a.key);
+    assert.ok(appKeys.includes('condominios'), 'Deve incluir o módulo condominios licenciado');
+    assert.strictEqual(appKeys.includes('hccall'), false, 'Não deve incluir hccall pois o tenant não o tem contratado');
+    assert.strictEqual(appKeys.includes('crm'), false, 'Não deve incluir crm pois o tenant não o tem contratado');
+    assert.strictEqual(manifest.licensing?.activeCount, 1, 'activeCount deve refletir apenas 1 módulo licenciado');
+  });
 });

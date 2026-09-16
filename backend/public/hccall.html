@@ -456,6 +456,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span style="background:#2563eb; color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px;">🏢 TENANT ATIVO</span>
         <strong id="banner-tenant-name" style="font-size:14px; color:#93c5fd; letter-spacing:0.2px;">Empresa</strong>
+        <span id="banner-tenant-license" style="display:none; align-items:center; gap:6px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); padding:2px 8px; border-radius:4px; font-size:11px; color:#f8fafc; font-weight:600;"></span>
         <span style="color:#cbd5e1; font-size:12px;" id="banner-admin-info">(Intervenção Super Admin)</span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -1756,6 +1757,12 @@ async function boot() {
     impBanner.style.display = isImp ? 'flex' : 'none';
     if (isImp) {
       if ($('banner-tenant-name')) $('banner-tenant-name').textContent = tenantName;
+      if ($('banner-tenant-license')) {
+        const lic = sess?.licensing || {};
+        const pName = lic.planName || 'Licença Corporativa';
+        $('banner-tenant-license').innerHTML = `🛡️ <strong>${pName}</strong> &bull; Validade: <strong>Vitalícia (Ativa)</strong>`;
+        $('banner-tenant-license').style.display = 'inline-flex';
+      }
       if ($('banner-admin-info')) $('banner-admin-info').textContent = `(Intervenção: ${actorName})`;
     }
   }

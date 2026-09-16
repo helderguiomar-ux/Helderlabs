@@ -188,9 +188,6 @@ export class EntitlementService {
       if (!mod.isActive) {
         state = 'DISABLED';
         writable = false;
-      } else if (isSuperOrPlatformAdmin || isImpersonating) {
-        state = 'ACTIVE';
-        writable = impersonationData ? impersonationData.writeEnabled : true;
       } else if (!appInst) {
         state = 'NONE';
         writable = false;
@@ -239,9 +236,12 @@ export class EntitlementService {
       }
 
       // Super Admin ou utilizador em Impersonation recebe papel e permissões totais de Admin nos módulos ativos
-      const roleInApp = (isSuperOrPlatformAdmin || isImpersonating) ? 'ADMIN' : (assignment ? assignment.roleInApp : null);
+      const isLicensed = state === 'ACTIVE' || state === 'TRIAL' || state === 'GRACE';
+      const roleInApp = (isSuperOrPlatformAdmin || isImpersonating) 
+        ? (isLicensed ? 'ADMIN' : null) 
+        : (assignment ? assignment.roleInApp : null);
       const permissions = (isSuperOrPlatformAdmin || isImpersonating) 
-        ? [`${mod.key}.*`, `${mod.key}.access`, `${mod.key}.admin`] 
+        ? (isLicensed ? [`${mod.key}.*`, `${mod.key}.access`, `${mod.key}.admin`] : [])
         : (assignment ? [`${mod.key}.access`] : []);
 
       apps.push({
@@ -250,7 +250,7 @@ export class EntitlementService {
         icon: mod.icon,
         color: mod.color,
         state,
-        writable,
+        writable: isLicensed ? writable : false,
         features: appInst?.features || [],
         limits,
         usage,
@@ -270,10 +270,10 @@ export class EntitlementService {
       modules: licensedApps.map(a => ({ key: a.key, name: a.name, state: a.state, daysLeft: a.daysLeft }))
     };
 
-    // Restrição Estrita: o tenant só pode ver os módulos que tiver licenciados para utilização!
-    // Super Admin ou Sessão de Suporte mantêm a visão de gestão dos módulos da plataforma
+    // Restrição Estrita: o workspace só deve conter os módulos que o tenant tem efetivamente licenciados!
+    // Módulos que o tenant não tem licenciamento NÃO devem aparecer (nem em sessão de suporte)
     const isPrivileged = isSuperOrPlatformAdmin || isImpersonating;
-    const finalApps = isPrivileged ? apps : licensedApps;
+    const finalApps = licensedApps;
 
     const branding = tenant.branding || {
       logoUrl: null,

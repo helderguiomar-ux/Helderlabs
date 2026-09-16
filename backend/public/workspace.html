@@ -324,6 +324,7 @@
   <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
     <span style="background:#2563eb; color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:4px; text-transform:uppercase; letter-spacing:0.5px;">🏢 TENANT ATIVO</span>
     <strong>A intervir na Empresa:</strong> <span id="imp-tenant-name" style="font-size:14px; color:#93c5fd; font-weight:700;"></span>
+    <span id="imp-tenant-license" style="display:none; align-items:center; gap:6px; background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); padding:3px 10px; border-radius:6px; font-size:12px; color:#f8fafc; font-weight:600;"></span>
     <span style="color:#cbd5e1; font-size:12px;">(Sessão Super Admin)</span>
   </div>
   <div style="display:flex; align-items:center; gap:8px;">
@@ -459,11 +460,19 @@
 
 <!-- Modal Alterar Password -->
 <div id="change-password-modal" class="modal-overlay">
-  <div class="modal-box" style="max-width: 420px;">
+  <div class="modal-box" style="max-width: 440px;">
     <div class="modal-header">
-      <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">Alterar Palavra-passe</h3>
+      <h3 style="margin: 0; font-size: 1.1rem; color: var(--primary-color);">🔑 Alterar Palavra-passe</h3>
       <button onclick="closeChangePasswordModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">&times;</button>
     </div>
+
+    <div id="pwd-target-user-info" style="font-size: 12px; margin-bottom: 14px; padding: 8px 12px; background: rgba(37,99,235,0.08); border: 1px solid rgba(37,99,235,0.2); border-radius: 6px; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <strong>Conta:</strong> <span id="pwd-user-email">helderguiomar@gmail.com</span>
+      </div>
+      <span id="pwd-user-role-badge" style="background:#2563eb; color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;">SUPER ADMIN</span>
+    </div>
+
     <div id="pwd-modal-error" style="display:none; color: #dc2626; background: #fee2e2; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px; text-align: center;"></div>
     <div id="pwd-modal-success" style="display:none; color: #059669; background: #d1fae5; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px; text-align: center;"></div>
     
@@ -471,7 +480,7 @@
       <label>Nova Palavra-passe</label>
       <div style="position: relative; display: flex; align-items: center;">
         <input type="password" id="modal-new-password" placeholder="No mínimo 4 caracteres" style="padding-right: 40px;">
-        <button type="button" onclick="togglePasswordVisibility('modal-new-password', this)" title="Mostrar/Ocultar" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; display: flex; align-items: center;">
+        <button type="button" onclick="togglePasswordVisibility('modal-new-password', this)" title="Ver / Ocultar palavra-passe" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; display: flex; align-items: center;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
             <circle cx="12" cy="12" r="3"></circle>
@@ -484,7 +493,7 @@
       <label>Confirmar Nova Palavra-passe</label>
       <div style="position: relative; display: flex; align-items: center;">
         <input type="password" id="modal-confirm-password" placeholder="Reintroduza a palavra-passe" style="padding-right: 40px;">
-        <button type="button" onclick="togglePasswordVisibility('modal-confirm-password', this)" title="Mostrar/Ocultar" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; display: flex; align-items: center;">
+        <button type="button" onclick="togglePasswordVisibility('modal-confirm-password', this)" title="Ver / Ocultar palavra-passe" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: #6b7280; padding: 4px; display: flex; align-items: center;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
             <circle cx="12" cy="12" r="3"></circle>
@@ -495,7 +504,7 @@
 
     <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
       <button class="btn btn-outline" onclick="closeChangePasswordModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveNewPasswordFromModal()">Guardar Palavra-passe</button>
+      <button class="btn btn-primary" onclick="saveNewPasswordFromModal()">💾 Guardar na BD</button>
     </div>
   </div>
 </div>
@@ -584,6 +593,21 @@
           const impData = data.impersonation || (window.ERPAuth ? window.ERPAuth.getSession()?.impersonation : null) || {};
           impTenant.textContent = impData.targetTenantName || tenant.name || branding.displayName || impData.targetTenantId || 'Cliente';
         }
+        const impLicense = document.getElementById('imp-tenant-license');
+        if (impLicense) {
+          const lic = data.licensing || {};
+          const pName = lic.planName || (tenant.status === 'ACTIVE' ? 'Licença Corporativa' : (tenant.status === 'TRIAL' ? 'Período Experimental' : 'Licença Restrita'));
+          const trialApp = activeApps.find(a => a.state === 'TRIAL' && a.daysLeft);
+          const expApp = activeApps.find(a => a.daysLeft && a.daysLeft > 0);
+          let valText = 'Vitalícia (Acesso Permanente)';
+          if (trialApp) {
+            valText = `Trial (${trialApp.daysLeft} dias restantes)`;
+          } else if (expApp) {
+            valText = `${expApp.daysLeft} dias restantes`;
+          }
+          impLicense.innerHTML = `🛡️ <strong>${pName}</strong> &bull; Validade: <strong>${valText}</strong>`;
+          impLicense.style.display = 'inline-flex';
+        }
       } else {
         impBanner.style.display = 'none';
       }
@@ -664,24 +688,18 @@
       }
     }
 
-    // Render active vs upsell apps
+    // Render active apps
     const activeGrid = document.getElementById('active-apps-grid');
     const upsellGrid = document.getElementById('upsell-apps-grid');
     if (activeGrid) activeGrid.innerHTML = '';
     if (upsellGrid) upsellGrid.innerHTML = '';
 
-    const isPrivileged = ['SUPER_ADMIN', 'PLATFORM_ADMIN'].includes(user.role) || isImp;
-    let hasUpsell = false;
-
+    // Regra Estrita: OS MÓDULOS QUE O TENANT NÃO TEM LICENCIAMENTO NÃO DEVEM APARECER!
     apps.forEach(app => {
-      if (app.state === 'NONE' || app.state === 'DISABLED') {
-        if (isPrivileged) {
-          hasUpsell = true;
-          if (upsellGrid) upsellGrid.appendChild(createAppCard(app, true));
-        }
-      } else {
-        if (activeGrid) activeGrid.appendChild(createAppCard(app, false));
+      if (app.state === 'NONE' || app.state === 'DISABLED' || app.state === 'SUSPENDED') {
+        return;
       }
+      if (activeGrid) activeGrid.appendChild(createAppCard(app, false));
     });
 
     if (activeGrid && activeGrid.children.length === 0) {
@@ -697,7 +715,7 @@
 
     const upsellSec = document.getElementById('upsell-section');
     if (upsellSec) {
-      upsellSec.style.display = (isPrivileged && hasUpsell && branding.showUpsell) ? 'block' : 'none';
+      upsellSec.style.display = 'none';
     }
   }
 
@@ -889,8 +907,22 @@
   function openChangePasswordModal() {
     document.getElementById('modal-new-password').value = '';
     document.getElementById('modal-confirm-password').value = '';
+    document.getElementById('modal-new-password').type = 'password';
+    document.getElementById('modal-confirm-password').type = 'password';
     document.getElementById('pwd-modal-error').style.display = 'none';
     document.getElementById('pwd-modal-success').style.display = 'none';
+
+    const platformUserStr = localStorage.getItem('erp_platform_user');
+    const platformUser = platformUserStr ? JSON.parse(platformUserStr) : null;
+    const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+    const targetEmail = platformUser?.email || sess?.user?.email || 'helderguiomar@gmail.com';
+    const role = platformUser?.role || sess?.user?.role || 'SUPER_ADMIN';
+
+    const emailEl = document.getElementById('pwd-user-email');
+    if (emailEl) emailEl.textContent = targetEmail;
+    const badgeEl = document.getElementById('pwd-user-role-badge');
+    if (badgeEl) badgeEl.textContent = role;
+
     document.getElementById('change-password-modal').classList.add('active');
   }
 
@@ -917,20 +949,35 @@
       return;
     }
 
-    const session = JSON.parse(localStorage.getItem('erp_session') || '{}');
-    const token = session.token || localStorage.getItem('hl_token') || localStorage.getItem('auth_token');
+    const platformToken = localStorage.getItem('erp_platform_token');
+    const session = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+    const targetEmail = document.getElementById('pwd-user-email')?.textContent || 'helderguiomar@gmail.com';
 
     try {
-      const res = await apiFetch('/api/auth/set-password', {
-        method: 'POST',
-        body: JSON.stringify({ password: p1 })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao alterar palavra-passe.');
+      let res;
+      // Se tivermos token de plataforma (Super Admin), usar a rota direta de super-admin
+      if (platformToken || session?.user?.role === 'SUPER_ADMIN') {
+        res = await apiFetch('/api/platform/super-admin/password', {
+          method: 'POST',
+          headers: platformToken ? { 'Authorization': `Bearer ${platformToken}` } : {},
+          body: JSON.stringify({ password: p1, email: targetEmail })
+        });
+      }
 
-      succEl.innerText = 'Palavra-passe guardada com sucesso!';
+      // Fallback para set-password normal se a rota acima não aplicou
+      if (!res || !res.ok) {
+        res = await apiFetch('/api/auth/set-password', {
+          method: 'POST',
+          body: JSON.stringify({ password: p1 })
+        });
+      }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'Erro ao alterar palavra-passe.');
+
+      succEl.innerText = '✅ ' + (data.message || 'Palavra-passe guardada na Base de Dados com sucesso!');
       succEl.style.display = 'block';
-      setTimeout(() => closeChangePasswordModal(), 1500);
+      setTimeout(() => closeChangePasswordModal(), 1800);
     } catch (err) {
       errEl.innerText = err.message;
       errEl.style.display = 'block';

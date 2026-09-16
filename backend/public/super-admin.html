@@ -157,6 +157,7 @@
         <button class="btn-theme-toggle" data-theme-toggle onclick="ERPTheme.toggleTheme()">
           <span class="theme-icon">☀️</span> Tema
         </button>
+        <button class="btn btn-secondary" style="padding:5px 12px; font-size:12px; display:inline-flex; align-items:center; gap:5px;" onclick="openSuperAdminPasswordModal()">🔑 Alterar Password</button>
         <span id="admin-name" style="font-weight: 600;">Super Admin</span>
         <button class="btn-logout" onclick="logout()">Sair</button>
       </div>
@@ -437,6 +438,57 @@
           </div>
         </div>
       </section>
+    </div>
+  </div>
+
+  <!-- Modal: Alterar Password do Super Administrador -->
+  <div id="super-admin-pwd-modal" class="modal-overlay">
+    <div class="modal-box" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 style="margin: 0; font-size: 1.1rem; color: var(--pen);">🔑 Alterar Palavra-passe do Super Administrador</h3>
+        <button class="btn btn-secondary" onclick="closeModal('super-admin-pwd-modal')">✕</button>
+      </div>
+
+      <div style="font-size: 12px; margin-bottom: 14px; padding: 8px 12px; background: var(--sheet-2); border: 1px solid var(--rule); border-radius: 6px; color: var(--ink); display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <strong>Conta:</strong> <span id="sa-pwd-email">helderguiomar@gmail.com</span>
+        </div>
+        <span style="background:var(--pen); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px;">SUPER ADMIN</span>
+      </div>
+
+      <div id="sa-pwd-error" style="display:none; color: var(--red); background: #fee2e2; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px; text-align: center;"></div>
+      <div id="sa-pwd-success" style="display:none; color: #059669; background: #d1fae5; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; margin-bottom: 14px; text-align: center;"></div>
+
+      <div class="form-group">
+        <label>Nova Palavra-passe</label>
+        <div style="position: relative; display: flex; align-items: center;">
+          <input type="password" id="sa-new-pwd" placeholder="No mínimo 4 caracteres" style="width: 100%; padding-right: 40px;">
+          <button type="button" onclick="togglePasswordVisibility('sa-new-pwd', this)" title="Ver / Ocultar palavra-passe" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--ink-2); padding: 4px; display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Confirmar Nova Palavra-passe</label>
+        <div style="position: relative; display: flex; align-items: center;">
+          <input type="password" id="sa-confirm-pwd" placeholder="Reintroduza a palavra-passe" style="width: 100%; padding-right: 40px;">
+          <button type="button" onclick="togglePasswordVisibility('sa-confirm-pwd', this)" title="Ver / Ocultar palavra-passe" style="position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--ink-2); padding: 4px; display: flex; align-items: center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <button class="btn btn-secondary" onclick="closeModal('super-admin-pwd-modal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitSuperAdminPassword()">💾 Guardar na BD</button>
+      </div>
     </div>
   </div>
 
@@ -1830,6 +1882,68 @@
       }
     } catch(err) {
       alert('Erro ao aplicar correções na base de dados: ' + err.message);
+    }
+  }
+
+  function openSuperAdminPasswordModal() {
+    document.getElementById('sa-new-pwd').value = '';
+    document.getElementById('sa-confirm-pwd').value = '';
+    document.getElementById('sa-new-pwd').type = 'password';
+    document.getElementById('sa-confirm-pwd').type = 'password';
+    document.getElementById('sa-pwd-error').style.display = 'none';
+    document.getElementById('sa-pwd-success').style.display = 'none';
+    const sess = (window.ERPAuth ? window.ERPAuth.getSession() : null) || JSON.parse(localStorage.getItem('erp_session') || '{}');
+    document.getElementById('sa-pwd-email').textContent = sess?.user?.email || 'helderguiomar@gmail.com';
+    openModal('super-admin-pwd-modal');
+  }
+
+  function togglePasswordVisibility(fieldId, btn) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+    const isPw = field.type === 'password';
+    field.type = isPw ? 'text' : 'password';
+    btn.innerHTML = isPw 
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+         </svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+         </svg>`;
+  }
+
+  async function submitSuperAdminPassword() {
+    const p1 = document.getElementById('sa-new-pwd').value;
+    const p2 = document.getElementById('sa-confirm-pwd').value;
+    const errEl = document.getElementById('sa-pwd-error');
+    const succEl = document.getElementById('sa-pwd-success');
+    errEl.style.display = 'none';
+    succEl.style.display = 'none';
+
+    if (p1.length < 4) {
+      errEl.innerText = 'A palavra-passe deve ter pelo menos 4 caracteres.';
+      errEl.style.display = 'block';
+      return;
+    }
+    if (p1 !== p2) {
+      errEl.innerText = 'As palavras-passe não coincidem.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    try {
+      const email = document.getElementById('sa-pwd-email').textContent || 'helderguiomar@gmail.com';
+      const data = await api('/api/platform/super-admin/password', {
+        method: 'POST',
+        body: { password: p1, email }
+      });
+      succEl.innerText = '✅ ' + (data.message || 'Palavra-passe guardada na Base de Dados com sucesso!');
+      succEl.style.display = 'block';
+      setTimeout(() => closeModal('super-admin-pwd-modal'), 1800);
+    } catch (err) {
+      errEl.innerText = err.message;
+      errEl.style.display = 'block';
     }
   }
 

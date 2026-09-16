@@ -1,4 +1,6 @@
 import { FastifyInstance } from 'fastify';
+import bcrypt from 'bcrypt';
+import { z } from 'zod';
 import { prisma } from '../../../database/prisma/client';
 import { applicationsRoutes } from './applications.routes';
 import { ApplicationController } from '../controllers/ApplicationController';
@@ -450,6 +452,51 @@ export async function platformRoutes(app: FastifyInstance) {
     const findingIds = Array.isArray(body.findingIds) ? body.findingIds : [];
     const result = await PlatformHealthService.fixFindings(findingIds);
     return reply.status(200).send(result);
+  });
+
+  // POST /api/platform/super-admin/password - Redefinir password do Super Administrador na Base de Dados
+  app.post('/super-admin/password', async (request, reply) => {
+    const user = request.user as any;
+    const bodySchema = z.object({
+      password: z.string().min(4, 'A palavra-passe deve ter pelo menos 4 caracteres.'),
+      email: z.string().email().optional()
+    });
+    const { password, email } = bodySchema.parse(request.body);
+    const targetEmail = email || user.email || 'helderguiomar@gmail.com';
+
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        email: { equals: targetEmail, mode: 'insensitive' },
+        role: 'SUPER_ADMIN'
+      }
+    });
+
+    if (!targetUser) {
+      return reply.status(404).send({ error: 'USER_NOT_FOUND', message: 'Utilizador Super Admin não encontrado.' });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await prisma.user.update({
+      where: { id: targetUser.id },
+      data: { passwordHash: hash }
+    });
+
+    await AuditService.audit({
+      actorId: user.sub,
+      actorEmail: user.email,
+      actorType: 'SUPER_ADMIN',
+      tenantId: targetUser.tenantId,
+      action: 'user.password.update',
+      resource: 'User',
+      resourceId: targetUser.id,
+      newValue: { email: targetUser.email, updated: true },
+      result: 'SUCCESS'
+    });
+
+    return reply.status(200).send({
+      success: true,
+      message: `Palavra-passe de ${targetUser.email} guardada com sucesso na Base de Dados!`
+    });
   });
 
   // Módulos como Aplicativos — gestão por tenant

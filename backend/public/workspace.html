@@ -581,6 +581,10 @@
     const tenant = data.tenant || {};
     const user = data.user || {};
     const apps = Array.isArray(data.apps) ? data.apps : [];
+    const activeApps = apps.filter(a => a.state === 'ACTIVE' || a.state === 'TRIAL' || a.state === 'GRACE');
+    const licData = data.licensing || {};
+    const planName = licData.planName || (tenant.status === 'ACTIVE' ? 'Licença Corporativa' : (tenant.status === 'TRIAL' ? 'Período Experimental' : 'Licença Restrita'));
+    const licStatus = licData.status || tenant.status || 'ACTIVE';
 
     // Suporte / Impersonation banner
     const isImp = !!(data.impersonation || (window.ERPAuth && window.ERPAuth.getSession()?.isImpersonating) || (window.ERPAuth && window.ERPAuth.getSession()?.impersonation));
@@ -595,8 +599,7 @@
         }
         const impLicense = document.getElementById('imp-tenant-license');
         if (impLicense) {
-          const lic = data.licensing || {};
-          const pName = lic.planName || (tenant.status === 'ACTIVE' ? 'Licença Corporativa' : (tenant.status === 'TRIAL' ? 'Período Experimental' : 'Licença Restrita'));
+          const pName = planName;
           const trialApp = activeApps.find(a => a.state === 'TRIAL' && a.daysLeft);
           const expApp = activeApps.find(a => a.daysLeft && a.daysLeft > 0);
           let valText = 'Vitalícia (Acesso Permanente)';
@@ -657,10 +660,7 @@
     const licValidity = document.getElementById('license-validity-text');
     const licTags = document.getElementById('license-tags-container');
 
-    const activeApps = apps.filter(a => a.state === 'ACTIVE' || a.state === 'TRIAL' || a.state === 'GRACE');
-    const licData = data.licensing || {};
-    const planName = licData.planName || 'Licença Corporativa';
-    const licStatus = licData.status || tenant.status || 'ACTIVE';
+
 
     if (licBanner) {
       licBanner.style.display = 'flex';

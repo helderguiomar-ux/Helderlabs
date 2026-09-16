@@ -1,6 +1,6 @@
 {
   "name": "helderlabs-erp",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "scripts": {
     "build": "cd backend && npm install && node scripts/deploy-build.mjs"

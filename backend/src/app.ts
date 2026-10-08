@@ -17,6 +17,7 @@ import { financasRoutes } from './modules/financas/routes/financas.routes';
 import { platformRoutes } from './modules/platform/routes/platform.routes';
 import { hccallRoutes } from './modules/hccall/routes/hccall.routes';
 import { sellmaisRoutes } from './modules/sellmais/routes/sellmais.routes';
+import { tenantMailRoutes } from './modules/mail/routes/mail.routes';
 import { SellPublicCatalogService } from './modules/sellmais/services/SellPublicCatalogService';
 import { checkDatabaseReady } from './database/prisma/client';
 import { EntitlementService } from './modules/platform/services/EntitlementService';
@@ -111,7 +112,8 @@ export function buildApp() {
 
   // ÚNICO Error Handler Global
   app.setErrorHandler((error, request, reply) => {
-    if (error.statusCode === 429) {
+    // Limites de negócio (AppError com 429, ex.: limite diário de emails) mantêm a sua mensagem própria.
+    if (error.statusCode === 429 && error.name !== 'AppError') {
       return reply.status(429).send({
         error: 'TOO_MANY_REQUESTS',
         message: 'Demasiados pedidos num curto período. Por favor, tente novamente mais tarde.'
@@ -326,6 +328,7 @@ export function buildApp() {
   app.register(financasRoutes, { prefix: '/api/financas' });
   app.register(hccallRoutes, { prefix: '/api/hccall' });
   app.register(sellmaisRoutes, { prefix: '/api/sellmais' });
+  app.register(tenantMailRoutes, { prefix: '/api/tenant/email' });
 
   // -------------------------------------------------------------------------
   // Catálogo Público 2SELLMAIS (SSR com SEO e OpenGraph)

@@ -96,7 +96,9 @@ const TENANT_SCOPED_MODELS = new Set([
   'SellAuction',
   'SellAuctionLot',
   'SellBid',
-  'SellCounter'
+  'SellCounter',
+  'TenantEmailSettings',
+  'EmailSendLog'
 ]);
 
 const READ_OPERATIONS = new Set([

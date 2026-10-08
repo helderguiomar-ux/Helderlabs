@@ -2,6 +2,18 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.0] - 2026-10-08
+
+### Envio de email configurável por tenant
+- **Definições de email por empresa** (`app.html` → separador *Email*, visível só para dono/administrador do tenant): remetente da plataforma (Resend, `helderlabs.eu`) ou email próprio por SMTP (Gmail com password de aplicação, ou qualquer servidor SMTP).
+- **Credenciais cifradas**: password SMTP guardada com AES-256-GCM (chave `EMAIL_CREDENTIALS_KEY`, tenantId como dados autenticados); nunca devolvida ao cliente nem escrita na auditoria.
+- **Proteções**: guarda contra servidores SMTP internos (SSRF) com ligação ao IP resolvido; STARTTLS obrigatório em 587/2525; reintrodução obrigatória da password ao mudar servidor/porta/utilizador; limite diário de envios por tenant; validação contra injeção de cabeçalhos.
+- **Registo de envios** (`email_send_logs`): cada tentativa fica registada como SENT, FAILED ou BLOCKED_LIMIT.
+- **API**: `GET /api/tenant/email/status`, `GET|PUT /api/tenant/email/settings`, `POST /api/tenant/email/test`, `GET /api/tenant/email/logs`.
+- **Serviço reutilizável** `TenantMailService.send()` para os módulos (propostas do CRM a seguir), com suporte a anexos no modo SMTP.
+- **Migração** `20261008120000_tenant_email_settings` (apenas aditiva, com RLS).
+- **Testes**: 27 novos testes (cifra, guarda SMTP, definições, envio, limite diário, isolamento, protocolo SMTP real com STARTTLS, rotas e permissões).
+
 ## [v1.4.0] - 2026-09-12
 
 ### ✉️ Infraestrutura Central de Email Transacional & Domínio

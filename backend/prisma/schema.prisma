@@ -72,6 +72,9 @@ model Tenant {
   financialReports      FinancialReport[]
   companyProfile        TenantCompanyProfile?
 
+  emailSettings TenantEmailSettings?
+  emailSendLogs EmailSendLog[]
+
   @@map("tenants")
 }
 
@@ -2286,4 +2289,68 @@ model AuditChainIncident {
   @@unique([tenantId, prevHash], name: "audit_chain_incident_unique")
   @@index([tenantId, classification])
   @@map("audit_chain_incidents")
+}
+
+// =============================================================================
+// ENVIO DE EMAIL POR TENANT (v1.6.0)
+//
+// Cada tenant configura o seu próprio remetente (Gmail com password de
+// aplicação, Outlook/Microsoft 365 ou qualquer servidor SMTP). Sem
+// configuração própria, o tenant usa o remetente da plataforma (Resend,
+// domínio helderlabs.eu) com o "responder para" do tenant.
+//
+// A password SMTP é guardada cifrada (AES-256-GCM, chave em
+// EMAIL_CREDENTIALS_KEY) e NUNCA é devolvida ao cliente.
+// =============================================================================
+
+enum EmailProvider {
+  PLATFORM
+  SMTP
+}
+
+model TenantEmailSettings {
+  id              String        @id @default(cuid())
+  tenantId        String        @unique
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  provider        EmailProvider @default(PLATFORM)
+  preset          String? // GMAIL | OUTLOOK | CUSTOM
+  smtpHost        String?
+  smtpPort        Int?
+  smtpSecure      Boolean       @default(true) // true = SSL/TLS direto (465); false = STARTTLS (587)
+  smtpUser        String?
+  smtpPasswordEnc String? // formato v1:<iv>:<tag>:<ciphertext> (base64url)
+  fromName        String?
+  fromEmail       String?
+  replyTo         String?
+  dailyLimit      Int           @default(300)
+  isVerified      Boolean       @default(false)
+  lastVerifiedAt  DateTime?
+  lastError       String?
+  updatedByUserId String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("tenant_email_settings")
+}
+
+model EmailSendLog {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  provider     String // PLATFORM | SMTP
+  fromEmail    String?
+  toEmail      String
+  subject      String
+  status       String // SENT | FAILED | BLOCKED_LIMIT
+  messageId    String?
+  error        String?
+  context      String? // ex.: settings.test, crm.proposal
+  relatedType  String?
+  relatedId    String?
+  sentByUserId String?
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+  @@map("email_send_logs")
 }

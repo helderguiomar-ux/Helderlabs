@@ -46,6 +46,7 @@
     "fastify-socket.io": "^5.1.0",
     "jose": "^6.2.8",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "10.0.10",
     "socket.io": "^4.8.3",
     "zod": "^3.23.8"
   },
@@ -61,6 +62,7 @@
     "eslint": "^10.10.0",
     "playwright": "^1.63.0",
     "prisma": "^5.20.0",
+    "smtp-server": "3.19.13",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3"
   }

@@ -1,25 +1,30 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { CRMController, type CRMRequestContext } from '../controllers/CRMController';
+import { validatePortugueseNIF } from '../utils/validators';
 
 const controller = new CRMController();
 
-const convertLeadSchema = z.object({
-  estimatedValue: z.number().positive()
-});
+const convertLeadSchema = z
+  .object({
+    estimatedValue: z.number().positive('O valor estimado tem de ser positivo.')
+  })
+  .strict();
 
-const createLeadSchema = z.object({
-  company: z.string().min(1),
-  name: z.string().min(1),
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  source: z.string().min(1)
-});
+const createLeadSchema = z
+  .object({
+    company: z.string().trim().min(1, 'Empresa é obrigatória.'),
+    name: z.string().trim().min(1, 'Nome é obrigatório.'),
+    email: z.string().trim().toLowerCase().email('Email inválido.').optional().nullable().or(z.literal('')),
+    phone: z.string().trim().optional().nullable(),
+    source: z.string().trim().min(1, 'Origem é obrigatória.')
+  })
+  .strict();
 
-const companySchema = z.object({
-  tradeName: z.string().min(1, 'Nome Comercial é obrigatório'),
-  legalName: z.string().optional().nullable(),
-  taxNumber: z.string().optional().nullable(),
+const companyBaseShape = {
+  tradeName: z.string().trim().min(1, 'Nome Comercial é obrigatório'),
+  legalName: z.string().trim().optional().nullable(),
+  taxNumber: z.string().trim().optional().nullable(),
   entityType: z.string().optional().default('LDA'),
   status: z.enum(['POTENTIAL', 'LEAD', 'CUSTOMER', 'EX_CUSTOMER', 'SUPPLIER', 'PARTNER']).optional().default('LEAD'),
   country: z.string().optional().default('Portugal'),
@@ -28,7 +33,7 @@ const companySchema = z.object({
   postalCode: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   website: z.string().optional().nullable(),
-  email: z.string().optional().nullable(),
+  email: z.string().trim().toLowerCase().email('Email inválido.').optional().nullable().or(z.literal('')),
   phone: z.string().optional().nullable(),
   sector: z.string().optional().nullable(),
   employeesCount: z.number().int().optional().nullable(),
@@ -42,54 +47,117 @@ const companySchema = z.object({
   vatScheme: z.string().optional().default('NORMAL'),
   tags: z.array(z.string()).optional().default([]),
   notes: z.string().optional().nullable(),
-  riskScore: z.string().optional().default('BAIXO')
-});
+  riskScore: z.string().optional().default('BAIXO'),
+  force: z.boolean().optional().default(false)
+};
 
-const contactSchema = z.object({
-  name: z.string().min(1, 'Nome do contacto é obrigatório'),
-  role: z.string().optional().nullable(),
-  department: z.string().optional().nullable(),
-  email: z.string().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  mobile: z.string().optional().nullable(),
-  isPrimary: z.boolean().optional().default(false),
-  decisionPower: z.string().optional().default('INFLUENCER'),
-  notes: z.string().optional().nullable()
-});
+const companySchema = z
+  .object(companyBaseShape)
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.taxNumber && (!data.country || data.country.toLowerCase() === 'portugal')) {
+      if (!validatePortugueseNIF(data.taxNumber)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'O NIF português indicado é inválido (dígito de controlo incorreto).',
+          path: ['taxNumber']
+        });
+      }
+    }
+  });
 
-const addressSchema = z.object({
-  type: z.string().optional().default('HQ'),
-  street: z.string().min(1, 'Morada é obrigatória'),
-  city: z.string().optional().nullable(),
-  district: z.string().optional().nullable(),
-  postalCode: z.string().optional().nullable(),
-  country: z.string().optional().default('Portugal'),
-  isDefault: z.boolean().optional().default(false)
-});
+const companyUpdateSchema = z
+  .object({
+    ...companyBaseShape,
+    tradeName: z.string().trim().min(1, 'Nome Comercial é obrigatório').optional()
+  })
+  .partial()
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.taxNumber && (!data.country || data.country.toLowerCase() === 'portugal')) {
+      if (!validatePortugueseNIF(data.taxNumber)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'O NIF português indicado é inválido (dígito de controlo incorreto).',
+          path: ['taxNumber']
+        });
+      }
+    }
+  });
 
-const documentSchema = z.object({
-  name: z.string().min(1, 'Nome do documento é obrigatório'),
-  category: z.string().optional().default('OTHER'),
-  fileUrl: z.string().min(1, 'URL do ficheiro é obrigatório'),
-  fileType: z.string().optional().nullable(),
-  size: z.number().int().optional().nullable(),
-  expiresAt: z.string().optional().nullable()
-});
+const contactSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Nome do contacto é obrigatório'),
+    role: z.string().optional().nullable(),
+    department: z.string().optional().nullable(),
+    email: z.string().trim().toLowerCase().email('Email inválido.').optional().nullable().or(z.literal('')),
+    phone: z.string().optional().nullable(),
+    mobile: z.string().optional().nullable(),
+    isPrimary: z.boolean().optional().default(false),
+    decisionPower: z.enum(['DECISOR', 'INFLUENCIADOR', 'UTILIZADOR', 'OUTRO']).optional().nullable(),
+    notes: z.string().optional().nullable()
+  })
+  .strict();
 
-const contractSchema = z.object({
-  contractNumber: z.string().min(1, 'Número do contrato é obrigatório'),
-  title: z.string().min(1, 'Título do contrato é obrigatório'),
-  status: z.string().optional().default('ACTIVE'),
-  monthlyValueCents: z.number().int().optional().nullable(),
-  annualValueCents: z.number().int().optional().nullable(),
-  totalValueCents: z.number().int().optional().nullable(),
-  startDate: z.string(),
-  endDate: z.string().optional().nullable(),
-  renewalType: z.string().optional().default('MANUAL'),
-  noticePeriodDays: z.number().int().optional().default(30),
-  documentUrl: z.string().optional().nullable(),
-  terms: z.string().optional().nullable()
-});
+const addressSchema = z
+  .object({
+    type: z.string().optional().default('HQ'),
+    purpose: z.string().optional(),
+    street: z.string().trim().min(1, 'Morada é obrigatória'),
+    address: z.string().optional(),
+    city: z.string().optional().nullable(),
+    district: z.string().optional().nullable(),
+    postalCode: z.string().optional().nullable(),
+    country: z.string().optional().default('Portugal'),
+    isDefault: z.boolean().optional().default(false)
+  })
+  .strict();
+
+const documentSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Nome do documento é obrigatório'),
+    category: z.string().optional().default('OTHER'),
+    docType: z.string().optional(),
+    fileUrl: z.string().min(1, 'URL do ficheiro é obrigatório'),
+    fileType: z.string().optional().nullable(),
+    size: z.number().int().optional().nullable(),
+    expiresAt: z.string().optional().nullable(),
+    expiryDate: z.string().optional().nullable()
+  })
+  .strict();
+
+const contractSchema = z
+  .object({
+    contractNumber: z.string().trim().min(1, 'Número do contrato é obrigatório'),
+    title: z.string().trim().min(1, 'Título do contrato é obrigatório'),
+    type: z.string().optional().default('SERVICE'),
+    status: z.string().optional().default('ACTIVE'),
+    valueCents: z.number().int().optional(),
+    monthlyValueCents: z.number().int().optional().nullable(),
+    annualValueCents: z.number().int().optional().nullable(),
+    totalValueCents: z.number().int().optional().nullable(),
+    billingFrequency: z.string().optional(),
+    autoRenew: z.boolean().optional(),
+    startDate: z.string().min(1, 'Data de início é obrigatória'),
+    endDate: z.string().optional().nullable(),
+    renewalType: z.string().optional().default('MANUAL'),
+    noticePeriodDays: z.number().int().optional().default(30),
+    documentUrl: z.string().optional().nullable(),
+    terms: z.string().optional().nullable()
+  })
+  .strict();
+
+const listCompaniesQuerySchema = z
+  .object({
+    status: z.string().optional(),
+    sector: z.string().optional(),
+    search: z.string().optional(),
+    ownerUserId: z.string().optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
+    cursor: z.string().optional(),
+    includeDeleted: z.coerce.boolean().optional()
+  })
+  .strict();
 
 function contextFrom(request: { user?: { tenantId: string }; db?: unknown }): CRMRequestContext {
   if (!request.user || !request.db) {
@@ -104,11 +172,17 @@ export async function crmRoutes(app: FastifyInstance) {
     protectedApp.addHook('preHandler', app.requireApp('crm'));
 
     // =======================================================================
-    // EMPRESAS 360º
+    // EMPRESAS 360º & MÉTRICAS
     // =======================================================================
     protectedApp.get('/companies', async (request, reply) => {
-      const companies = await controller.listCompanies(contextFrom(request), request.query);
-      return reply.status(200).send({ success: true, companies });
+      const query = listCompaniesQuerySchema.parse(request.query);
+      const result = await controller.listCompanies(contextFrom(request), query);
+      return reply.status(200).send({ success: true, ...result });
+    });
+
+    protectedApp.get('/companies/metrics', async (request, reply) => {
+      const metrics = await controller.getCompaniesMetrics(contextFrom(request));
+      return reply.status(200).send({ success: true, metrics });
     });
 
     protectedApp.post('/companies', async (request, reply) => {
@@ -125,7 +199,7 @@ export async function crmRoutes(app: FastifyInstance) {
 
     protectedApp.put<{ Params: { id: string } }>('/companies/:id', async (request, reply) => {
       const { id } = request.params;
-      const data = companySchema.partial().parse(request.body);
+      const data = companyUpdateSchema.parse(request.body);
       const updated = await controller.updateCompany(contextFrom(request), id, data);
       return reply.status(200).send({ success: true, company: updated });
     });
@@ -154,7 +228,7 @@ export async function crmRoutes(app: FastifyInstance) {
 
     protectedApp.put<{ Params: { contactId: string } }>('/contacts/:contactId', async (request, reply) => {
       const { contactId } = request.params;
-      const data = contactSchema.partial().parse(request.body);
+      const data = contactSchema.partial().strict().parse(request.body);
       const updated = await controller.updateCompanyContact(contextFrom(request), contactId, data);
       return reply.status(200).send({ success: true, contact: updated });
     });
@@ -209,7 +283,7 @@ export async function crmRoutes(app: FastifyInstance) {
 
     protectedApp.put<{ Params: { contractId: string } }>('/contracts/:contractId', async (request, reply) => {
       const { contractId } = request.params;
-      const data = contractSchema.partial().parse(request.body);
+      const data = contractSchema.partial().strict().parse(request.body);
       const updated = await controller.updateContract(contextFrom(request), contractId, data);
       return reply.status(200).send({ success: true, contract: updated });
     });
@@ -225,13 +299,22 @@ export async function crmRoutes(app: FastifyInstance) {
     // =======================================================================
     protectedApp.post<{ Params: { fromCompanyId: string } }>('/companies/:fromCompanyId/relations', async (request, reply) => {
       const { fromCompanyId } = request.params;
-      const body = z.object({
-        toCompanyId: z.string().min(1),
-        relationType: z.string().min(1),
-        notes: z.string().optional()
-      }).parse(request.body);
+      const body = z
+        .object({
+          toCompanyId: z.string().trim().min(1, 'Empresa de destino é obrigatória.'),
+          relationType: z.string().trim().min(1, 'Tipo de relação é obrigatório.'),
+          notes: z.string().optional()
+        })
+        .strict()
+        .parse(request.body);
 
-      const relation = await controller.addCompanyRelation(contextFrom(request), fromCompanyId, body.toCompanyId, body.relationType, body.notes);
+      const relation = await controller.addCompanyRelation(
+        contextFrom(request),
+        fromCompanyId,
+        body.toCompanyId,
+        body.relationType,
+        body.notes
+      );
       return reply.status(201).send({ success: true, relation });
     });
 
@@ -257,7 +340,7 @@ export async function crmRoutes(app: FastifyInstance) {
 
     protectedApp.put<{ Params: { id: string } }>('/leads/:id', async (request, reply) => {
       const { id } = request.params;
-      const data = createLeadSchema.partial().parse(request.body);
+      const data = createLeadSchema.partial().strict().parse(request.body);
       const updated = await controller.updateLead(contextFrom(request), id, data);
       return reply.status(200).send(updated);
     });
@@ -283,13 +366,8 @@ export async function crmRoutes(app: FastifyInstance) {
       async (request, reply) => {
         const { leadId } = request.params;
         const { estimatedValue } = convertLeadSchema.parse(request.body);
-
-        try {
-          const opportunity = await controller.convertLead(contextFrom(request), leadId, estimatedValue);
-          return reply.status(201).send(opportunity);
-        } catch (error) {
-          return reply.status(404).send({ message: (error as Error).message });
-        }
+        const opportunity = await controller.convertLead(contextFrom(request), leadId, estimatedValue);
+        return reply.status(201).send(opportunity);
       }
     );
 
@@ -297,13 +375,8 @@ export async function crmRoutes(app: FastifyInstance) {
       '/opportunities/:opportunityId/win',
       async (request, reply) => {
         const { opportunityId } = request.params;
-
-        try {
-          const customer = await controller.winOpportunity(contextFrom(request), opportunityId);
-          return reply.status(200).send(customer);
-        } catch (error) {
-          return reply.status(404).send({ message: (error as Error).message });
-        }
+        const customer = await controller.winOpportunity(contextFrom(request), opportunityId);
+        return reply.status(200).send(customer);
       }
     );
 

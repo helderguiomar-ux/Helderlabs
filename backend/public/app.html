@@ -37,6 +37,7 @@
   <link rel="stylesheet" href="/assets/css/styles.css">
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/email-settings.css?v=1.6.0b">
+  <link rel="stylesheet" href="/assets/css/crm.css?v=1.6.1">
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/api.js"></script>
 </head>
@@ -218,8 +219,8 @@
         <div class="panel-header">
           <h3 class="panel-title">Diretório de Empresas</h3>
           <div class="toolbar-group">
-            <input type="text" placeholder="Pesquisar por nome, NIF ou email..." oninput="window.CRMModule.currentFilter.search = this.value; window.CRMModule.renderCompaniesGrid();">
-            <select onchange="window.CRMModule.currentFilter.status = this.value; window.CRMModule.renderCompaniesGrid();">
+            <input type="text" id="crm-search-input" placeholder="Pesquisar por nome, NIF ou email..." oninput="window.CRMModule.currentFilter.search = this.value; window.CRMModule.renderCompaniesGrid();">
+            <select id="crm-status-filter" onchange="window.CRMModule.currentFilter.status = this.value; window.CRMModule.renderCompaniesGrid();">
               <option value="">Todos os Estados</option>
               <option value="CUSTOMER">Clientes</option>
               <option value="LEAD">Leads / Prospetos</option>
@@ -668,6 +669,7 @@
       </div>
       <form onsubmit="window.CRMModule.submitCreateCompany(event)">
         <div class="modal-body">
+          <div id="company-create-error-box" hidden></div>
           <div class="form-grid">
             <div class="form-group col-span-2">
               <label class="form-label">Nome Comercial *</label>
@@ -925,7 +927,10 @@
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
-  <script src="/assets/js/crm.js"></script>
+  <script src="/assets/js/crm/crm-core.js?v=1.6.1"></script>
+  <script src="/assets/js/crm/crm-companies.js?v=1.6.1"></script>
+  <script src="/assets/js/crm/crm-contacts.js?v=1.6.1"></script>
+  <script src="/assets/js/crm.js?v=1.6.1"></script>
   <script src="/assets/js/audit.js"></script>
   <script src="/assets/js/sellmais.js"></script>
   <script src="/assets/js/email-settings.js?v=1.6.0"></script>

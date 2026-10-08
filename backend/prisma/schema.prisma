@@ -263,6 +263,7 @@ model CompanyContact {
   isBilling    Boolean   @default(false)
   isTechnical  Boolean   @default(false)
   isCommercial Boolean   @default(false)
+  decisionPower DecisionPower?
   notes        String?
   deletedAt    DateTime?
   createdAt    DateTime  @default(now())
@@ -341,11 +342,20 @@ model CompanyRelation {
   toCompanyId   String
   toCompany     Company  @relation("ToCompany", fields: [toCompanyId], references: [id], onDelete: Cascade)
   relationType  String
+  deletedAt     DateTime?
   createdAt     DateTime @default(now())
 
   @@index([fromCompanyId])
   @@index([toCompanyId])
+  @@index([deletedAt])
   @@map("crm_company_relations")
+}
+
+enum DecisionPower {
+  DECISOR
+  INFLUENCIADOR
+  UTILIZADOR
+  OUTRO
 }
 
 enum LeadStatus {

@@ -54,21 +54,26 @@ describe('EnterpriseCRMService & Company 360º Unit Tests', () => {
               contracts: []
             }
           ];
+        },
+        count: async ({ where }: any) => {
+          assert.strictEqual(where.tenantId, 'tenant_123');
+          return 1;
         }
       }
     };
 
     const service = new EnterpriseCRMService('tenant_123', fakeDb);
-    const companies = await service.listCompanies();
+    const res = await service.listCompanies();
 
-    assert.strictEqual(companies.length, 1);
-    assert.strictEqual(companies[0].tradeName, 'Empresa A');
+    assert.strictEqual(res.companies.length, 1);
+    assert.strictEqual(res.companies[0].tradeName, 'Empresa A');
   });
 
   test('createCompany computes initial completeness and sets defaults', async () => {
     let createdPayload: any = null;
     const fakeDb = {
       company: {
+        findFirst: async () => null,
         create: async ({ data }: any) => {
           createdPayload = data;
           return { id: 'comp_new', ...data };

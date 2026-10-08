@@ -19,6 +19,10 @@ export class CRMController {
     return serviceFor(context).listCompanies(filters);
   }
 
+  async getCompaniesMetrics(context: CRMRequestContext) {
+    return serviceFor(context).getCompaniesMetrics();
+  }
+
   async getCompany360(context: CRMRequestContext, id: string) {
     return serviceFor(context).getCompany360(id);
   }

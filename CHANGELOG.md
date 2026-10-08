@@ -2,6 +2,19 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.1] - 2026-10-09
+
+### CRM Fase B1 — Fundações, Segurança e Isolamento Multi-tenant
+- **Isolamento de Tenant em Filhos**: Verificação rigorosa de pertença (`assertCompanyOwned`, `assertChildOwned`) em todos os sub-recursos (contactos, moradas, documentos, contratos e relações), devolvendo 404 estrito (`NOT_FOUND`) em caso de ID pertencente a outro tenant.
+- **Prevenção XSS**: Modularização de frontend em `crm/crm-core.js`, `crm/crm-companies.js`, `crm/crm-contacts.js` e fachada `crm.js`, com sanitização sistemática via `esc()` para interpolação segura de strings em HTML.
+- **Validação de NIF e Telefone**: Algoritmo Módulo 11 para NIFs portugueses (empresas e individuais, com ou sem prefixo `PT`) e normalização E.164 para números telefónicos (+351 por omissão).
+- **Deteção de Duplicados**: Verificação preventiva de NIF/email no mesmo tenant com resposta `409 Conflict` e payload `{ existingCompanyId }`; suporte a `force: true` com auditoria transversal `crm.company.force_create`.
+- **Soft Delete**: Preservação de integridade referencial com coluna `deletedAt` em `CompanyRelation` e marcação em `deleteLead`, sem perda física de registos.
+- **Perfil de Decisão (`decisionPower`)**: Enum `DecisionPower` (`DECISOR`, `INFLUENCIADOR`, `UTILIZADOR`, `OUTRO`) persistido e editável nos contactos de empresas.
+- **Paginação e Métricas no Servidor**: Paginação por cursor (`limit`, `cursor`, `nextCursor`) e filtros avançados (`status`, `search`, `sector`, `ownerUserId`), além de agregação de métricas via `groupBy` em `GET /api/crm/companies/metrics`.
+- **Cache-busting**: Inclusão de `crm.css?v=1.6.1` e scripts modulares com `?v=1.6.1` em `app.html`.
+- **Testes**: Suite `tests/crm/crm-b1-security.test.ts` com 13 novos testes cobrindo isolamento, validações, duplicados, permissões e XSS.
+
 ## [v1.6.0] - 2026-10-08
 
 ### Envio de email configurável por tenant

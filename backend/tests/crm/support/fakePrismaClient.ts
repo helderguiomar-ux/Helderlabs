@@ -36,6 +36,8 @@ export function createFakePrismaClient() {
       },
       findUnique: async ({ where }: any) =>
         leads.find((l) => l.id === where.id && (!where.tenantId || l.tenantId === where.tenantId)) ?? null,
+      findFirst: async ({ where }: any) =>
+        leads.find((l) => (!where?.id || l.id === where.id) && (!where?.tenantId || l.tenantId === where.tenantId) && (where?.deletedAt === undefined || (where.deletedAt === null && !l.deletedAt))) ?? null,
       update: async ({ where, data }: any) => {
         const lead = leads.find((l) => l.id === where.id);
         if (!lead) throw new Error(`Lead ${where.id} não existe no fake client.`);
@@ -55,6 +57,17 @@ export function createFakePrismaClient() {
       findUnique: async ({ where, include }: any) => {
         const opportunity = opportunities.find(
           (o) => o.id === where.id && (!where.tenantId || o.tenantId === where.tenantId)
+        );
+        if (!opportunity) return null;
+        if (include?.lead) {
+          const lead = leads.find((l) => l.id === opportunity.leadId) ?? null;
+          return { ...opportunity, lead };
+        }
+        return opportunity;
+      },
+      findFirst: async ({ where, include }: any) => {
+        const opportunity = opportunities.find(
+          (o) => (!where?.id || o.id === where.id) && (!where?.tenantId || o.tenantId === where.tenantId) && (where?.deletedAt === undefined || (where.deletedAt === null && !o.deletedAt))
         );
         if (!opportunity) return null;
         if (include?.lead) {

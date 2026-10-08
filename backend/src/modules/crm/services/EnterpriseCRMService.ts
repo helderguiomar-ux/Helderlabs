@@ -1,5 +1,12 @@
 import type { TenantScopedPrismaClient } from '../../../database/prisma/tenantScopedClient';
 import { prisma as defaultPrismaClient } from '../../../database/prisma/client';
+import { AppError } from '../../../utils/errors';
+import { AuditService } from '../../platform/services/AuditService';
+import { normalizePhoneNumber } from '../utils/validators';
+
+function notFound(message = 'Registo não encontrado.') {
+  return new AppError('NOT_FOUND', message, 404);
+}
 
 export class EnterpriseCRMService {
   constructor(
@@ -8,7 +15,103 @@ export class EnterpriseCRMService {
   ) {}
 
   // =========================================================================
-  // COMPLETENESS SCORE CALCULATION
+  // VERIFICAÇÕES DE POSSE DE TENANT (ISOLAMENTO SEGURO — 404 NOT FOUND)
+  // =========================================================================
+
+  public async assertCompanyOwned(companyId: string) {
+    const company = await this.db.company.findFirst({
+      where: { id: companyId, tenantId: this.tenantId, deletedAt: null }
+    });
+    if (!company) {
+      throw notFound('Empresa não encontrada.');
+    }
+    return company;
+  }
+
+  public async assertContactOwned(contactId: string) {
+    const contact = await this.db.companyContact.findFirst({
+      where: { id: contactId, deletedAt: null },
+      include: { company: true }
+    });
+    if (!contact || contact.company.tenantId !== this.tenantId || contact.company.deletedAt !== null) {
+      throw notFound('Contacto não encontrado.');
+    }
+    return contact;
+  }
+
+  public async assertAddressOwned(addressId: string) {
+    const address = await this.db.companyAddress.findFirst({
+      where: { id: addressId, deletedAt: null },
+      include: { company: true }
+    });
+    if (!address || address.company.tenantId !== this.tenantId || address.company.deletedAt !== null) {
+      throw notFound('Endereço não encontrado.');
+    }
+    return address;
+  }
+
+  public async assertDocumentOwned(docId: string) {
+    const doc = await this.db.companyDocument.findFirst({
+      where: { id: docId, deletedAt: null },
+      include: { company: true }
+    });
+    if (!doc || doc.company.tenantId !== this.tenantId || doc.company.deletedAt !== null) {
+      throw notFound('Documento não encontrado.');
+    }
+    return doc;
+  }
+
+  public async assertContractOwned(contractId: string) {
+    const contract = await this.db.contract.findFirst({
+      where: { id: contractId, tenantId: this.tenantId, deletedAt: null },
+      include: { company: true }
+    });
+    if (!contract || contract.company.tenantId !== this.tenantId || contract.company.deletedAt !== null) {
+      throw notFound('Contrato não encontrado.');
+    }
+    return contract;
+  }
+
+  public async assertRelationOwned(relationId: string) {
+    const relation = await this.db.companyRelation.findFirst({
+      where: { id: relationId, deletedAt: null },
+      include: { fromCompany: true, toCompany: true }
+    });
+    if (
+      !relation ||
+      relation.fromCompany.tenantId !== this.tenantId ||
+      relation.fromCompany.deletedAt !== null ||
+      relation.toCompany.tenantId !== this.tenantId ||
+      relation.toCompany.deletedAt !== null
+    ) {
+      throw notFound('Relação não encontrada.');
+    }
+    return relation;
+  }
+
+  public async assertLeadOwned(leadId: string) {
+    const lead = await this.db.lead.findFirst({
+      where: { id: leadId, tenantId: this.tenantId, deletedAt: null }
+    });
+    if (!lead) {
+      throw notFound('Lead não encontrada.');
+    }
+    return lead;
+  }
+
+  public async assertOpportunityOwned(oppId: string) {
+    const opp = await this.db.opportunity.findFirst({
+      where: { id: oppId, tenantId: this.tenantId },
+      include: { lead: true }
+    });
+    if (!opp) {
+      throw notFound('Oportunidade não encontrada.');
+    }
+    return opp;
+  }
+
+  // =========================================================================
+  // CÁLCULO DE COMPLETUDE DA FICHA 360º
   // =========================================================================
 
   public static calculateCompleteness(company: any): number {
@@ -26,13 +129,16 @@ export class EnterpriseCRMService {
   }
 
   // =========================================================================
-  // EMPRESA 360º CRUD & 360 VIEW
+  // EMPRESAS 360º (PAGINAÇÃO, BUSCA E CRUD SEGURO)
   // =========================================================================
 
   public async listCompanies(filters?: {
     status?: string;
     search?: string;
     sector?: string;
+    ownerUserId?: string;
+    limit?: number;
+    cursor?: string;
     includeDeleted?: boolean;
   }) {
     const where: any = {
@@ -51,34 +157,89 @@ export class EnterpriseCRMService {
       where.sector = filters.sector;
     }
 
+    if (filters?.ownerUserId) {
+      where.assignedUserId = filters.ownerUserId;
+    }
+
     if (filters?.search) {
+      const s = filters.search.trim();
       where.OR = [
-        { tradeName: { contains: filters.search, mode: 'insensitive' } },
-        { legalName: { contains: filters.search, mode: 'insensitive' } },
-        { taxNumber: { contains: filters.search, mode: 'insensitive' } },
-        { email: { contains: filters.search, mode: 'insensitive' } }
+        { tradeName: { contains: s, mode: 'insensitive' } },
+        { legalName: { contains: s, mode: 'insensitive' } },
+        { taxNumber: { contains: s, mode: 'insensitive' } },
+        { email: { contains: s, mode: 'insensitive' } }
       ];
     }
 
-    return this.db.company.findMany({
-      where,
-      include: {
-        contacts: { where: { deletedAt: null } },
-        contracts: { where: { deletedAt: null } },
-        _count: {
-          select: {
-            contacts: true,
-            contracts: true,
-            documents: true,
-            transactions: true
+    const limit = Math.min(Math.max(Number(filters?.limit) || 20, 1), 100);
+    const cursor = filters?.cursor ? { id: filters.cursor } : undefined;
+
+    const [total, items] = await Promise.all([
+      this.db.company.count({ where }),
+      this.db.company.findMany({
+        where,
+        take: limit + 1,
+        ...(cursor ? { skip: 1, cursor } : {}),
+        include: {
+          contacts: { where: { deletedAt: null } },
+          contracts: { where: { deletedAt: null } },
+          _count: {
+            select: {
+              contacts: true,
+              contracts: true,
+              documents: true,
+              transactions: true
+            }
           }
-        }
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+    ]);
+
+    let nextCursor: string | null = null;
+    let companies = items;
+    if (items.length > limit) {
+      const nextItem = items.pop();
+      nextCursor = nextItem ? nextItem.id : null;
+      companies = items;
+    }
+
+    return {
+      companies,
+      nextCursor,
+      total
+    };
+  }
+
+  public async getCompaniesMetrics() {
+    const [statusGroups, total] = await Promise.all([
+      this.db.company.groupBy({
+        by: ['status'],
+        where: { tenantId: this.tenantId, deletedAt: null },
+        _count: { _all: true }
+      }),
+      this.db.company.count({
+        where: { tenantId: this.tenantId, deletedAt: null }
+      })
+    ]);
+
+    const byStatus: Record<string, number> = {};
+    for (const g of statusGroups) {
+      byStatus[g.status] = g._count._all;
+    }
+
+    return {
+      total,
+      leads: (byStatus['LEAD'] || 0) + (byStatus['POTENTIAL'] || 0),
+      customers: byStatus['CUSTOMER'] || 0,
+      suppliers: (byStatus['SUPPLIER'] || 0) + (byStatus['PARTNER'] || 0),
+      byStatus
+    };
   }
 
   public async getCompany360(id: string) {
+    await this.assertCompanyOwned(id);
+
     const company = await this.db.company.findUnique({
       where: { id, tenantId: this.tenantId } as any,
       include: {
@@ -86,18 +247,17 @@ export class EnterpriseCRMService {
         addresses: { where: { deletedAt: null } },
         documents: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
         contracts: { where: { deletedAt: null }, orderBy: { startDate: 'desc' } },
-        fromRelations: { include: { toCompany: true } },
-        toRelations: { include: { fromCompany: true } },
+        fromRelations: { where: { deletedAt: null }, include: { toCompany: true } },
+        toRelations: { where: { deletedAt: null }, include: { fromCompany: true } },
         transactions: { where: { deletedAt: null }, orderBy: { dueDate: 'desc' }, take: 20 },
         assignedUser: { select: { id: true, name: true, email: true } }
       }
     });
 
     if (!company) {
-      throw new Error('Empresa não encontrada.');
+      throw notFound('Empresa não encontrada.');
     }
 
-    // Dynamic completeness score
     const completeness = EnterpriseCRMService.calculateCompleteness(company);
 
     return {
@@ -133,15 +293,57 @@ export class EnterpriseCRMService {
     tags?: string[];
     notes?: string;
     riskScore?: string;
+    force?: boolean;
   }) {
+    // Verificação de duplicados no mesmo tenant
+    if (!data.force) {
+      const duplicateConditions: any[] = [];
+      if (data.taxNumber && data.taxNumber.trim()) {
+        duplicateConditions.push({ taxNumber: data.taxNumber.trim() });
+      }
+      if (data.email && data.email.trim()) {
+        duplicateConditions.push({ email: { equals: data.email.trim(), mode: 'insensitive' } });
+      }
+
+      if (duplicateConditions.length > 0) {
+        const existing = await this.db.company.findFirst({
+          where: {
+            tenantId: this.tenantId,
+            deletedAt: null,
+            OR: duplicateConditions
+          }
+        });
+
+        if (existing) {
+          throw new AppError(
+            'DUPLICATE_COMPANY',
+            'Já existe uma empresa com este NIF ou email registada.',
+            409,
+            { existingCompanyId: existing.id }
+          );
+        }
+      }
+    } else {
+      // Registo de auditoria para criação forçada de duplicado
+      await AuditService.audit({
+        action: 'crm.company.force_create',
+        module: 'crm',
+        category: 'APPLICATION',
+        resource: 'Company',
+        description: `Criação de empresa com validação de duplicados contornada via force:true (${data.tradeName}, NIF: ${data.taxNumber || 'N/A'})`,
+        tenantId: this.tenantId,
+        actorType: 'USER'
+      }).catch(() => undefined);
+    }
+
     const completeness = EnterpriseCRMService.calculateCompleteness(data);
 
     return this.db.company.create({
       data: {
         tenantId: this.tenantId,
-        tradeName: data.tradeName,
-        legalName: data.legalName || null,
-        taxNumber: data.taxNumber || null,
+        tradeName: data.tradeName.trim(),
+        legalName: data.legalName ? data.legalName.trim() : null,
+        taxNumber: data.taxNumber ? data.taxNumber.trim() : null,
         entityType: data.entityType || 'LDA',
         status: data.status || 'LEAD',
         country: data.country || 'Portugal',
@@ -150,8 +352,8 @@ export class EnterpriseCRMService {
         postalCode: data.postalCode || null,
         address: data.address || null,
         website: data.website || null,
-        email: data.email || null,
-        phone: data.phone || null,
+        email: data.email ? data.email.trim().toLowerCase() : null,
+        phone: normalizePhoneNumber(data.phone),
         sector: data.sector || null,
         employeesCount: data.employeesCount || null,
         annualRevenueCents: data.annualRevenueCents || null,
@@ -171,34 +373,38 @@ export class EnterpriseCRMService {
   }
 
   public async updateCompany(id: string, data: any) {
-    const existing = await this.db.company.findUnique({
-      where: { id, tenantId: this.tenantId } as any,
-      include: { contacts: true, documents: true, contracts: true }
-    });
-    if (!existing) throw new Error('Empresa não encontrada.');
+    const existing = await this.assertCompanyOwned(id);
 
     const merged = { ...existing, ...data };
     const completeness = EnterpriseCRMService.calculateCompleteness(merged);
 
+    const updateData: any = { ...data, completenessPercent: completeness };
+    if (updateData.phone) updateData.phone = normalizePhoneNumber(updateData.phone);
+    if (updateData.email) updateData.email = updateData.email.trim().toLowerCase();
+    if (updateData.taxNumber) updateData.taxNumber = updateData.taxNumber.trim();
+
     return this.db.company.update({
-      where: { id, tenantId: this.tenantId } as any,
-      data: {
-        ...data,
-        completenessPercent: completeness
-      }
+      where: { id },
+      data: updateData
     });
   }
 
   public async deleteCompany(id: string) {
+    await this.assertCompanyOwned(id);
     return this.db.company.update({
-      where: { id, tenantId: this.tenantId } as any,
+      where: { id },
       data: { deletedAt: new Date() }
     });
   }
 
   public async restoreCompany(id: string) {
+    const existing = await this.db.company.findFirst({
+      where: { id, tenantId: this.tenantId }
+    });
+    if (!existing) throw notFound('Empresa não encontrada.');
+
     return this.db.company.update({
-      where: { id, tenantId: this.tenantId } as any,
+      where: { id },
       data: { deletedAt: null }
     });
   }
@@ -215,9 +421,11 @@ export class EnterpriseCRMService {
     phone?: string;
     mobile?: string;
     isPrimary?: boolean;
-    decisionPower?: string;
+    decisionPower?: 'DECISOR' | 'INFLUENCIADOR' | 'UTILIZADOR' | 'OUTRO' | null;
     notes?: string;
   }) {
+    await this.assertCompanyOwned(companyId);
+
     if (data.isPrimary) {
       await this.db.companyContact.updateMany({
         where: { companyId },
@@ -228,37 +436,42 @@ export class EnterpriseCRMService {
     return this.db.companyContact.create({
       data: {
         companyId,
-        name: data.name,
+        name: data.name.trim(),
         role: data.role || null,
         department: data.department || null,
-        email: data.email || null,
-        phone: data.phone || null,
-        mobile: data.mobile || null,
+        email: data.email ? data.email.trim().toLowerCase() : null,
+        phone: normalizePhoneNumber(data.phone),
+        mobile: normalizePhoneNumber(data.mobile),
         isPrimary: data.isPrimary || false,
+        decisionPower: data.decisionPower || null,
         notes: data.notes || null
       }
     });
   }
 
   public async updateCompanyContact(contactId: string, data: any) {
+    const contact = await this.assertContactOwned(contactId);
+
     if (data.isPrimary) {
-      const contact = await this.db.companyContact.findUnique({ where: { id: contactId } });
-      if (contact) {
-        await this.db.companyContact.updateMany({
-          where: { companyId: contact.companyId, id: { not: contactId } },
-          data: { isPrimary: false }
-        });
-      }
+      await this.db.companyContact.updateMany({
+        where: { companyId: contact.companyId, id: { not: contactId } },
+        data: { isPrimary: false }
+      });
     }
 
-    const { decisionPower, ...validData } = data;
+    const updateData: any = { ...data };
+    if (updateData.phone) updateData.phone = normalizePhoneNumber(updateData.phone);
+    if (updateData.mobile) updateData.mobile = normalizePhoneNumber(updateData.mobile);
+    if (updateData.email) updateData.email = updateData.email.trim().toLowerCase();
+
     return this.db.companyContact.update({
       where: { id: contactId },
-      data: validData
+      data: updateData
     });
   }
 
   public async deleteCompanyContact(contactId: string) {
+    await this.assertContactOwned(contactId);
     return this.db.companyContact.update({
       where: { id: contactId },
       data: { deletedAt: new Date() }
@@ -280,6 +493,8 @@ export class EnterpriseCRMService {
     country?: string;
     isDefault?: boolean;
   }) {
+    await this.assertCompanyOwned(companyId);
+
     if (data.isDefault) {
       await this.db.companyAddress.updateMany({
         where: { companyId },
@@ -301,6 +516,7 @@ export class EnterpriseCRMService {
   }
 
   public async deleteCompanyAddress(addressId: string) {
+    await this.assertAddressOwned(addressId);
     return this.db.companyAddress.update({
       where: { id: addressId },
       data: { deletedAt: new Date() }
@@ -321,6 +537,8 @@ export class EnterpriseCRMService {
     expiresAt?: Date | string;
     expiryDate?: Date | string;
   }) {
+    await this.assertCompanyOwned(companyId);
+
     return this.db.companyDocument.create({
       data: {
         companyId,
@@ -334,6 +552,7 @@ export class EnterpriseCRMService {
   }
 
   public async deleteCompanyDocument(docId: string) {
+    await this.assertDocumentOwned(docId);
     return this.db.companyDocument.update({
       where: { id: docId },
       data: { deletedAt: new Date() }
@@ -345,7 +564,10 @@ export class EnterpriseCRMService {
       tenantId: this.tenantId,
       deletedAt: null
     };
-    if (companyId) where.companyId = companyId;
+    if (companyId) {
+      await this.assertCompanyOwned(companyId);
+      where.companyId = companyId;
+    }
 
     return this.db.contract.findMany({
       where,
@@ -372,6 +594,8 @@ export class EnterpriseCRMService {
     documentUrl?: string;
     terms?: string;
   }) {
+    await this.assertCompanyOwned(companyId);
+
     const valueCents = data.valueCents ?? data.monthlyValueCents ?? data.annualValueCents ?? data.totalValueCents ?? 0;
     const autoRenew = data.autoRenew !== undefined ? data.autoRenew : (data.renewalType === 'AUTOMATIC' || data.renewalType === 'AUTO');
     return this.db.contract.create({
@@ -393,6 +617,8 @@ export class EnterpriseCRMService {
   }
 
   public async updateContract(contractId: string, data: any) {
+    await this.assertContractOwned(contractId);
+
     const updateData: any = { ...data };
     if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
     if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
@@ -407,14 +633,15 @@ export class EnterpriseCRMService {
     delete updateData.terms;
 
     return this.db.contract.update({
-      where: { id: contractId, tenantId: this.tenantId } as any,
+      where: { id: contractId },
       data: updateData
     });
   }
 
   public async deleteContract(contractId: string) {
+    await this.assertContractOwned(contractId);
     return this.db.contract.update({
-      where: { id: contractId, tenantId: this.tenantId } as any,
+      where: { id: contractId },
       data: { deletedAt: new Date() }
     });
   }
@@ -424,6 +651,9 @@ export class EnterpriseCRMService {
   // =========================================================================
 
   public async addCompanyRelation(fromCompanyId: string, toCompanyId: string, relationType: string, notes?: string) {
+    await this.assertCompanyOwned(fromCompanyId);
+    await this.assertCompanyOwned(toCompanyId);
+
     return this.db.companyRelation.create({
       data: {
         fromCompanyId,
@@ -435,18 +665,19 @@ export class EnterpriseCRMService {
   }
 
   public async deleteCompanyRelation(relationId: string) {
-    return this.db.companyRelation.delete({
-      where: { id: relationId }
+    await this.assertRelationOwned(relationId);
+    return this.db.companyRelation.update({
+      where: { id: relationId },
+      data: { deletedAt: new Date() }
     });
   }
 
   // =========================================================================
-  // LEGACY LEADS & OPPORTUNITIES PIPELINE (100% COMPATÍVEL & PRESERVADO)
+  // LEGACY LEADS & OPPORTUNITIES PIPELINE (PRESERVADO COM SOFT-DELETE)
   // =========================================================================
 
   public async convertLeadToOpportunity(leadId: string, estimatedValue: number) {
-    const lead = await this.db.lead.findUnique({ where: { id: leadId, tenantId: this.tenantId } as any });
-    if (!lead) throw new Error('Lead não encontrada.');
+    const lead = await this.assertLeadOwned(leadId);
 
     await this.db.lead.update({
       where: { id: leadId },
@@ -469,12 +700,7 @@ export class EnterpriseCRMService {
   }
 
   public async winOpportunityAndCreateCustomer(opportunityId: string) {
-    const opp = await this.db.opportunity.findUnique({
-      where: { id: opportunityId, tenantId: this.tenantId } as any,
-      include: { lead: true }
-    });
-
-    if (!opp) throw new Error('Oportunidade não encontrada.');
+    const opp = await this.assertOpportunityOwned(opportunityId);
 
     const customer = await this.db.customer.create({
       data: {
@@ -527,7 +753,7 @@ export class EnterpriseCRMService {
         company: data.company,
         name: data.name,
         email: data.email || null,
-        phone: data.phone || null,
+        phone: normalizePhoneNumber(data.phone),
         source: data.source,
         status: 'NEW'
       }
@@ -556,7 +782,7 @@ export class EnterpriseCRMService {
         company: data.company || 'Pessoa Singular',
         name: data.name,
         email: data.email || null,
-        phone: data.phone || null,
+        phone: normalizePhoneNumber(data.phone),
         source: data.sector ? `landing_diagnostico_${data.sector}` : 'landing_diagnostico',
         status: 'NEW'
       }
@@ -564,19 +790,29 @@ export class EnterpriseCRMService {
   }
 
   public async listLeads() {
-    return this.db.lead.findMany({ where: { tenantId: this.tenantId }, orderBy: { createdAt: 'desc' } });
+    return this.db.lead.findMany({
+      where: { tenantId: this.tenantId, deletedAt: null },
+      orderBy: { createdAt: 'desc' }
+    });
   }
 
   public async updateLead(id: string, data: Partial<{ company: string; name: string; email: string; phone: string; source: string; status: string }>) {
+    await this.assertLeadOwned(id);
+
+    const updateData: any = { ...data };
+    if (updateData.phone) updateData.phone = normalizePhoneNumber(updateData.phone);
+
     return this.db.lead.update({
-      where: { id, tenantId: this.tenantId },
-      data: data as any
+      where: { id },
+      data: updateData
     });
   }
 
   public async deleteLead(id: string) {
-    return this.db.lead.delete({
-      where: { id, tenantId: this.tenantId }
+    await this.assertLeadOwned(id);
+    return this.db.lead.update({
+      where: { id },
+      data: { deletedAt: new Date() }
     });
   }
 
@@ -590,7 +826,7 @@ export class EnterpriseCRMService {
 
   public async getAdvancedDashboardMetrics() {
     const [leads, opportunities, customers, companies] = await Promise.all([
-      this.db.lead.findMany({ where: { tenantId: this.tenantId } }),
+      this.db.lead.findMany({ where: { tenantId: this.tenantId, deletedAt: null } }),
       this.db.opportunity.findMany({ where: { tenantId: this.tenantId } }),
       this.db.customer.findMany({ where: { tenantId: this.tenantId } }),
       this.db.company ? this.db.company.findMany({ where: { tenantId: this.tenantId, deletedAt: null } }) : Promise.resolve([])

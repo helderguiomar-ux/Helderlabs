@@ -324,5 +324,32 @@ export class CRMController {
   async sendStatementEmail(context: CRMRequestContext, companyId: string, options: any, actor: any) {
     return serviceFor(context).sendStatementEmail(companyId, options.to, actor, options.notes);
   }
+
+  // =========================================================================
+  // PAINEL EXECUTIVO & RELATÓRIOS DO CRM (FASE B8)
+  // =========================================================================
+
+  async getExecutiveDashboard(context: CRMRequestContext, filters?: any) {
+    return serviceFor(context).getExecutiveDashboard(filters);
+  }
+
+  async exportCsv(context: CRMRequestContext, entity: string, filters?: any) {
+    const service = serviceFor(context);
+    switch (entity.toLowerCase()) {
+      case 'companies':
+        return service.exportCompaniesCsv(filters);
+      case 'deals':
+      case 'opportunities':
+        return service.exportDealsCsv(filters);
+      case 'proposals':
+        return service.exportProposalsCsv(filters);
+      case 'account':
+      case 'entries':
+        return service.exportAccountEntriesCsv(filters);
+      default:
+        throw new Error(`Entidade de exportação inválida: ${entity}`);
+    }
+  }
 }
+
 

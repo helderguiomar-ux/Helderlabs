@@ -16,14 +16,16 @@
 
     async switchCRMView(view) {
       this.currentView = view;
-      ['companies', 'pipeline', 'leads', 'activities', 'proposals', 'contracts', 'documents', 'account'].forEach(v => {
+      ['companies', 'pipeline', 'leads', 'activities', 'proposals', 'contracts', 'documents', 'account', 'dashboard'].forEach(v => {
         const btn = document.getElementById(`crm-btn-subview-${v}`);
         const panel = document.getElementById(`crm-view-${v}`);
         if (btn) btn.classList.toggle('active', v === view);
         if (panel) panel.style.display = v === view ? 'block' : 'none';
       });
 
-      if (view === 'pipeline' && window.CRMPipelineModule) {
+      if (view === 'dashboard' && window.CRMDashboard) {
+        await window.CRMDashboard.init();
+      } else if (view === 'pipeline' && window.CRMPipelineModule) {
         await window.CRMPipelineModule.init();
       } else if (view === 'leads' && window.CRMLeadsModule) {
         await window.CRMLeadsModule.init();

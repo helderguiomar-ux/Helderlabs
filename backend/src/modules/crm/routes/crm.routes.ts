@@ -948,5 +948,28 @@ export async function crmRoutes(app: FastifyInstance) {
       const result = await controller.sendStatementEmail(contextFrom(request), id, body, actor);
       return reply.status(200).send({ success: true, result, message: 'Extrato enviado por email com sucesso!' });
     });
+
+    // =========================================================================
+    // PAINEL EXECUTIVO & RELATÓRIOS DO CRM (FASE B8)
+    // =========================================================================
+
+    protectedApp.get('/dashboard/executive', async (request, reply) => {
+      const query = request.query as any;
+      const dashboard = await controller.getExecutiveDashboard(contextFrom(request), query);
+      return reply.status(200).send(dashboard);
+    });
+
+    protectedApp.get<{ Params: { entity: string } }>('/reports/export/:entity', async (request, reply) => {
+      const { entity } = request.params;
+      const query = request.query as any;
+      const csv = await controller.exportCsv(contextFrom(request), entity, query);
+      const filename = `crm_${entity}_${new Date().toISOString().split('T')[0]}.csv`;
+
+      return reply
+        .header('Content-Type', 'text/csv; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .send(csv);
+    });
   });
 }
+

@@ -113,8 +113,27 @@ export function createFakePrismaClient() {
         Object.assign(opportunity, data);
         return opportunity;
       },
-      findMany: async ({ where }: any = {}) =>
-        opportunities.filter((o) => !where?.tenantId || o.tenantId === where.tenantId)
+      findMany: async ({ where, include }: any = {}) => {
+        let items = opportunities.filter((o) => {
+          if (where?.tenantId && o.tenantId !== where.tenantId) return false;
+          if (where?.deletedAt === null && o.deletedAt) return false;
+          if (where?.assignedUserId && o.assignedUserId !== where.assignedUserId) return false;
+          if (where?.stage && o.stage !== where.stage) return false;
+          return true;
+        });
+        return items.map((o) => {
+          const res = { ...o };
+          if (include?.company) {
+            res.company = companies.find((c) => c.id === o.companyId) ?? null;
+          }
+          if (include?.communications) {
+            res.communications = communications.filter(
+              (c) => c.opportunityId === o.id && (include.communications?.where?.deletedAt === undefined || (include.communications.where.deletedAt === null && !c.deletedAt))
+            );
+          }
+          return res;
+        });
+      }
     },
 
     companyContact: {

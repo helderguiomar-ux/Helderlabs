@@ -3897,5 +3897,442 @@ Registo de documentos emitidos no seu software de faturação certificado. O Hel
 
     return result;
   }
+
+  // =========================================================================
+  // FASE B8 — PAINEL EXECUTIVO & RELATÓRIOS DO CRM COM GRÁFICOS SVG NATIVOS
+  // =========================================================================
+
+  public static sanitizeCsvCell(val: any): string {
+    if (val === null || val === undefined) return '';
+    let str = String(val).trim();
+    // Prevenção rigorosa contra CSV Formula Injection (Excel / LibreOffice / Google Sheets)
+    // Se o valor começa por '=', '+', '-', '@', '\t', '\r', prefixamos com plica/apóstrofo
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    if (/[",\n\r]/.test(str)) {
+      str = `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+
+  public async getExecutiveDashboard(filters?: {
+    from?: string | Date;
+    to?: string | Date;
+    assignedUserId?: string;
+  }) {
+    // 1. Oportunidades do tenant
+    const oppWhere: any = {
+      tenantId: this.tenantId,
+      deletedAt: null
+    };
+    if (filters?.assignedUserId) {
+      oppWhere.assignedUserId = filters.assignedUserId;
+    }
+    if (filters?.from || filters?.to) {
+      oppWhere.createdAt = {};
+      if (filters?.from) oppWhere.createdAt.gte = new Date(filters.from);
+      if (filters?.to) oppWhere.createdAt.lte = new Date(filters.to);
+    }
+
+    const opportunities = await this.db.opportunity.findMany({
+      where: oppWhere,
+      include: {
+        company: {
+          select: { id: true, tradeName: true, originSource: true }
+        },
+        communications: {
+          where: { deletedAt: null }
+        }
+      }
+    });
+
+    // Pipeline por estágio
+    const stages = ['QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST'];
+    const pipelineByStage: Record<string, { stage: string; count: number; totalValueCents: number; weightedValueCents: number }> = {};
+    for (const s of stages) {
+      pipelineByStage[s] = { stage: s, count: 0, totalValueCents: 0, weightedValueCents: 0 };
+    }
+
+    let wonCount = 0;
+    let lostCount = 0;
+    let totalWonCycleDays = 0;
+    const dealsWithoutNextStep: any[] = [];
+    const monthlyForecastMap: Record<string, { month: string; count: number; totalValueCents: number; weightedValueCents: number }> = {};
+    const leadSourceMap: Record<string, { source: string; count: number; totalValueCents: number }> = {};
+
+    for (const opp of opportunities) {
+      const valCents = Math.round(Number(opp.estimatedValue || 0) * 100);
+      const prob = Number(opp.probability ?? 0);
+      const weightedCents = Math.round((valCents * prob) / 100);
+
+      const stg = opp.stage || 'QUALIFICATION';
+      if (pipelineByStage[stg]) {
+        pipelineByStage[stg].count += 1;
+        pipelineByStage[stg].totalValueCents += valCents;
+        pipelineByStage[stg].weightedValueCents += weightedCents;
+      }
+
+      // Win rate e sales cycle
+      if (stg === 'WON') {
+        wonCount++;
+        const createdAtTime = new Date(opp.createdAt).getTime();
+        const updatedAtTime = new Date(opp.updatedAt || opp.createdAt).getTime();
+        const cycleDays = Math.max(0, Math.round((updatedAtTime - createdAtTime) / (1000 * 60 * 60 * 24)));
+        totalWonCycleDays += cycleDays;
+      } else if (stg === 'LOST') {
+        lostCount++;
+      } else {
+        // Negócios abertos: previsão mensal
+        const closeDate = opp.expectedCloseDate ? new Date(opp.expectedCloseDate) : new Date();
+        const monthKey = `${closeDate.getFullYear()}-${String(closeDate.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthlyForecastMap[monthKey]) {
+          monthlyForecastMap[monthKey] = { month: monthKey, count: 0, totalValueCents: 0, weightedValueCents: 0 };
+        }
+        monthlyForecastMap[monthKey].count += 1;
+        monthlyForecastMap[monthKey].totalValueCents += valCents;
+        monthlyForecastMap[monthKey].weightedValueCents += weightedCents;
+
+        // Deteção de negócio sem próximo passo:
+        // Não possui nenhuma comunicação pendente agendada
+        const hasPendingTask = (opp.communications || []).some((c: any) => c.status === 'PENDING');
+        if (!hasPendingTask) {
+          dealsWithoutNextStep.push({
+            id: opp.id,
+            title: opp.title,
+            companyName: opp.company?.tradeName || 'Sem empresa',
+            stage: opp.stage,
+            valueCents: valCents,
+            expectedCloseDate: opp.expectedCloseDate
+          });
+        }
+      }
+
+      // Origem do cliente / lead
+      const origin = opp.company?.originSource || 'OUTRO';
+      if (!leadSourceMap[origin]) {
+        leadSourceMap[origin] = { source: origin, count: 0, totalValueCents: 0 };
+      }
+      leadSourceMap[origin].count += 1;
+      leadSourceMap[origin].totalValueCents += valCents;
+    }
+
+    const closedTotal = wonCount + lostCount;
+    const winRatePercent = closedTotal > 0 ? Math.round((wonCount / closedTotal) * 1000) / 10 : 0;
+    const avgSalesCycleDays = wonCount > 0 ? Math.round((totalWonCycleDays / wonCount) * 10) / 10 : 0;
+
+    const monthlyForecast = Object.values(monthlyForecastMap).sort((a, b) => a.month.localeCompare(b.month)).slice(0, 6);
+    const leadSources = Object.values(leadSourceMap).sort((a, b) => b.totalValueCents - a.totalValueCents);
+
+    // 2. Métricas de Propostas
+    const proposals = await this.db.proposal.findMany({
+      where: { tenantId: this.tenantId, deletedAt: null },
+      select: { id: true, status: true, totalCents: true, acceptedAt: true, rejectedAt: true }
+    });
+
+    const totalProposalsCount = proposals.length;
+    let acceptedProposalsCount = 0;
+    let rejectedProposalsCount = 0;
+    let sentProposalsCount = 0;
+    let draftProposalsCount = 0;
+    let totalProposalVolumeCents = 0;
+    let acceptedProposalVolumeCents = 0;
+
+    for (const p of proposals) {
+      totalProposalVolumeCents += p.totalCents;
+      if (p.status === 'ACCEPTED') {
+        acceptedProposalsCount++;
+        acceptedProposalVolumeCents += p.totalCents;
+      } else if (p.status === 'REJECTED') {
+        rejectedProposalsCount++;
+      } else if (p.status === 'SENT') {
+        sentProposalsCount++;
+      } else if (p.status === 'DRAFT') {
+        draftProposalsCount++;
+      }
+    }
+
+    const proposalDecisionTotal = acceptedProposalsCount + rejectedProposalsCount;
+    const proposalAcceptanceRatePercent = proposalDecisionTotal > 0
+      ? Math.round((acceptedProposalsCount / proposalDecisionTotal) * 1000) / 10
+      : 0;
+
+    // 3. Tarefas & Follow-ups
+    const activities = await this.db.communication.findMany({
+      where: { tenantId: this.tenantId, deletedAt: null, status: 'PENDING' },
+      select: { id: true, dueDate: true, priority: true }
+    });
+
+    let overdueTasksCount = 0;
+    let todayTasksCount = 0;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    for (const act of activities) {
+      if (act.dueDate) {
+        const d = new Date(act.dueDate);
+        if (d < startOfToday) {
+          overdueTasksCount++;
+        } else if (d <= endOfToday) {
+          todayTasksCount++;
+        }
+      }
+    }
+
+    // 4. Posição Financeira da Conta Corrente (B7)
+    const accountSummary = await this.getGlobalAccountSummary();
+
+    return {
+      pipeline: {
+        stages: Object.values(pipelineByStage),
+        totalOpenValueCents:
+          pipelineByStage.QUALIFICATION.totalValueCents +
+          pipelineByStage.PROPOSAL.totalValueCents +
+          pipelineByStage.NEGOTIATION.totalValueCents,
+        totalWeightedValueCents:
+          pipelineByStage.QUALIFICATION.weightedValueCents +
+          pipelineByStage.PROPOSAL.weightedValueCents +
+          pipelineByStage.NEGOTIATION.weightedValueCents
+      },
+      efficiency: {
+        wonCount,
+        lostCount,
+        winRatePercent,
+        avgSalesCycleDays
+      },
+      forecast: monthlyForecast,
+      leadSources,
+      proposals: {
+        totalCount: totalProposalsCount,
+        draftCount: draftProposalsCount,
+        sentCount: sentProposalsCount,
+        acceptedCount: acceptedProposalsCount,
+        rejectedCount: rejectedProposalsCount,
+        acceptanceRatePercent: proposalAcceptanceRatePercent,
+        totalVolumeCents: totalProposalVolumeCents,
+        acceptedVolumeCents: acceptedProposalVolumeCents
+      },
+      tasks: {
+        pendingCount: activities.length,
+        overdueCount: overdueTasksCount,
+        todayCount: todayTasksCount
+      },
+      account: {
+        totalReceivableCents: accountSummary.totalReceivableCents,
+        totalOverdueCents: accountSummary.totalOverdueCents,
+        debtorsCount: accountSummary.companiesWithDebtCount,
+        criticalCount: accountSummary.companiesOverdueCount
+      },
+      dealsWithoutNextStep: {
+        count: dealsWithoutNextStep.length,
+        items: dealsWithoutNextStep.slice(0, 10)
+      }
+    };
+  }
+
+  public async exportCompaniesCsv(filters?: any): Promise<string> {
+    const where: any = { tenantId: this.tenantId, deletedAt: null };
+    if (filters?.status) where.status = filters.status;
+
+    const companies = await this.db.company.findMany({
+      where,
+      orderBy: { tradeName: 'asc' }
+    });
+
+    const headers = [
+      'ID',
+      'Nome Comercial',
+      'Firma Juridica',
+      'NIF',
+      'Estado',
+      'Pais',
+      'Cidade',
+      'Email',
+      'Telefone',
+      'Setor',
+      'Origem',
+      'Data Criacao'
+    ];
+
+    const rows = companies.map((c: any) => [
+      c.id,
+      c.tradeName,
+      c.legalName || '',
+      c.taxNumber || '',
+      c.status,
+      c.country || 'Portugal',
+      c.city || '',
+      c.email || '',
+      c.phone || '',
+      c.sector || '',
+      c.originSource || '',
+      c.createdAt ? new Date(c.createdAt).toISOString() : ''
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map((r: any[]) => r.map((cell) => EnterpriseCRMService.sanitizeCsvCell(cell)).join(';'))
+    ].join('\r\n');
+
+    return '\uFEFF' + csvContent; // UTF-8 BOM para compatibilidade com Excel
+  }
+
+  public async exportDealsCsv(filters?: any): Promise<string> {
+    const where: any = { tenantId: this.tenantId, deletedAt: null };
+    if (filters?.stage) where.stage = filters.stage;
+
+    const opportunities = await this.db.opportunity.findMany({
+      where,
+      include: {
+        company: { select: { tradeName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const headers = [
+      'ID',
+      'Titulo Negocio',
+      'Empresa',
+      'Estagio',
+      'Valor Estimado (EUR)',
+      'Probabilidade (%)',
+      'Valor Ponderado (EUR)',
+      'Data Esperada Fecho',
+      'Motivo Perda',
+      'Data Criacao'
+    ];
+
+    const rows = opportunities.map((o: any) => {
+      const valEur = Number(o.estimatedValue || 0).toFixed(2);
+      const prob = Number(o.probability || 0);
+      const weightedEur = (Number(o.estimatedValue || 0) * (prob / 100)).toFixed(2);
+      return [
+        o.id,
+        o.title,
+        o.company?.tradeName || '',
+        o.stage,
+        valEur,
+        prob,
+        weightedEur,
+        o.expectedCloseDate ? new Date(o.expectedCloseDate).toISOString().split('T')[0] : '',
+        o.lostReason || '',
+        o.createdAt ? new Date(o.createdAt).toISOString() : ''
+      ];
+    });
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map((r: any[]) => r.map((cell) => EnterpriseCRMService.sanitizeCsvCell(cell)).join(';'))
+    ].join('\r\n');
+
+    return '\uFEFF' + csvContent;
+  }
+
+  public async exportProposalsCsv(filters?: any): Promise<string> {
+    const where: any = { tenantId: this.tenantId, deletedAt: null };
+    if (filters?.status) where.status = filters.status;
+
+    const proposals = await this.db.proposal.findMany({
+      where,
+      include: {
+        company: { select: { tradeName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const headers = [
+      'ID',
+      'Numero Proposta',
+      'Titulo',
+      'Empresa',
+      'Estado',
+      'Data Emissao',
+      'Validade',
+      'Subtotal (EUR)',
+      'IVA (EUR)',
+      'Total (EUR)',
+      'Data Envio',
+      'Data Aceitacao'
+    ];
+
+    const rows = proposals.map((p: any) => [
+      p.id,
+      p.proposalNumber,
+      p.title,
+      p.company?.tradeName || '',
+      p.status,
+      p.issueDate ? new Date(p.issueDate).toISOString().split('T')[0] : '',
+      p.validUntil ? new Date(p.validUntil).toISOString().split('T')[0] : '',
+      (p.subtotalCents / 100).toFixed(2),
+      (p.vatCents / 100).toFixed(2),
+      (p.totalCents / 100).toFixed(2),
+      p.sentAt ? new Date(p.sentAt).toISOString() : '',
+      p.acceptedAt ? new Date(p.acceptedAt).toISOString() : ''
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map((r: any[]) => r.map((cell) => EnterpriseCRMService.sanitizeCsvCell(cell)).join(';'))
+    ].join('\r\n');
+
+    return '\uFEFF' + csvContent;
+  }
+
+  public async exportAccountEntriesCsv(filters?: any): Promise<string> {
+    const where: any = { tenantId: this.tenantId };
+    if (filters?.companyId) where.companyId = filters.companyId;
+
+    const entries = await this.db.crmAccountEntry.findMany({
+      where,
+      include: {
+        company: { select: { tradeName: true, taxNumber: true } }
+      },
+      orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }]
+    });
+
+    const headers = [
+      'ID',
+      'Data Movimento',
+      'Empresa',
+      'NIF',
+      'Tipo',
+      'Doc Externo Faturacao',
+      'Data Vencimento',
+      'Montante (EUR)',
+      'Metodo Pagamento',
+      'Referencia',
+      'Estornado',
+      'Data Estorno',
+      'Notas',
+      'Aviso Legal'
+    ];
+
+    const rows = entries.map((e: any) => [
+      e.id,
+      e.entryDate ? new Date(e.entryDate).toISOString().split('T')[0] : '',
+      e.company?.tradeName || '',
+      e.company?.taxNumber || '',
+      e.type,
+      e.externalDocumentNumber || '',
+      e.dueDate ? new Date(e.dueDate).toISOString().split('T')[0] : '',
+      (e.amountCents / 100).toFixed(2),
+      e.method || '',
+      e.reference || '',
+      e.isReversed ? 'SIM' : 'NAO',
+      e.reversedAt ? new Date(e.reversedAt).toISOString() : '',
+      e.notes || '',
+      'Registo informativo de software de faturacao certificado. O HelderLabs CRM nao emite faturas.'
+    ]);
+
+    const csvContent = [
+      headers.join(';'),
+      ...rows.map((r: any[]) => r.map((cell) => EnterpriseCRMService.sanitizeCsvCell(cell)).join(';'))
+    ].join('\r\n');
+
+    return '\uFEFF' + csvContent;
+  }
 }
+
 

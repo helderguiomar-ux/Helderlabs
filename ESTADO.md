@@ -1,9 +1,9 @@
 # ESTADO DO PROJETO — HELDERLABS ERP
 
 > **Ficheiro de Atualização Obrigatória a cada Sessão de Trabalho**
-> Última atualização: 2026-09-13 21:58 (WEST) · Responsável: `[antigravity]`
-> Versão: **v1.5.0 — Estabilização Integral da Plataforma, Resolução de Criação de Serviços no Tenant (P2022), Indicador Visual Proeminente de Tenant Ativo, Sistema de Backup e Auditor de Saúde da Base de Dados.**
-> Testes: **205 / 205 testes verdes (100% de sucesso).**
+> Última atualização: 2026-10-09 02:25 (WEST) · Responsável: `[antigravity]`
+> Versão: **v1.6.5 — CRM HelderLabs Enterprise: Fases B1 a B5 (Isolamento & Segurança, Pipeline & Oportunidades, Atividades & Cronologia 360º, Propostas & Orçamentos A4 com Envio de Email, Contratos de Avença, SLA e Renovações Automáticas).**
+> Testes: **79 / 79 testes CRM e Mail verdes (100% de sucesso). Suite de build de produção verificada.**
 
 ---
 
@@ -24,7 +24,7 @@
 | **Plataforma Core / Auth** | `ATIVO` | Login JWT + OTP, Reativação, Alteração de Password, Impersonation, Multi-tenant isolation |
 | **Super Admin** | `ATIVO` | Gestão de Tenants, Pedidos de Conta, Atribuição de Licenças, Audit Logs com SHA-256 |
 | **Finanças & Tesouraria** | `ATIVO` | Receitas/Despesas (*Cents), Orçamentos, Cash Flow, Relatórios P&L / Balanço, SAF-T (PT) |
-| **CRM & Empresas 360** | `ATIVO` | Leads, Oportunidades, Fichas de Empresa 360 com NIF, contactos e histórico integrado |
+| **CRM & Empresas 360** | `ATIVO` | Fases B1 a B5: Leads, Negócios, Pipeline Kanban, Atividades, Cronologia 360º, Propostas/Orçamentos A4 com envio de email, Contratos de Avença com SLA, MRR/ARR e renovações automáticas |
 | **HCCALL Telecom** (`hccall`) | `ATIVO` | PWA mobile-first, registo <20s, snapshot imutável de comissões, offline-first IndexedDB e RGPD |
 | **2SELLMAIS** (`sellmais`) | `ATIVO` | Inventário de velharias/antiguidades, atributos JSONB, máquina de estados estrita, custos materializados, consignações, leilões concorrentes e catálogo público SSR |
 | **Condomínios** | `EM_CONSTRUÇÃO` | Estrutura de Edifícios e Frações (em desenvolvimento) |
@@ -46,6 +46,6 @@
 ---
 
 ## 🎯 4. Próximos Passos Prioritários
-1. Implementar importação de ficheiros bancários (OFX / QIF) na Reconciliação Bancária.
-2. Implementar importação de contactos CSV no módulo CRM.
-3. Adicionar avisos de cobrança automatizados de quotas no módulo de Condomínios.
+1. **CRM Fase B6**: Gestão de Documentos do Cliente, Upload, Categorização e Controlo de Validades / Caducidade.
+2. **CRM Fase B7**: Painel Executivo do CRM com Gráficos SVG Nativos (Funil de Vendas, Receita Ponderada e Métricas de Conversão).
+3. **CRM Fase B8**: Matriz Granular de Permissões RBAC (`crm.*`) e Auditoria Rigorosa de Ações Comerciais.

@@ -68,6 +68,43 @@ const createLeadSchema = z
   })
   .strict();
 
+const activityTypeEnum = z.enum(['task', 'call', 'meeting', 'email', 'note', 'whatsapp']);
+const activityStatusEnum = z.enum(['PENDING', 'COMPLETED', 'CANCELLED']);
+const activityPriorityEnum = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
+
+const createActivitySchema = z
+  .object({
+    type: activityTypeEnum.optional().default('task'),
+    subject: z.string().trim().min(1, 'Assunto é obrigatório.'),
+    content: z.string().optional().nullable(),
+    status: activityStatusEnum.optional(),
+    dueDate: z.string().optional().nullable(),
+    priority: activityPriorityEnum.optional().default('NORMAL'),
+    occurredAt: z.string().optional().nullable(),
+    companyId: z.string().optional().nullable(),
+    contactId: z.string().optional().nullable(),
+    opportunityId: z.string().optional().nullable(),
+    leadId: z.string().optional().nullable()
+  })
+  .strict();
+
+const updateActivitySchema = z
+  .object({
+    type: activityTypeEnum.optional(),
+    subject: z.string().trim().min(1).optional(),
+    content: z.string().optional().nullable(),
+    status: activityStatusEnum.optional(),
+    dueDate: z.string().optional().nullable(),
+    priority: activityPriorityEnum.optional()
+  })
+  .strict();
+
+const completeActivitySchema = z
+  .object({
+    notes: z.string().trim().optional().nullable()
+  })
+  .strict();
+
 const companyBaseShape = {
   tradeName: z.string().trim().min(1, 'Nome Comercial é obrigatório'),
   legalName: z.string().trim().optional().nullable(),
@@ -206,11 +243,15 @@ const listCompaniesQuerySchema = z
   })
   .strict();
 
-function contextFrom(request: { user?: { tenantId: string }; db?: unknown }): CRMRequestContext {
+function contextFrom(request: { user?: { tenantId: string; sub?: string; id?: string }; db?: unknown }): CRMRequestContext {
   if (!request.user || !request.db) {
     throw new Error('Rota CRM chamada sem autenticação — falta o preHandler app.authenticate.');
   }
-  return { tenantId: request.user.tenantId, db: request.db as CRMRequestContext['db'] };
+  return {
+    tenantId: request.user.tenantId,
+    userId: request.user.sub || request.user.id,
+    db: request.db as CRMRequestContext['db']
+  };
 }
 
 export async function crmRoutes(app: FastifyInstance) {
@@ -466,6 +507,57 @@ export async function crmRoutes(app: FastifyInstance) {
     protectedApp.get('/dashboard', async (request, reply) => {
       const metrics = await controller.dashboardMetrics(contextFrom(request));
       return reply.status(200).send(metrics);
+    });
+
+    // =========================================================================
+    // ATIVIDADES, TAREFAS & TIMELINE CRONOLÓGICA (FASE B3)
+    // =========================================================================
+
+    protectedApp.get('/activities', async (request, reply) => {
+      const query = request.query as any;
+      const filters = {
+        companyId: query.companyId || undefined,
+        opportunityId: query.opportunityId || undefined,
+        contactId: query.contactId || undefined,
+        leadId: query.leadId || undefined,
+        status: query.status || undefined,
+        type: query.type || undefined,
+        overdueOnly: query.overdueOnly === 'true' || query.overdueOnly === true,
+        limit: query.limit ? parseInt(query.limit, 10) : undefined
+      };
+      const activities = await controller.listActivities(contextFrom(request), filters);
+      return reply.status(200).send(activities);
+    });
+
+    protectedApp.get('/activities/pending', async (request, reply) => {
+      const pendingSummary = await controller.getPendingActivities(contextFrom(request));
+      return reply.status(200).send(pendingSummary);
+    });
+
+    protectedApp.post('/activities', async (request, reply) => {
+      const data = createActivitySchema.parse(request.body);
+      const activity = await controller.createActivity(contextFrom(request), data);
+      return reply.status(201).send({ success: true, activity, message: 'Atividade registada com sucesso!' });
+    });
+
+    protectedApp.patch<{ Params: { id: string } }>('/activities/:id/complete', async (request, reply) => {
+      const { id } = request.params;
+      const body = completeActivitySchema.parse(request.body || {});
+      const activity = await controller.completeActivity(contextFrom(request), id, body.notes ?? undefined);
+      return reply.status(200).send({ success: true, activity, message: 'Atividade concluída!' });
+    });
+
+    protectedApp.put<{ Params: { id: string } }>('/activities/:id', async (request, reply) => {
+      const { id } = request.params;
+      const data = updateActivitySchema.parse(request.body);
+      const activity = await controller.updateActivity(contextFrom(request), id, data);
+      return reply.status(200).send({ success: true, activity, message: 'Atividade atualizada!' });
+    });
+
+    protectedApp.delete<{ Params: { id: string } }>('/activities/:id', async (request, reply) => {
+      const { id } = request.params;
+      await controller.deleteActivity(contextFrom(request), id);
+      return reply.status(204).send();
     });
   });
 }

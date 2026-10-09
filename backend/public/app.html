@@ -210,6 +210,9 @@
         <button class="crm-subnav-btn" id="crm-btn-subview-leads" onclick="window.CRMModule.switchCRMView('leads')">
           Leads & Prospeção
         </button>
+        <button class="crm-subnav-btn" id="crm-btn-subview-activities" onclick="window.CRMModule.switchCRMView('activities')">
+          Atividades & Follow-ups
+        </button>
       </div>
 
       <!-- VISTA 1: EMPRESAS 360º -->
@@ -277,6 +280,20 @@
           </div>
         </div>
         <div id="crm-leads-container"></div>
+      </div>
+
+      <!-- VISTA 4: ATIVIDADES & FOLLOW-UPS (FASE B3) -->
+      <div id="crm-view-activities" style="display: none;">
+        <div class="toolbar" style="margin-bottom: 16px;">
+          <div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Atividades, Follow-ups & Histórico Comercial 360º</h2>
+            <span class="kpi-subtext">Registo cronológico unificado de tarefas, chamadas, reuniões, emails e notas</span>
+          </div>
+          <div class="toolbar-group">
+            <button class="btn btn-primary" onclick="window.CRMActivitiesModule.openCreateModal()">+ Registar Atividade</button>
+          </div>
+        </div>
+        <div id="crm-activities-container"></div>
       </div>
     </div>
 
@@ -936,6 +953,76 @@
     </div>
   </div>
 
+  <!-- Modal Nova Atividade Comercial & Follow-up (Fase B3) -->
+  <div id="modal-create-activity" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Registar Atividade / Follow-up Comercial</h3>
+        <button class="btn btn-sm" onclick="window.CRMActivitiesModule.closeModal('modal-create-activity')">Fechar</button>
+      </div>
+      <form id="form-create-activity" onsubmit="window.CRMActivitiesModule.submitCreateActivity(event)">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Tipo de Atividade *</label>
+              <select name="type" required style="width: 100%;">
+                <option value="task">⏰ Tarefa / To-Do</option>
+                <option value="call">📞 Chamada Telefónica</option>
+                <option value="meeting">📅 Reunião</option>
+                <option value="email">✉️ Email Enviado / Recebido</option>
+                <option value="note">📝 Nota Comercial</option>
+                <option value="whatsapp">💬 WhatsApp / Mensagem</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Prioridade *</label>
+              <select name="priority" required style="width: 100%;">
+                <option value="NORMAL" selected>Normal</option>
+                <option value="HIGH">Alta</option>
+                <option value="URGENT">Urgente</option>
+                <option value="LOW">Baixa</option>
+              </select>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Assunto / Título *</label>
+              <input type="text" name="subject" required placeholder="Ex.: Agendar demonstração de produto">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data e Hora Prevista</label>
+              <input type="datetime-local" id="activity-due-date" name="dueDate">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Empresa Associada</label>
+              <select id="activity-company-select" name="companyId" onchange="window.CRMActivitiesModule.onCompanySelected(this.value)" style="width: 100%;">
+                <option value="">— Nenhuma / Geral —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Oportunidade (Negócio)</label>
+              <select id="activity-opportunity-select" name="opportunityId" style="width: 100%;">
+                <option value="">— Sem oportunidade —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pessoa de Contacto</label>
+              <select id="activity-contact-select" name="contactId" style="width: 100%;">
+                <option value="">— Sem contacto —</option>
+              </select>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Descrição / Notas da Interação</label>
+              <textarea name="content" rows="4" placeholder="Detalhes da chamada, ata resumida da reunião, próximos passos combinados..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMActivitiesModule.closeModal('modal-create-activity')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Gravar Atividade</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal Diff de Auditoria -->
   <div id="modal-audit-diff" class="modal-overlay">
     <div class="modal-content" style="max-width: 720px;">
@@ -1132,12 +1219,13 @@
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
-  <script src="/assets/js/crm/crm-core.js?v=1.6.2"></script>
-  <script src="/assets/js/crm/crm-companies.js?v=1.6.2"></script>
-  <script src="/assets/js/crm/crm-contacts.js?v=1.6.2"></script>
-  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.2"></script>
-  <script src="/assets/js/crm/crm-leads.js?v=1.6.2"></script>
-  <script src="/assets/js/crm.js?v=1.6.2"></script>
+  <script src="/assets/js/crm/crm-core.js?v=1.6.3"></script>
+  <script src="/assets/js/crm/crm-companies.js?v=1.6.3"></script>
+  <script src="/assets/js/crm/crm-contacts.js?v=1.6.3"></script>
+  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.3"></script>
+  <script src="/assets/js/crm/crm-leads.js?v=1.6.3"></script>
+  <script src="/assets/js/crm/crm-activities.js?v=1.6.3"></script>
+  <script src="/assets/js/crm.js?v=1.6.3"></script>
   <script src="/assets/js/audit.js"></script>
   <script src="/assets/js/sellmais.js"></script>
   <script src="/assets/js/email-settings.js?v=1.6.0"></script>

@@ -3,6 +3,7 @@ import { EnterpriseCRMService } from '../services/EnterpriseCRMService';
 
 export interface CRMRequestContext {
   tenantId: string;
+  userId?: string;
   db: TenantScopedPrismaClient;
 }
 
@@ -174,5 +175,36 @@ export class CRMController {
 
   async listCustomers(context: CRMRequestContext) {
     return serviceFor(context).listCustomers();
+  }
+
+  // =========================================================================
+  // ATIVIDADES, TAREFAS & TIMELINE (FASE B3)
+  // =========================================================================
+
+  async listActivities(context: CRMRequestContext, filters?: any) {
+    return serviceFor(context).listActivities(filters);
+  }
+
+  async getPendingActivities(context: CRMRequestContext) {
+    return serviceFor(context).getPendingActivitiesSummary();
+  }
+
+  async createActivity(context: CRMRequestContext, data: any) {
+    return serviceFor(context).createActivity({
+      ...data,
+      createdByUserId: context.userId
+    });
+  }
+
+  async completeActivity(context: CRMRequestContext, id: string, notes?: string) {
+    return serviceFor(context).completeActivity(id, notes);
+  }
+
+  async updateActivity(context: CRMRequestContext, id: string, data: any) {
+    return serviceFor(context).updateActivity(id, data);
+  }
+
+  async deleteActivity(context: CRMRequestContext, id: string) {
+    return serviceFor(context).deleteActivity(id);
   }
 }

@@ -241,6 +241,7 @@ model Company {
   leads         Lead[]
   customers     Customer[]
   opportunities Opportunity[]
+  communications Communication[]
 
   @@index([tenantId])
   @@index([status])
@@ -271,6 +272,7 @@ model CompanyContact {
   updatedAt    DateTime  @updatedAt
 
   opportunities Opportunity[]
+  communications Communication[]
 
   @@index([companyId])
   @@map("crm_company_contacts")
@@ -432,6 +434,8 @@ model Opportunity {
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
+  communications     Communication[]
+
   @@index([tenantId])
   @@index([stage])
   @@index([companyId])
@@ -481,24 +485,40 @@ model Contact {
 }
 
 model Communication {
-  id              String    @id @default(cuid())
+  id              String          @id @default(cuid())
   tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
   leadId          String?
-  lead            Lead?     @relation(fields: [leadId], references: [id])
+  lead            Lead?           @relation(fields: [leadId], references: [id])
   customerId      String?
-  customer        Customer? @relation(fields: [customerId], references: [id])
-  type            String // email | call | meeting | whatsapp | note
+  customer        Customer?       @relation(fields: [customerId], references: [id])
+  companyId       String?
+  company         Company?        @relation(fields: [companyId], references: [id])
+  contactId       String?
+  contact         CompanyContact? @relation(fields: [contactId], references: [id])
+  opportunityId   String?
+  opportunity     Opportunity?    @relation(fields: [opportunityId], references: [id])
+  type            String          // email | call | meeting | whatsapp | note | task
   subject         String?
   content         String?
-  occurredAt      DateTime  @default(now())
+  status          String          @default("COMPLETED") // PENDING | COMPLETED | CANCELLED
+  dueDate         DateTime?
+  completedAt     DateTime?
+  priority        String?         @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  occurredAt      DateTime        @default(now())
   createdByUserId String?
   deletedAt       DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime        @default(now())
 
   @@index([tenantId])
   @@index([leadId])
   @@index([customerId])
+  @@index([companyId])
+  @@index([contactId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([deletedAt])
   @@map("communications")
 }
 

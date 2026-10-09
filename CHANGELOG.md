@@ -2,6 +2,23 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.3] - 2026-10-09
+
+### CRM Fase B3 — Atividades Comerciais, Histórico 360º e Follow-ups
+- **Histórico Comercial Unificado & Tipos de Atividades**: Registo de tarefas (`task`), chamadas telefónicas (`call`), reuniões (`meeting`), emails (`email`), notas comerciais (`note`) e mensagens WhatsApp (`whatsapp`).
+- **Gestão de Follow-ups e Alerta de Atraso**: Deteção automática e contadores em tempo real de tarefas pendentes, atrasadas (`dueDate < now`), agendadas para hoje e próximas, com sinalização visual de alerta.
+- **Timeline Cronológica 360º**:
+  - Nova sub-vista *Atividades & Follow-ups* no painel CRM com filtros por estado, tipo e atraso.
+  - Integração da Timeline na Ficha 360º de Empresa (`#company-detail-modal`) no separador *Atividades & Histórico*, permitindo consulta e registo de novas ações diretamente na empresa.
+  - Integração do separador *Oportunidades* na Ficha 360º com tabela de negócios associados.
+- **Ações Rápidas de Produtividade**: Conclusão de atividades com 1 clique (`PATCH /api/crm/activities/:id/complete`) com apêndice opcional de notas de conclusão, e exclusão com soft-delete (`DELETE /api/crm/activities/:id`).
+- **Modelo de Dados (Migração `20261009030000_crm_b3_activities`)**:
+  - Extensão do modelo `Communication` com colunas `companyId`, `contactId`, `opportunityId`, `status`, `dueDate`, `completedAt` e `priority`.
+  - Índices dedicados para `companyId`, `contactId`, `opportunityId`, `status`, `dueDate` e `deletedAt`.
+  - Relações bidirecionais com `Company`, `CompanyContact` e `Opportunity`.
+- **Auditoria Transversal**: Ações `CREATE_ACTIVITY`, `COMPLETE_ACTIVITY`, `UPDATE_ACTIVITY` e `DELETE_ACTIVITY` auditadas com SHA-256 no módulo CRM.
+- **Testes Automatizados**: Suite `tests/crm/crm-b3-activities.test.ts` com 6 novos testes unitários e de integração (38 testes CRM no total, 65 testes com 100% de aprovação conjunta com o módulo de email).
+
 ## [v1.6.2] - 2026-10-09
 
 ### CRM Fase B2 — Pipeline Comercial, Funil de Vendas (Kanban) e Oportunidades

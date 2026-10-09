@@ -110,6 +110,17 @@ export class EnterpriseCRMService {
     return opp;
   }
 
+  public async assertActivityOwned(activityId: string) {
+    const activity = await this.db.communication.findFirst({
+      where: { id: activityId, tenantId: this.tenantId, deletedAt: null },
+      include: { company: true, contact: true, opportunity: true, lead: true }
+    });
+    if (!activity) {
+      throw notFound('Atividade não encontrada.');
+    }
+    return activity;
+  }
+
   // =========================================================================
   // CÁLCULO DE COMPLETUDE DA FICHA 360º
   // =========================================================================
@@ -250,6 +261,16 @@ export class EnterpriseCRMService {
         fromRelations: { where: { deletedAt: null }, include: { toCompany: true } },
         toRelations: { where: { deletedAt: null }, include: { fromCompany: true } },
         transactions: { where: { deletedAt: null }, orderBy: { dueDate: 'desc' }, take: 20 },
+        opportunities: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 20 },
+        communications: {
+          where: { deletedAt: null },
+          orderBy: { occurredAt: 'desc' },
+          take: 50,
+          include: {
+            contact: { select: { id: true, name: true, email: true, phone: true } },
+            opportunity: { select: { id: true, title: true, stage: true } }
+          }
+        },
         assignedUser: { select: { id: true, name: true, email: true } }
       }
     });
@@ -1296,5 +1317,272 @@ export class EnterpriseCRMService {
       conversionRate,
       leadsBySource
     };
+  }
+
+  // =========================================================================
+  // ATIVIDADES, TAREFAS & TIMELINE CRONOLÓGICA 360º (FASE B3)
+  // =========================================================================
+
+  public async listActivities(filters?: {
+    companyId?: string;
+    opportunityId?: string;
+    contactId?: string;
+    leadId?: string;
+    status?: string;
+    type?: string;
+    overdueOnly?: boolean;
+    limit?: number;
+  }) {
+    const now = new Date();
+    const where: any = {
+      tenantId: this.tenantId,
+      deletedAt: null
+    };
+
+    if (filters?.companyId) where.companyId = filters.companyId;
+    if (filters?.opportunityId) where.opportunityId = filters.opportunityId;
+    if (filters?.contactId) where.contactId = filters.contactId;
+    if (filters?.leadId) where.leadId = filters.leadId;
+    if (filters?.status) where.status = filters.status;
+    if (filters?.type) where.type = filters.type;
+
+    if (filters?.overdueOnly) {
+      where.status = 'PENDING';
+      where.dueDate = { lt: now };
+    }
+
+    const limit = Math.min(filters?.limit ?? 100, 200);
+
+    const items = await this.db.communication.findMany({
+      where,
+      include: {
+        company: { select: { id: true, tradeName: true } },
+        contact: { select: { id: true, name: true, email: true, phone: true } },
+        opportunity: { select: { id: true, title: true, stage: true, estimatedValue: true } },
+        lead: { select: { id: true, name: true, company: true } }
+      },
+      orderBy: filters?.status === 'PENDING' || filters?.overdueOnly
+        ? [{ dueDate: 'asc' }, { createdAt: 'desc' }]
+        : [{ occurredAt: 'desc' }, { createdAt: 'desc' }],
+      take: limit
+    });
+
+    return items.map((item: any) => {
+      const isOverdue = item.status === 'PENDING' && item.dueDate && new Date(item.dueDate) < now;
+      return {
+        ...item,
+        isOverdue: !!isOverdue
+      };
+    });
+  }
+
+  public async getPendingActivitiesSummary() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const activities = await this.db.communication.findMany({
+      where: {
+        tenantId: this.tenantId,
+        status: 'PENDING',
+        deletedAt: null
+      },
+      include: {
+        company: { select: { id: true, tradeName: true } },
+        contact: { select: { id: true, name: true, email: true } },
+        opportunity: { select: { id: true, title: true, stage: true } }
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 50
+    });
+
+    let overdueCount = 0;
+    let dueTodayCount = 0;
+    let upcomingCount = 0;
+
+    const mapped = activities.map((item: any) => {
+      const isOverdue = item.dueDate && new Date(item.dueDate) < now;
+      const isToday = item.dueDate && new Date(item.dueDate) >= todayStart && new Date(item.dueDate) <= todayEnd;
+
+      if (isOverdue) overdueCount += 1;
+      if (isToday) dueTodayCount += 1;
+      if (item.dueDate && new Date(item.dueDate) > todayEnd) upcomingCount += 1;
+
+      return {
+        ...item,
+        isOverdue: !!isOverdue,
+        isToday: !!isToday
+      };
+    });
+
+    return {
+      totalPending: activities.length,
+      overdueCount,
+      dueTodayCount,
+      upcomingCount,
+      activities: mapped
+    };
+  }
+
+  public async createActivity(data: {
+    type: string;
+    subject: string;
+    content?: string | null;
+    status?: string;
+    dueDate?: string | Date | null;
+    priority?: string | null;
+    occurredAt?: string | Date | null;
+    companyId?: string | null;
+    contactId?: string | null;
+    opportunityId?: string | null;
+    leadId?: string | null;
+    createdByUserId?: string | null;
+  }) {
+    if (data.companyId) {
+      await this.assertCompanyOwned(data.companyId);
+    }
+    if (data.contactId) {
+      await this.assertContactOwned(data.contactId);
+    }
+    if (data.opportunityId) {
+      const opp = await this.assertOpportunityOwned(data.opportunityId);
+      if (!data.companyId && opp.companyId) {
+        data.companyId = opp.companyId;
+      }
+    }
+    if (data.leadId) {
+      await this.assertLeadOwned(data.leadId);
+    }
+
+    const defaultStatus = data.status || (data.dueDate && new Date(data.dueDate) > new Date() ? 'PENDING' : 'COMPLETED');
+
+    const activity = await this.db.communication.create({
+      data: {
+        tenantId: this.tenantId,
+        type: data.type || 'task',
+        subject: data.subject,
+        content: data.content || null,
+        status: defaultStatus,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        priority: data.priority || 'NORMAL',
+        occurredAt: data.occurredAt ? new Date(data.occurredAt) : new Date(),
+        companyId: data.companyId || null,
+        contactId: data.contactId || null,
+        opportunityId: data.opportunityId || null,
+        leadId: data.leadId || null,
+        createdByUserId: data.createdByUserId || null
+      },
+      include: {
+        company: { select: { id: true, tradeName: true } },
+        contact: { select: { id: true, name: true } },
+        opportunity: { select: { id: true, title: true } }
+      }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'CREATE_ACTIVITY',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'communication',
+      description: `Atividade registada: ${data.subject} (${data.type})`
+    });
+
+    return activity;
+  }
+
+  public async completeActivity(id: string, notes?: string) {
+    const activity = await this.assertActivityOwned(id);
+
+    let updatedContent = activity.content;
+    if (notes && notes.trim()) {
+      const nowStr = new Date().toLocaleString('pt-PT');
+      updatedContent = activity.content
+        ? `${activity.content}\n\n[Conclusão em ${nowStr}]: ${notes.trim()}`
+        : `[Conclusão em ${nowStr}]: ${notes.trim()}`;
+    }
+
+    const updated = await this.db.communication.update({
+      where: { id },
+      data: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        content: updatedContent
+      },
+      include: {
+        company: { select: { id: true, tradeName: true } },
+        contact: { select: { id: true, name: true } },
+        opportunity: { select: { id: true, title: true } }
+      }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'COMPLETE_ACTIVITY',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'communication',
+      description: `Atividade concluída: ${activity.subject}`
+    });
+
+    return updated;
+  }
+
+  public async updateActivity(id: string, data: any) {
+    const activity = await this.assertActivityOwned(id);
+
+    const updateData: any = {};
+    if (data.subject !== undefined) updateData.subject = data.subject;
+    if (data.content !== undefined) updateData.content = data.content;
+    if (data.type !== undefined) updateData.type = data.type;
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+      if (data.status === 'COMPLETED' && activity.status !== 'COMPLETED') {
+        updateData.completedAt = new Date();
+      }
+    }
+    if (data.dueDate !== undefined) updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
+    if (data.priority !== undefined) updateData.priority = data.priority;
+
+    const updated = await this.db.communication.update({
+      where: { id },
+      data: updateData,
+      include: {
+        company: { select: { id: true, tradeName: true } },
+        contact: { select: { id: true, name: true } },
+        opportunity: { select: { id: true, title: true } }
+      }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'UPDATE_ACTIVITY',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'communication',
+      description: `Atividade atualizada: ${updated.subject}`
+    });
+
+    return updated;
+  }
+
+  public async deleteActivity(id: string) {
+    const activity = await this.assertActivityOwned(id);
+
+    await this.db.communication.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'DELETE_ACTIVITY',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'communication',
+      description: `Atividade apagada (soft-delete): ${activity.subject}`
+    });
+
+    return { success: true };
   }
 }

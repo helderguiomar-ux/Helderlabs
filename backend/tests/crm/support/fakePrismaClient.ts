@@ -105,6 +105,16 @@ export function createFakePrismaClient() {
         opportunities.filter((o) => !where?.tenantId || o.tenantId === where.tenantId)
     },
 
+    companyContact: {
+      findFirst: async ({ where }: any = {}) =>
+        contacts.find((c) => (!where?.id || c.id === where.id) && (where?.deletedAt === undefined || (where.deletedAt === null && !c.deletedAt))) ?? null,
+      create: async ({ data }: any) => {
+        const c = { id: fakeId('cont'), createdAt: new Date(), ...data };
+        contacts.push(c);
+        return c;
+      }
+    },
+
     customer: {
       create: async ({ data }: any) => {
         const { contacts: contactsInput, ...rest } = data;
@@ -120,6 +130,61 @@ export function createFakePrismaClient() {
     },
 
     communication: {
+      create: async ({ data }: any) => {
+        const comm = { id: fakeId('comm'), createdAt: new Date(), occurredAt: new Date(), ...data };
+        communications.push(comm);
+        return comm;
+      },
+      findFirst: async ({ where, include }: any = {}) => {
+        const comm = communications.find(
+          (c) =>
+            (!where?.id || c.id === where.id) &&
+            (!where?.tenantId || c.tenantId === where.tenantId) &&
+            (where?.deletedAt === undefined || (where.deletedAt === null && !c.deletedAt))
+        );
+        if (!comm) return null;
+        const res = { ...comm };
+        if (include?.company) res.company = companies.find((comp) => comp.id === comm.companyId) ?? null;
+        if (include?.contact) res.contact = contacts.find((cont) => cont.id === comm.contactId) ?? null;
+        if (include?.opportunity) res.opportunity = opportunities.find((opp) => opp.id === comm.opportunityId) ?? null;
+        if (include?.lead) res.lead = leads.find((l) => l.id === comm.leadId) ?? null;
+        return res;
+      },
+      findMany: async ({ where, include, orderBy, take }: any = {}) => {
+        let items = communications.filter(
+          (c) =>
+            (!where?.tenantId || c.tenantId === where.tenantId) &&
+            (!where?.companyId || c.companyId === where.companyId) &&
+            (!where?.opportunityId || c.opportunityId === where.opportunityId) &&
+            (!where?.contactId || c.contactId === where.contactId) &&
+            (!where?.leadId || c.leadId === where.leadId) &&
+            (!where?.status || c.status === where.status) &&
+            (!where?.type || c.type === where.type) &&
+            (where?.deletedAt === undefined || (where.deletedAt === null && !c.deletedAt))
+        );
+
+        if (where?.dueDate?.lt) {
+          items = items.filter((c) => c.dueDate && new Date(c.dueDate) < where.dueDate.lt);
+        }
+
+        const res = items.map((comm) => {
+          const item = { ...comm };
+          if (include?.company) item.company = companies.find((comp) => comp.id === comm.companyId) ?? null;
+          if (include?.contact) item.contact = contacts.find((cont) => cont.id === comm.contactId) ?? null;
+          if (include?.opportunity) item.opportunity = opportunities.find((opp) => opp.id === comm.opportunityId) ?? null;
+          if (include?.lead) item.lead = leads.find((l) => l.id === comm.leadId) ?? null;
+          return item;
+        });
+
+        if (take) return res.slice(0, take);
+        return res;
+      },
+      update: async ({ where, data }: any) => {
+        const comm = communications.find((c) => c.id === where.id);
+        if (!comm) throw new Error(`Communication ${where.id} não encontrada`);
+        Object.assign(comm, data);
+        return comm;
+      },
       updateMany: async ({ where, data }: any) => {
         let count = 0;
         communications.forEach((c) => {
@@ -130,14 +195,6 @@ export function createFakePrismaClient() {
         });
         return { count };
       }
-    },
-
-    company: {
-      create: async ({ data }: any) => {
-        const company = { id: fakeId('comp'), createdAt: new Date(), ...data };
-        return company;
-      },
-      findMany: async ({ where }: any = {}) => []
     }
   };
 

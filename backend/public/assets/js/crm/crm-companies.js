@@ -203,6 +203,8 @@
       modalBody.innerHTML = `
         <div style="display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 16px; overflow-x: auto;">
           <button class="btn btn-sm ${this.active360Tab === 'overview' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('overview')">Visão Geral</button>
+          <button class="btn btn-sm ${this.active360Tab === 'activities' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('activities')">Atividades & Histórico (${c.communications?.length || 0})</button>
+          <button class="btn btn-sm ${this.active360Tab === 'opportunities' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('opportunities')">Oportunidades (${c.opportunities?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'contacts' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('contacts')">Contactos (${c.contacts?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'contracts' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('contracts')">Contratos (${c.contracts?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'documents' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('documents')">Documentos (${c.documents?.length || 0})</button>
@@ -372,6 +374,59 @@
                     <td><strong>${esc(tx.description)}</strong></td>
                     <td style="font-weight: 700;">${fmtCurrency(tx.amountCents)}</td>
                     <td><span class="badge ${tx.status === 'PAID' ? 'badge-paid' : 'badge-planned'}">${esc(tx.status)}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if (this.active360Tab === 'activities') {
+        const comms = c.communications || [];
+        const timelineHtml = window.CRMActivitiesModule
+          ? window.CRMActivitiesModule.renderTimeline(comms, { companyId: c.id })
+          : '<p style="color: var(--text-secondary); padding: 12px;">Histórico de atividades disponível.</p>';
+
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">Histórico cronológico de reuniões, chamadas, tarefas e notas</span>
+            <button class="btn btn-primary btn-sm" onclick="window.CRMActivitiesModule.openCreateModal('${esc(c.id)}')">
+              + Registar Atividade
+            </button>
+          </div>
+          ${timelineHtml}
+        `;
+      }
+
+      if (this.active360Tab === 'opportunities') {
+        const opps = c.opportunities || [];
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">Oportunidades e negócios em curso com esta empresa</span>
+            <button class="btn btn-primary btn-sm" onclick="window.CRMPipelineModule.openCreateOpportunityModal('${esc(c.id)}')">
+              + Nova Oportunidade
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Título da Oportunidade</th>
+                  <th>Estágio</th>
+                  <th style="text-align: right;">Valor Estimado</th>
+                  <th style="text-align: right;">Probabilidade</th>
+                  <th>Data Prevista</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${opps.length === 0 ? '<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">Sem oportunidades registadas para esta empresa.</td></tr>' : opps.map(opp => `
+                  <tr>
+                    <td><strong>${esc(opp.title)}</strong></td>
+                    <td><span class="badge ${opp.stage === 'WON' ? 'badge-paid' : (opp.stage === 'LOST' ? 'badge-danger' : 'badge-planned')}">${esc(opp.stage)}</span></td>
+                    <td style="text-align: right; font-weight: 700;">€${esc(opp.estimatedValue?.toLocaleString('pt-PT', { minimumFractionDigits: 2 }))}</td>
+                    <td style="text-align: right;">${esc(opp.probability)}%</td>
+                    <td>${fmtDate(opp.expectedCloseDate)}</td>
                   </tr>
                 `).join('')}
               </tbody>

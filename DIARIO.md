@@ -179,5 +179,15 @@ Construção progressiva, validação rigorosa de segurança multi-tenant e publ
 5. **Fase B4 (v1.6.4)**: Orçamentos e propostas comerciais com numeração sequencial (`PROP-YYYY-XXXX`), precisão ao cêntimo em valores monetários, envio por email pelo remetente do tenant, folha de impressão limpa A4/PDF e aposição obrigatória da salvaguarda legal de não servir de fatura fiscal.
 6. **Fase B5 (v1.6.5)**: Gestão de contratos de avença e serviços recorrentes, cálculo de MRR e ARR, níveis padronizados de SLA (Bronze, Silver, Gold, Platinum), modal de renovação com ajuste percentual de inflação/IPC e minuta A4 com aviso legal.
 7. **Fase B6 (v1.6.6)**: Dossier empresarial de documentos do cliente, tipos padronizados (Certidão Permanente, RCBE, NIF, Alvarás, Não Dívida AT/SS, etc.), suporte a códigos de acesso com cópia rápida, motor dinâmico de prazos de caducidade (`computeDocumentStatus`), fluxo de auditoria e conformidade (`verifyCompanyDocument`), e upload seguro de ficheiros até 8MB.
-8. **QA & Produção**: 87 testes unitários e de integração verdes (0 falhas). Migrações SQL aditivas executadas. Verificação real de produção em `https://helderlabs.eu` (HTTP 200 nas páginas e recursos estáticos, HTTP 401 nas rotas protegidas).
+8. **QA & Produção (B1-B6)**: 87 testes unitários e de integração verdes (0 falhas). Migrações SQL aditivas executadas. Verificação real de produção em `https://helderlabs.eu` (HTTP 200 nas páginas e recursos estáticos, HTTP 401 nas rotas protegidas).
+9. **Fase B7 (v1.6.7)**: Conta Corrente de Clientes (Registo sem faturação fiscal).
+   - Implementação de `CrmAccountEntry` e `CrmAccountAllocation` com imutabilidade estrita garantida por triggers PostgreSQL (`trg_crm_account_entry_guard` e `trg_crm_account_alloc_guard`).
+   - Sinais contabilísticos estritos: Débitos (+ dívida) para `INVOICE`, `DEBIT_NOTE`, `REFUND` e estornos de crédito; Créditos (- dívida) para `PAYMENT`, `CREDIT_NOTE` e estornos de débito.
+   - Validação mandatória de número de documento externo emitido no software de faturação para `INVOICE`, `DEBIT_NOTE` e `CREDIT_NOTE`.
+   - Mecanismo de estorno (`REVERSAL`) com anulação de impacto no saldo, cancelamento de alocações ativas e auditoria obrigatória.
+   - Alocações manuais e automáticas (FIFO) com bloqueio absoluto de sobre-alocação (>100%).
+   - Extrato progressivo linha a linha, saldo acumulado e cálculo de antiguidade (Aging) em 5 escalões (corrente, 1-30d, 31-60d, 61-90d, >90d).
+   - Impressão A4 formatada (`/statement/print`) e envio por email através do tenant (`/statement/send`).
+   - Salvaguarda legal mandatória expressa: *"Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal."*
+   - Suite de testes `tests/crm/crm-b7-account-entries.test.ts` com 8 novos testes unitários e de integração (68 testes CRM, 95 testes conjuntos aprovados a 100%).
 

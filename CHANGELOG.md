@@ -2,6 +2,40 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.7] - 2026-10-09
+
+### CRM Fase B7 — Conta Corrente de Clientes, Extrato Progressivo, Alocação de Pagamentos e Análise de Antiguidade (Aging)
+- **Salvaguarda Legal & Regulamentar Inviolável**:
+  - Implementação do aviso estrito e omnipresente: *"Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal."*
+  - Exclusão expressa e estrutural de qualquer campo de natureza tributária (como ATCUD, hash de faturação certificado ou QR Code da AT).
+- **Imutabilidade Contabilística Estrita (Garantida por Triggers PostgreSQL)**:
+  - Criação dos modelos `CrmAccountEntry` e `CrmAccountAllocation` imutáveis.
+  - Proibição estrita de operações `DELETE` e bloqueio de `UPDATE` sobre atributos estruturais (`amountCents`, `type`, `entryDate`, `companyId`, `tenantId`).
+  - Correção de enganos exclusivamente através de lançamentos de estorno (`REVERSAL`), que referenciam o lançamento original via `reversesEntryId`, anulam o seu impacto no saldo devedor e cancelam as alocações ativas ligadas.
+- **Precisão Monetária em Cêntimos Inteiros & Tipos Tipificados**:
+  - Todos os valores monetários são geridos como inteiros em cêntimos (`amountCents`).
+  - Débitos (+ dívida): `INVOICE`, `DEBIT_NOTE`, `REFUND`, `OPENING_BALANCE` e estornos de pagamentos.
+  - Créditos (- dívida): `PAYMENT`, `CREDIT_NOTE` e estornos de faturas.
+  - Validação estrita: `INVOICE`, `DEBIT_NOTE` e `CREDIT_NOTE` exigem o preenchimento obrigatório do número de documento externo emitido no software de faturação certificado.
+- **Motor de Alocações (Manual & FIFO Automático)**:
+  - Suporte a alocações parciais ou integrais de pagamentos a documentos pendentes.
+  - Proteção do servidor contra sobre-alocação (>100% do saldo do documento ou do pagamento).
+  - Alocação automática opcional com método FIFO liquidando documentos a débito da antiguidade mais recuada para a mais recente.
+- **Extrato de Conta Corrente Progressivo & Antiguidade da Dívida (Aging)**:
+  - Extrato dinâmico linha a linha com cálculo de débito, crédito, saldo acumulado progressivo, estado liquidado/pendente e saldo vencido.
+  - Análise de antiguidade (Aging) em 5 escalões: Corrente (não vencido), 1–30 dias, 31–60 dias, 61–90 dias, e >90 dias (crítico).
+- **Impressão A4 & Envio por Email pelo Tenant**:
+  - Endpoint `GET /api/crm/companies/:id/account/statement/print` com folha de estilo A4 profissional pronta a imprimir.
+  - Endpoint `POST /api/crm/companies/:id/account/statement/send` com envio através do `TenantMailService` (`context: 'crm.statement'`) e registo automático de atividade comercial na cronologia do cliente.
+- **Interface Web & Ficha 360º Integrada**:
+  - Nova sub-vista *Conta Corrente* na barra de sub-navegação do CRM (`crm-account.js`).
+  - Separador *Conta Corrente* perfeitamente integrado na Ficha 360º de Empresa em `crm-companies.js`.
+  - Modais para novo lançamento, estorno justificado, alocação de recebimento e expedição de extrato.
+- **Modelo de Dados (Migração `20261009070000_crm_b7_account_entries`)**:
+  - Tabelas `crm_account_entries` e `crm_account_allocations` com chaves estrangeiras `ON DELETE RESTRICT` e triggers de integridade `trg_crm_account_entry_guard` e `trg_crm_account_alloc_guard`.
+  - Adicionado `CrmAccountEntry` e `CrmAccountAllocation` a `TENANT_SCOPED_MODELS` para isolamento integral na camada de dados.
+- **Testes Automatizados**: Suite `tests/crm/crm-b7-account-entries.test.ts` com 8 testes novos (68 testes CRM no total, 95 testes conjuntos no repositório com 100% de aprovação).
+
 ## [v1.6.6] - 2026-10-09
 
 ### CRM Fase B6 — Gestão de Documentos do Cliente, Upload, Controlo de Validades & Conformidade

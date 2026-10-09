@@ -44,4 +44,9 @@
 - **Decisão**: A gestão de documentos empresariais (`CompanyDocument`) armazena ficheiros como Data URI base64 ou URL externo seguro, associando códigos de acesso online de certidões e motor dinâmico de prazos de caducidade (`computeDocumentStatus`).
 - **Raciocínio**: Garante funcionamento 100% autónomo na Vercel Serverless sem requerer credenciais S3/R2 externas de terceiros, preservando integridade e rastreabilidade total no histórico 360º de cada cliente.
 
+## ADR 009 · CRM: Conta Corrente Sem Faturação e Imutabilidade Contabilística Estrita
+- **Data**: 2026-10-09
+- **Decisão**: A Conta Corrente do CRM (`CrmAccountEntry`, `CrmAccountAllocation`) é estritamente de registo informativo de documentos emitidos em software de faturação certificado. É proibido qualquer `DELETE` ou alteração de dados estruturais na base de dados (garantido por triggers PostgreSQL). Qualquer correção de enganos é efetuada através de contrapartida de estorno (`REVERSAL`), cancelando as respetivas alocações. É expressamente proibida a emissão de faturas ou a inclusão de campos fiscais (ATCUD, hash ou certificado).
+- **Raciocínio**: Garante conformidade absoluta com as regras da Autoridade Tributária portuguesa (CIVA Art. 36.º), blindagem contra adulteração de saldos comerciais e integridade temporal irrevogável na relação financeira com cada cliente.
+
 

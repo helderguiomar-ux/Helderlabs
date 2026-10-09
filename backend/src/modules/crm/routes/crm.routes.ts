@@ -253,16 +253,57 @@ const addressSchema = z
   })
   .strict();
 
-const documentSchema = z
+const createDocumentSchema = z
   .object({
-    name: z.string().trim().min(1, 'Nome do documento é obrigatório'),
-    category: z.string().optional().default('OTHER'),
-    docType: z.string().optional(),
-    fileUrl: z.string().min(1, 'URL do ficheiro é obrigatório'),
-    fileType: z.string().optional().nullable(),
-    size: z.number().int().optional().nullable(),
+    name: z.string().trim().min(1, 'Nome do documento é obrigatório.'),
+    docType: z.string().optional().default('OTHER'),
+    category: z.string().optional(),
+    fileUrl: z.string().optional().nullable(),
+    fileName: z.string().optional().nullable(),
+    fileSizeBytes: z.number().int().optional().nullable(),
+    mimeType: z.string().optional().nullable(),
+    accessCode: z.string().optional().nullable(),
+    issueDate: z.string().optional().nullable(),
+    expiryDate: z.string().optional().nullable(),
     expiresAt: z.string().optional().nullable(),
-    expiryDate: z.string().optional().nullable()
+    notes: z.string().optional().nullable()
+  })
+  .strict();
+
+const updateDocumentSchema = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    docType: z.string().optional(),
+    fileUrl: z.string().optional().nullable(),
+    fileName: z.string().optional().nullable(),
+    fileSizeBytes: z.number().int().optional().nullable(),
+    mimeType: z.string().optional().nullable(),
+    accessCode: z.string().optional().nullable(),
+    issueDate: z.string().optional().nullable(),
+    expiryDate: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    status: z.string().optional()
+  })
+  .strict();
+
+const verifyDocumentSchema = z
+  .object({
+    status: z.enum(['VERIFIED', 'REJECTED']),
+    notes: z.string().optional().nullable()
+  })
+  .strict();
+
+const listDocumentsQuerySchema = z
+  .object({
+    companyId: z.string().optional(),
+    docType: z.string().optional(),
+    status: z.string().optional(),
+    verificationStatus: z.string().optional(),
+    daysAhead: z.coerce.number().int().optional(),
+    expiringOnly: z.coerce.boolean().optional(),
+    search: z.string().optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    offset: z.coerce.number().int().min(0).optional()
   })
   .strict();
 
@@ -421,13 +462,51 @@ export async function crmRoutes(app: FastifyInstance) {
     });
 
     // =======================================================================
-    // DOCUMENTOS & CONTRATOS
+    // DOCUMENTOS & COMPLIANCE (FASE B6)
     // =======================================================================
+    protectedApp.get<{ Params: { id: string } }>('/companies/:id/documents', async (request, reply) => {
+      const { id } = request.params;
+      const query = request.query as { docType?: string; status?: string; verificationStatus?: string; includeDeleted?: string };
+      const result = await controller.listCompanyDocuments(contextFrom(request), id, {
+        docType: query.docType,
+        status: query.status,
+        verificationStatus: query.verificationStatus,
+        includeDeleted: query.includeDeleted === 'true'
+      });
+      return reply.status(200).send({ success: true, ...result });
+    });
+
     protectedApp.post<{ Params: { id: string } }>('/companies/:id/documents', async (request, reply) => {
       const { id } = request.params;
-      const data = documentSchema.parse(request.body);
+      const data = createDocumentSchema.parse(request.body);
       const document = await controller.addCompanyDocument(contextFrom(request), id, data);
       return reply.status(201).send({ success: true, document });
+    });
+
+    protectedApp.get('/documents', async (request, reply) => {
+      const query = listDocumentsQuerySchema.parse(request.query);
+      const result = await controller.listTenantDocuments(contextFrom(request), query);
+      return reply.status(200).send({ success: true, ...result });
+    });
+
+    protectedApp.get<{ Params: { docId: string } }>('/documents/:docId', async (request, reply) => {
+      const { docId } = request.params;
+      const document = await controller.getDocument(contextFrom(request), docId);
+      return reply.status(200).send({ success: true, document });
+    });
+
+    protectedApp.put<{ Params: { docId: string } }>('/documents/:docId', async (request, reply) => {
+      const { docId } = request.params;
+      const data = updateDocumentSchema.parse(request.body);
+      const document = await controller.updateCompanyDocument(contextFrom(request), docId, data);
+      return reply.status(200).send({ success: true, document });
+    });
+
+    protectedApp.patch<{ Params: { docId: string } }>('/documents/:docId/verify', async (request, reply) => {
+      const { docId } = request.params;
+      const data = verifyDocumentSchema.parse(request.body);
+      const document = await controller.verifyCompanyDocument(contextFrom(request), docId, data);
+      return reply.status(200).send({ success: true, document });
     });
 
     protectedApp.delete<{ Params: { docId: string } }>('/documents/:docId', async (request, reply) => {

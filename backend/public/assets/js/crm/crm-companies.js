@@ -346,26 +346,93 @@
 
       if (this.active360Tab === 'documents') {
         const docs = c.documents || [];
+        const hasExpired = docs.some(d => {
+          if (!d.expiryDate) return false;
+          return new Date(d.expiryDate).getTime() < new Date().setHours(0,0,0,0);
+        });
+        const hasExpiringSoon = docs.some(d => {
+          if (!d.expiryDate) return false;
+          const diff = (new Date(d.expiryDate).getTime() - new Date().setHours(0,0,0,0)) / (1000*60*60*24);
+          return diff >= 0 && diff <= 30;
+        });
+
+        const alertBanner = hasExpired
+          ? `<div class="doc-alert-banner">⚠️ <strong>Atenção:</strong> Esta empresa possui documentos com prazo de validade caducado. É necessária regularização imediata.</div>`
+          : (hasExpiringSoon ? `<div class="doc-alert-banner" style="background:#fffbeb; border-color:#fde68a; color:#b45309;">⏰ <strong>Aviso Preventivo:</strong> Existem documentos empresariais a caducar nos próximos 30 dias.</div>` : '');
+
         return `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <h4 style="margin: 0; font-size: 15px;">Dossier de Documentos & Conformidade</h4>
+              <p style="margin: 2px 0 0; font-size: 12px; color: var(--muted);">Certidões permanentes, licenças, comprovativos e minutas contratuais.</p>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="window.CRMDocuments && window.CRMDocuments.openUploadModal('${c.id}')">+ Adicionar Documento</button>
+          </div>
+
+          ${alertBanner}
+
           <div class="table-responsive">
             <table>
               <thead>
                 <tr>
-                  <th>Nome</th>
-                  <th>Categoria</th>
+                  <th>Documento</th>
+                  <th>Tipo</th>
+                  <th>Código Acesso</th>
                   <th>Validade</th>
-                  <th>Ações</th>
+                  <th>Conformidade</th>
+                  <th style="text-align: right;">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                ${docs.length === 0 ? '<tr><td colspan="4" style="text-align: center; color: var(--muted);">Sem documentos registados.</td></tr>' : docs.map(d => `
-                  <tr>
-                    <td><strong>${esc(d.name)}</strong></td>
-                    <td><span class="badge badge-neutral">${esc(d.docType || d.category || 'OTHER')}</span></td>
-                    <td>${d.expiryDate ? fmtDate(d.expiryDate) : 'Vitalício'}</td>
-                    <td>${d.fileUrl ? `<a href="${escAttr(d.fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm">Abrir</a>` : '—'}</td>
-                  </tr>
-                `).join('')}
+                ${docs.length === 0 ? '<tr><td colspan="6" style="text-align: center; color: var(--muted); padding: 24px;">Sem documentos registados para este cliente.</td></tr>' : docs.map(d => {
+                  let statusBadge = '<span class="badge badge-doc-valid">Válido</span>';
+                  if (d.expiryDate) {
+                    const now = new Date(); now.setHours(0,0,0,0);
+                    const exp = new Date(d.expiryDate); exp.setHours(0,0,0,0);
+                    const diffDays = Math.round((exp.getTime() - now.getTime()) / (1000*60*60*24));
+                    if (diffDays < 0) {
+                      statusBadge = `<span class="badge badge-doc-expired">Caducado (${Math.abs(diffDays)}d)</span>`;
+                    } else if (diffDays <= 30) {
+                      statusBadge = `<span class="badge badge-doc-expiring">Expira em ${diffDays}d</span>`;
+                    }
+                  } else {
+                    statusBadge = '<span class="badge badge-doc-permanent">Permanente</span>';
+                  }
+
+                  let verifBadge = '<span class="badge badge-verification-pending">Pendente</span>';
+                  if (d.verificationStatus === 'VERIFIED') {
+                    verifBadge = '<span class="badge badge-verification-verified">✓ Conforme</span>';
+                  } else if (d.verificationStatus === 'REJECTED') {
+                    verifBadge = '<span class="badge badge-verification-rejected">✕ Rejeitado</span>';
+                  }
+
+                  const accessCodeHtml = d.accessCode
+                    ? `<span class="access-code-pill" onclick="window.CRMDocuments && window.CRMDocuments.copyAccessCode('${escAttr(d.accessCode)}')">🔑 ${esc(d.accessCode)}</span>`
+                    : '—';
+
+                  return `
+                    <tr>
+                      <td>
+                        <div style="font-weight: 600;">${esc(d.name)}</div>
+                        ${d.fileName ? `<div style="font-size: 11px; color: var(--muted);">${esc(d.fileName)}</div>` : ''}
+                      </td>
+                      <td><span class="badge badge-neutral">${esc(d.docType || d.category || 'OTHER')}</span></td>
+                      <td>${accessCodeHtml}</td>
+                      <td>
+                        <div>${d.expiryDate ? fmtDate(d.expiryDate) : 'Permanente'}</div>
+                        <div style="margin-top: 2px;">${statusBadge}</div>
+                      </td>
+                      <td>${verifBadge}</td>
+                      <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 6px;">
+                          ${d.fileUrl ? `<a href="${escAttr(d.fileUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-sm" title="Abrir/Descarregar">Abrir</a>` : ''}
+                          <button class="btn btn-sm" onclick="window.CRMDocuments && window.CRMDocuments.openVerifyModal('${d.id}', '${escAttr(d.name)}')">Verificar</button>
+                          <button class="btn btn-sm btn-danger-ghost" onclick="window.CRMDocuments && window.CRMDocuments.deleteDocument('${d.id}', '${escAttr(d.name)}')">✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>

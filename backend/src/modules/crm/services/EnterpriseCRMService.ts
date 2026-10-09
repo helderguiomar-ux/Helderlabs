@@ -575,36 +575,392 @@ export class EnterpriseCRMService {
   // DOCUMENTOS & CONTRATOS
   // =========================================================================
 
+  // =========================================================================
+  // DOCUMENTOS DO CLIENTE & VALIDADES (FASE B6)
+  // =========================================================================
+
+  public static computeDocumentStatus(expiryDate: Date | string | null | undefined): {
+    status: 'VALID' | 'EXPIRING_SOON' | 'EXPIRED' | 'PERMANENT';
+    daysUntilExpiry: number | null;
+    isExpiringSoon: boolean;
+    isExpired: boolean;
+  } {
+    if (!expiryDate) {
+      return { status: 'VALID', daysUntilExpiry: null, isExpiringSoon: false, isExpired: false };
+    }
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const exp = new Date(expiryDate);
+    exp.setHours(0, 0, 0, 0);
+    const diffMs = exp.getTime() - now.getTime();
+    const daysUntilExpiry = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+    if (daysUntilExpiry < 0) {
+      return { status: 'EXPIRED', daysUntilExpiry, isExpiringSoon: false, isExpired: true };
+    }
+    if (daysUntilExpiry <= 30) {
+      return { status: 'EXPIRING_SOON', daysUntilExpiry, isExpiringSoon: true, isExpired: false };
+    }
+    return { status: 'VALID', daysUntilExpiry, isExpiringSoon: false, isExpired: false };
+  }
+
+  public static getDocTypeLabel(docType?: string | null): string {
+    const labels: Record<string, string> = {
+      CERTIDAO_PERMANENTE: 'Certidão Permanente',
+      RCBE: 'Registo Beneficiário Efetivo (RCBE)',
+      DECLARACAO_NIF: 'Cartão de Pessoa Coletiva / NIF',
+      PROCURACAO: 'Procuração / Delegação de Poderes',
+      ALVARA_LICENCA: 'Alvará / Licença Profissional',
+      SEGURO_RC: 'Seguro de Responsabilidade Civil',
+      NON_DEBT_AT: 'Certidão Não Dívida (Finanças/AT)',
+      NON_DEBT_SS: 'Certidão Não Dívida (Segurança Social)',
+      CONTRATO_ASSINADO: 'Contrato Assinado',
+      NDA_CONFIDENCIALIDADE: 'Acordo de Confidencialidade (NDA)',
+      COMPROVATIVO_IBAN: 'Comprovativo de IBAN',
+      RGPD_CONSENTIMENTO: 'Consentimento RGPD',
+      OTHER: 'Outro Documento'
+    };
+    return labels[docType || ''] || docType || 'Outro Documento';
+  }
+
+  public async getCompanyDocumentById(docId: string) {
+    const doc = await this.assertDocumentOwned(docId);
+    const metrics = EnterpriseCRMService.computeDocumentStatus(doc.expiryDate);
+    return {
+      ...doc,
+      daysUntilExpiry: metrics.daysUntilExpiry,
+      isExpiringSoon: metrics.isExpiringSoon,
+      isExpired: metrics.isExpired,
+      statusLabel: metrics.status === 'EXPIRED' ? 'Caducado' : metrics.status === 'EXPIRING_SOON' ? 'A Caducar (<30d)' : 'Válido',
+      docTypeLabel: EnterpriseCRMService.getDocTypeLabel(doc.docType)
+    };
+  }
+
+  public async listCompanyDocuments(companyId: string, options?: {
+    status?: string;
+    docType?: string;
+    verificationStatus?: string;
+    includeDeleted?: boolean;
+  }) {
+    await this.assertCompanyOwned(companyId);
+
+    const rawDocs = await this.db.companyDocument.findMany({
+      where: {
+        companyId,
+        deletedAt: options?.includeDeleted ? undefined : null
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const enriched = rawDocs.map((doc: any) => {
+      const metrics = EnterpriseCRMService.computeDocumentStatus(doc.expiryDate);
+      return {
+        ...doc,
+        computedStatus: metrics.status,
+        daysUntilExpiry: metrics.daysUntilExpiry,
+        isExpiringSoon: metrics.isExpiringSoon,
+        isExpired: metrics.isExpired,
+        docTypeLabel: EnterpriseCRMService.getDocTypeLabel(doc.docType)
+      };
+    });
+
+    let filtered = enriched;
+    if (options?.docType) {
+      filtered = filtered.filter((d: any) => d.docType === options.docType);
+    }
+    if (options?.status) {
+      filtered = filtered.filter((d: any) => d.computedStatus === options.status || d.status === options.status);
+    }
+    if (options?.verificationStatus) {
+      filtered = filtered.filter((d: any) => d.verificationStatus === options.verificationStatus);
+    }
+
+    const kpis = {
+      totalCount: enriched.length,
+      validCount: enriched.filter((d: any) => d.computedStatus === 'VALID').length,
+      expiringSoonCount: enriched.filter((d: any) => d.computedStatus === 'EXPIRING_SOON').length,
+      expiredCount: enriched.filter((d: any) => d.computedStatus === 'EXPIRED').length,
+      pendingVerificationCount: enriched.filter((d: any) => d.verificationStatus === 'PENDING').length,
+      verifiedCount: enriched.filter((d: any) => d.verificationStatus === 'VERIFIED').length
+    };
+
+    return { documents: filtered, kpis };
+  }
+
+  public async listTenantDocuments(options?: {
+    daysAhead?: number;
+    expiringOnly?: boolean;
+    status?: string;
+    docType?: string;
+    verificationStatus?: string;
+    companyId?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const rawDocs = await this.db.companyDocument.findMany({
+      where: {
+        deletedAt: null,
+        company: {
+          tenantId: this.tenantId,
+          deletedAt: null
+        }
+      },
+      include: {
+        company: {
+          select: { id: true, tradeName: true, taxNumber: true, status: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const enriched = rawDocs.map((doc: any) => {
+      const metrics = EnterpriseCRMService.computeDocumentStatus(doc.expiryDate);
+      return {
+        ...doc,
+        computedStatus: metrics.status,
+        daysUntilExpiry: metrics.daysUntilExpiry,
+        isExpiringSoon: metrics.isExpiringSoon,
+        isExpired: metrics.isExpired,
+        docTypeLabel: EnterpriseCRMService.getDocTypeLabel(doc.docType)
+      };
+    });
+
+    const kpis = {
+      totalDocuments: enriched.length,
+      validCount: enriched.filter((d: any) => d.computedStatus === 'VALID').length,
+      expiringSoonCount: enriched.filter((d: any) => d.computedStatus === 'EXPIRING_SOON').length,
+      expiredCount: enriched.filter((d: any) => d.computedStatus === 'EXPIRED').length,
+      pendingVerificationCount: enriched.filter((d: any) => d.verificationStatus === 'PENDING').length,
+      verifiedCount: enriched.filter((d: any) => d.verificationStatus === 'VERIFIED').length
+    };
+
+    let filtered = enriched;
+
+    if (options?.companyId) {
+      filtered = filtered.filter((d: any) => d.companyId === options.companyId);
+    }
+    if (options?.docType) {
+      filtered = filtered.filter((d: any) => d.docType === options.docType);
+    }
+    if (options?.verificationStatus) {
+      filtered = filtered.filter((d: any) => d.verificationStatus === options.verificationStatus);
+    }
+    if (options?.expiringOnly) {
+      filtered = filtered.filter((d: any) => d.isExpiringSoon || d.isExpired);
+    }
+    if (options?.status) {
+      filtered = filtered.filter((d: any) => d.computedStatus === options.status || d.status === options.status);
+    }
+    if (options?.daysAhead !== undefined) {
+      filtered = filtered.filter((d: any) => d.daysUntilExpiry !== null && d.daysUntilExpiry <= options.daysAhead! && d.daysUntilExpiry >= 0);
+    }
+    if (options?.search) {
+      const q = options.search.toLowerCase();
+      filtered = filtered.filter((d: any) =>
+        d.name?.toLowerCase().includes(q) ||
+        d.docType?.toLowerCase().includes(q) ||
+        d.accessCode?.toLowerCase().includes(q) ||
+        d.company?.tradeName?.toLowerCase().includes(q) ||
+        d.company?.taxNumber?.toLowerCase().includes(q)
+      );
+    }
+
+    const start = options?.offset || 0;
+    const end = options?.limit ? start + options.limit : undefined;
+    const paginated = filtered.slice(start, end);
+
+    return {
+      documents: paginated,
+      totalCount: filtered.length,
+      kpis
+    };
+  }
+
   public async addCompanyDocument(companyId: string, data: {
     name: string;
     category?: string;
     docType?: string;
-    fileUrl?: string;
-    fileType?: string;
-    size?: number;
-    expiresAt?: Date | string;
-    expiryDate?: Date | string;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    fileSizeBytes?: number | null;
+    mimeType?: string | null;
+    accessCode?: string | null;
+    issueDate?: Date | string | null;
+    expiryDate?: Date | string | null;
+    expiresAt?: Date | string | null;
+    notes?: string | null;
+    uploadedBy?: string | null;
   }) {
     await this.assertCompanyOwned(companyId);
 
-    return this.db.companyDocument.create({
+    const expDate = data.expiryDate ? new Date(data.expiryDate) : (data.expiresAt ? new Date(data.expiresAt) : null);
+    const issDate = data.issueDate ? new Date(data.issueDate) : null;
+    const statusMetrics = EnterpriseCRMService.computeDocumentStatus(expDate);
+
+    const docType = data.docType || data.category || 'OTHER';
+
+    const document = await this.db.companyDocument.create({
       data: {
+        tenantId: this.tenantId,
         companyId,
-        name: data.name,
-        docType: data.docType || data.category || 'OTHER',
+        name: data.name.trim(),
+        docType,
         fileUrl: data.fileUrl || null,
-        expiryDate: data.expiryDate ? new Date(data.expiryDate) : (data.expiresAt ? new Date(data.expiresAt) : null),
-        status: 'VALID'
+        fileName: data.fileName || null,
+        fileSizeBytes: data.fileSizeBytes || null,
+        mimeType: data.mimeType || null,
+        accessCode: data.accessCode ? data.accessCode.trim() : null,
+        issueDate: issDate,
+        expiryDate: expDate,
+        status: statusMetrics.status,
+        verificationStatus: 'PENDING',
+        notes: data.notes || null,
+        uploadedBy: data.uploadedBy || null
       }
     });
+
+    const docLabel = EnterpriseCRMService.getDocTypeLabel(docType);
+    try {
+      await this.createActivity({
+        companyId,
+        type: 'note',
+        subject: `Documento adicionado: ${data.name.trim()} (${docLabel})`,
+        content: `Carregado documento empresarial do tipo "${docLabel}".${expDate ? ' Data de Validade: ' + expDate.toISOString().split('T')[0] + '.' : ' Sem data de caducidade pré-definida.'}${data.accessCode ? ' Código de Acesso: ' + data.accessCode + '.' : ''}`,
+        createdByUserId: data.uploadedBy || null
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de documento:', e);
+    }
+
+    return {
+      ...document,
+      ...statusMetrics,
+      docTypeLabel: docLabel
+    };
   }
 
-  public async deleteCompanyDocument(docId: string) {
-    await this.assertDocumentOwned(docId);
-    return this.db.companyDocument.update({
+  public async updateCompanyDocument(docId: string, data: {
+    name?: string;
+    docType?: string;
+    fileUrl?: string | null;
+    fileName?: string | null;
+    fileSizeBytes?: number | null;
+    mimeType?: string | null;
+    accessCode?: string | null;
+    issueDate?: Date | string | null;
+    expiryDate?: Date | string | null;
+    notes?: string | null;
+    status?: string;
+  }, actorUserId?: string) {
+    const existing = await this.assertDocumentOwned(docId);
+
+    const updatePayload: any = {};
+    if (data.name !== undefined) updatePayload.name = data.name.trim();
+    if (data.docType !== undefined) updatePayload.docType = data.docType;
+    if (data.fileUrl !== undefined) updatePayload.fileUrl = data.fileUrl;
+    if (data.fileName !== undefined) updatePayload.fileName = data.fileName;
+    if (data.fileSizeBytes !== undefined) updatePayload.fileSizeBytes = data.fileSizeBytes;
+    if (data.mimeType !== undefined) updatePayload.mimeType = data.mimeType;
+    if (data.accessCode !== undefined) updatePayload.accessCode = data.accessCode ? data.accessCode.trim() : null;
+    if (data.notes !== undefined) updatePayload.notes = data.notes;
+
+    if (data.issueDate !== undefined) {
+      updatePayload.issueDate = data.issueDate ? new Date(data.issueDate) : null;
+    }
+
+    if (data.expiryDate !== undefined) {
+      const expDate = data.expiryDate ? new Date(data.expiryDate) : null;
+      updatePayload.expiryDate = expDate;
+      const metrics = EnterpriseCRMService.computeDocumentStatus(expDate);
+      updatePayload.status = metrics.status;
+    } else if (data.status !== undefined) {
+      updatePayload.status = data.status;
+    }
+
+    const updated = await this.db.companyDocument.update({
+      where: { id: docId },
+      data: updatePayload
+    });
+
+    const metrics = EnterpriseCRMService.computeDocumentStatus(updated.expiryDate);
+
+    try {
+      await this.createActivity({
+        companyId: existing.companyId,
+        type: 'note',
+        subject: `Documento atualizado: ${updated.name}`,
+        content: `Dados cadastrais ou validade do documento foram atualizados.`,
+        createdByUserId: actorUserId || null
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de atualização de documento:', e);
+    }
+
+    return {
+      ...updated,
+      ...metrics,
+      docTypeLabel: EnterpriseCRMService.getDocTypeLabel(updated.docType)
+    };
+  }
+
+  public async verifyCompanyDocument(docId: string, options: {
+    status: 'VERIFIED' | 'REJECTED';
+    notes?: string | null;
+  }, actorUserId?: string) {
+    const doc = await this.assertDocumentOwned(docId);
+
+    const updated = await this.db.companyDocument.update({
+      where: { id: docId },
+      data: {
+        verificationStatus: options.status,
+        verifiedBy: actorUserId || null,
+        verifiedAt: new Date(),
+        notes: options.notes ? (doc.notes ? `${doc.notes}\n[Verificação]: ${options.notes}` : `[Verificação]: ${options.notes}`) : doc.notes
+      }
+    });
+
+    const actionText = options.status === 'VERIFIED' ? 'aprovado e verificado' : 'rejeitado na verificação';
+    try {
+      await this.createActivity({
+        companyId: doc.companyId,
+        type: 'note',
+        subject: `Documento ${options.status === 'VERIFIED' ? 'Aprovado' : 'Rejeitado'}: ${doc.name}`,
+        content: `O documento ${doc.name} foi ${actionText}.${options.notes ? ' Motivo/Observações: ' + options.notes : ''}`,
+        createdByUserId: actorUserId || null
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de verificação de documento:', e);
+    }
+
+    const metrics = EnterpriseCRMService.computeDocumentStatus(updated.expiryDate);
+    return {
+      ...updated,
+      ...metrics,
+      docTypeLabel: EnterpriseCRMService.getDocTypeLabel(updated.docType)
+    };
+  }
+
+  public async deleteCompanyDocument(docId: string, actorUserId?: string) {
+    const doc = await this.assertDocumentOwned(docId);
+    await this.db.companyDocument.update({
       where: { id: docId },
       data: { deletedAt: new Date() }
     });
+
+    try {
+      await this.createActivity({
+        companyId: doc.companyId,
+        type: 'note',
+        subject: `Documento arquivado: ${doc.name}`,
+        content: `O documento foi removido/arquivado da ficha do cliente.`,
+        createdByUserId: actorUserId || null
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de arquivo de documento:', e);
+    }
+
+    return { success: true, id: docId };
   }
 
   public async generateContractNumber(): Promise<string> {

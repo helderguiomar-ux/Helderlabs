@@ -2,6 +2,30 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.6] - 2026-10-09
+
+### CRM Fase B6 — Gestão de Documentos do Cliente, Upload, Controlo de Validades & Conformidade
+- **Dossier Digital & Tipos Padronizados de Documentos**:
+  - Suporte empresarial para Certidão Permanente (`CERTIDAO_PERMANENTE`), Registo Central do Beneficiário Efetivo (`RCBE`), Cartão de NIF / Identificação Fiscal (`DECLARACAO_NIF`), Procurações (`PROCURACAO`), Alvarás e Licenças Profissionais (`ALVARA_LICENCA`), Seguros de Responsabilidade Civil (`SEGURO_RC`), Certidões de Não Dívida às Finanças/AT (`NON_DEBT_AT`) e Segurança Social (`NON_DEBT_SS`), Contratos Assinados (`CONTRATO_ASSINADO`), Acordos de Confidencialidade (`NDA_CONFIDENCIALIDADE`), Comprovativos de IBAN (`COMPROVATIVO_IBAN`), Consentimentos RGPD (`RGPD_CONSENTIMENTO`) e outros anexos.
+- **Códigos de Acesso Online**: Suporte a códigos de acesso de certidões (ex: Registo Comercial `XXXX-XXXX-XXXX`) com botão de cópia rápida para a área de transferência (`copyAccessCode`).
+- **Motor de Validades & Alertas Preventivos de Caducidade**:
+  - Cálculo dinâmico em tempo real de `daysUntilExpiry` e estado (`VALID`, `EXPIRING_SOON`, `EXPIRED`, `PERMANENT`).
+  - Sinalização visual com badges distintos e banners de aviso em clientes com documentos expirados ou a caducar nos próximos 30 dias.
+- **Auditoria de Conformidade & Verificação**:
+  - Fluxo formal de aprovação/rejeição de documentos (`PATCH /api/crm/documents/:id/verify`) com estado `VERIFIED` ou `REJECTED`, captura de notas de validação, utilizador validador (`verifiedBy`) e carimbo temporal (`verifiedAt`).
+  - Registo automático de atividades no histórico 360º de cada cliente em todas as mutações de documentos.
+- **Upload Seguro e Gestão de Anexos**:
+  - Modal de upload com suporte a seleção de ficheiros locais (PDF e imagens até 8MB) convertidos para Data URI base64, ou ligação para URLs externos.
+- **Interface e Navegação do CRM**:
+  - Nova sub-vista *Documentos & Validades* no painel CRM com cartões de KPIs (Total, Válidos, A Caducar, Caducados, Por Verificar), barra de pesquisa e filtros por tipo e estado.
+  - Separador *Documentos* completamente renovado na Ficha 360º de Empresa com badges enriquecidos, alerta de caducidade e botão direto `+ Adicionar Documento`.
+  - Modais modulares `#modal-upload-document` e `#modal-verify-document`.
+- **Modelo de Dados (Migração `20261009060000_crm_b6_documents`)**:
+  - Expansão do modelo `CompanyDocument` com colunas `tenantId`, `fileName`, `fileSizeBytes`, `mimeType`, `accessCode`, `verificationStatus`, `verifiedBy`, `verifiedAt`, `notes`, `updatedAt`.
+  - Índices dedicados para `tenantId`, `companyId`, `status` e `expiryDate`.
+  - Adicionado `'CompanyDocument'` a `TENANT_SCOPED_MODELS` para isolamento rigoroso na camada de dados.
+- **Testes Automatizados**: Suite `tests/crm/crm-b6-documents.test.ts` com 8 novos testes unitários e de integração (60 testes CRM no total, 87 testes conjuntos com 100% de aprovação).
+
 ## [v1.6.5] - 2026-10-09
 
 ### CRM Fase B5 — Gestão de Contratos de Avença, SLA e Renovações Automáticas

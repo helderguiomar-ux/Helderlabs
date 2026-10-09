@@ -52,6 +52,7 @@ model Tenant {
   contracts      Contract[]
   communications Communication[]
   proposals      Proposal[]
+  companyDocuments CompanyDocument[]
   buildings      Building[]
 
   settings            TenantSetting[]
@@ -299,20 +300,34 @@ model CompanyAddress {
 }
 
 model CompanyDocument {
-  id         String    @id @default(cuid())
-  companyId  String
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name       String
-  docType    String
-  fileUrl    String?
-  issueDate  DateTime?
-  expiryDate DateTime?
-  status     String    @default("VALID")
-  uploadedBy String?
-  deletedAt  DateTime?
-  createdAt  DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  tenantId           String?
+  tenant             Tenant?   @relation(fields: [tenantId], references: [id])
+  companyId          String
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  docType            String    @default("OTHER")
+  fileUrl            String?
+  fileName           String?
+  fileSizeBytes      Int?
+  mimeType           String?
+  accessCode         String?
+  issueDate          DateTime?
+  expiryDate         DateTime?
+  status             String    @default("VALID")
+  verificationStatus String    @default("PENDING")
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  notes              String?
+  uploadedBy         String?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @default(now()) @updatedAt
 
   @@index([companyId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([expiryDate])
   @@map("crm_company_documents")
 }
 

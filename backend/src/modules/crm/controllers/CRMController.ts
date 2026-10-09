@@ -69,15 +69,38 @@ export class CRMController {
   }
 
   // =========================================================================
-  // DOCUMENTOS & CONTRATOS
+  // DOCUMENTOS & COMPLIANCE (FASE B6)
   // =========================================================================
 
+  async listCompanyDocuments(context: CRMRequestContext, companyId: string, options?: any) {
+    return serviceFor(context).listCompanyDocuments(companyId, options);
+  }
+
+  async listTenantDocuments(context: CRMRequestContext, options?: any) {
+    return serviceFor(context).listTenantDocuments(options);
+  }
+
+  async getDocument(context: CRMRequestContext, docId: string) {
+    return serviceFor(context).getCompanyDocumentById(docId);
+  }
+
   async addCompanyDocument(context: CRMRequestContext, companyId: string, data: any) {
-    return serviceFor(context).addCompanyDocument(companyId, data);
+    return serviceFor(context).addCompanyDocument(companyId, {
+      ...data,
+      uploadedBy: context.userId
+    });
+  }
+
+  async updateCompanyDocument(context: CRMRequestContext, docId: string, data: any) {
+    return serviceFor(context).updateCompanyDocument(docId, data, context.userId);
+  }
+
+  async verifyCompanyDocument(context: CRMRequestContext, docId: string, options: { status: 'VERIFIED' | 'REJECTED'; notes?: string | null }) {
+    return serviceFor(context).verifyCompanyDocument(docId, options, context.userId);
   }
 
   async deleteCompanyDocument(context: CRMRequestContext, docId: string) {
-    return serviceFor(context).deleteCompanyDocument(docId);
+    return serviceFor(context).deleteCompanyDocument(docId, context.userId);
   }
 
   async listContracts(context: CRMRequestContext, options?: any) {

@@ -219,6 +219,9 @@
         <button class="crm-subnav-btn" id="crm-btn-subview-contracts" onclick="window.CRMModule.switchCRMView('contracts')">
           Contratos & Avenças
         </button>
+        <button class="crm-subnav-btn" id="crm-btn-subview-documents" onclick="window.CRMModule.switchCRMView('documents')">
+          Documentos & Validades
+        </button>
       </div>
 
       <!-- VISTA 1: EMPRESAS 360º -->
@@ -307,6 +310,107 @@
 
       <!-- VISTA 6: CONTRATOS & AVENÇAS (FASE B5) -->
       <div id="crm-view-contracts" style="display: none;"></div>
+
+      <!-- VISTA 7: DOCUMENTOS & VALIDADES (FASE B6) -->
+      <div id="crm-view-documents" style="display: none;">
+        <div class="toolbar" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Documentos Empresariais & Controlo de Validades</h2>
+            <span class="kpi-subtext">Certidões permanentes, licenças, seguros, minutas e conformidade de clientes</span>
+          </div>
+          <button class="btn btn-primary" onclick="window.CRMDocuments && window.CRMDocuments.openUploadModal()">
+            + Carregar Documento
+          </button>
+        </div>
+
+        <!-- KPIs de Documentos -->
+        <div class="kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+          <div class="kpi-card">
+            <span class="kpi-title">Total de Documentos</span>
+            <span class="kpi-value" id="docs-kpi-total">0</span>
+            <span class="kpi-subtext">Dossier do tenant</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title" style="color: #16a34a;">Válidos & Em Vigor</span>
+            <span class="kpi-value" id="docs-kpi-valid" style="color: #16a34a;">0</span>
+            <span class="kpi-subtext">Conformes e vigentes</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title" style="color: #d97706;">A Caducar (<30d)</span>
+            <span class="kpi-value" id="docs-kpi-expiring" style="color: #d97706;">0</span>
+            <span class="kpi-subtext">Alerta preventivo</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title" style="color: #dc2626;">Caducados / Vencidos</span>
+            <span class="kpi-value" id="docs-kpi-expired" style="color: #dc2626;">0</span>
+            <span class="kpi-subtext">Ação urgente</span>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-title" style="color: #4f46e5;">Por Verificar</span>
+            <span class="kpi-value" id="docs-kpi-pending" style="color: #4f46e5;">0</span>
+            <span class="kpi-subtext">Pendente validação</span>
+          </div>
+        </div>
+
+        <!-- Barra de Filtros -->
+        <div class="toolbar" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 16px; background: var(--surface-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+          <div style="flex: 1; min-width: 200px;">
+            <input type="text" id="docs-search-input" placeholder="Pesquisar documento, cliente, NIF ou código de acesso..." style="width: 100%;">
+          </div>
+          <div>
+            <select id="docs-filter-type">
+              <option value="">Todos os tipos...</option>
+              <option value="CERTIDAO_PERMANENTE">Certidão Permanente</option>
+              <option value="RCBE">Beneficiário Efetivo (RCBE)</option>
+              <option value="DECLARACAO_NIF">Cartão de NIF / Registo</option>
+              <option value="PROCURACAO">Procuração / Poderes</option>
+              <option value="ALVARA_LICENCA">Alvará / Licença</option>
+              <option value="SEGURO_RC">Seguro Resp. Civil</option>
+              <option value="NON_DEBT_AT">Não Dívida AT</option>
+              <option value="NON_DEBT_SS">Não Dívida Seg. Social</option>
+              <option value="CONTRATO_ASSINADO">Contrato Assinado</option>
+              <option value="COMPROVATIVO_IBAN">Comprovativo IBAN</option>
+              <option value="OTHER">Outros Documentos</option>
+            </select>
+          </div>
+          <div>
+            <select id="docs-filter-status">
+              <option value="">Todos os estados...</option>
+              <option value="VALID">Válidos</option>
+              <option value="EXPIRING_SOON">A Caducar (<30d)</option>
+              <option value="EXPIRED">Caducados</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="docs-filter-expiring">
+              <span>Apenas com alerta</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Tabela Consolidada -->
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Cliente / Empresa</th>
+                <th>Tipo</th>
+                <th>Código de Acesso</th>
+                <th>Validade</th>
+                <th>Conformidade</th>
+                <th style="text-align: right;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="docs-table-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--muted); padding: 30px;">A carregar dossier de documentos...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- =====================================================================
@@ -1379,6 +1483,130 @@
     </div>
   </div>
 
+  <!-- Modal Upload / Adicionar Documento (Fase B6) -->
+  <div id="modal-upload-document" class="modal-overlay">
+    <div class="modal-content" style="max-width: 640px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Adicionar Documento Empresarial</h3>
+        <button class="btn btn-sm" onclick="window.CRMDocuments && window.CRMDocuments.closeUploadModal()">Fechar</button>
+      </div>
+      <form id="form-upload-document" onsubmit="window.CRMDocuments && window.CRMDocuments.handleUploadSubmit(event)">
+        <div class="modal-body">
+          <div id="upload-doc-error-box" class="alert alert-danger" style="display: none; margin-bottom: 14px;"></div>
+
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Cliente / Empresa *</label>
+              <select id="upload-doc-company" required>
+                <option value="">A carregar empresas...</option>
+              </select>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Nome / Título do Documento *</label>
+              <input type="text" id="upload-doc-name" placeholder="Ex.: Certidão Permanente 2026 / Alvará IMPIC" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tipo de Documento *</label>
+              <select id="upload-doc-type" required>
+                <option value="CERTIDAO_PERMANENTE">Certidão Permanente</option>
+                <option value="RCBE">Registo Beneficiário Efetivo (RCBE)</option>
+                <option value="DECLARACAO_NIF">Cartão de NIF / Registo</option>
+                <option value="PROCURACAO">Procuração / Poderes</option>
+                <option value="ALVARA_LICENCA">Alvará / Licença Profissional</option>
+                <option value="SEGURO_RC">Seguro de Responsabilidade Civil</option>
+                <option value="NON_DEBT_AT">Não Dívida AT (Finanças)</option>
+                <option value="NON_DEBT_SS">Não Dívida Segurança Social</option>
+                <option value="CONTRATO_ASSINADO">Contrato Assinado</option>
+                <option value="NDA_CONFIDENCIALIDADE">Acordo Confidencialidade (NDA)</option>
+                <option value="COMPROVATIVO_IBAN">Comprovativo de IBAN</option>
+                <option value="RGPD_CONSENTIMENTO">Termo de Consentimento RGPD</option>
+                <option value="OTHER" selected>Outro Documento</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Código de Acesso (Online)</label>
+              <input type="text" id="upload-doc-access-code" placeholder="Ex.: 1234-5678-9012 (Certidão)">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data de Emissão</label>
+              <input type="date" id="upload-doc-issue-date">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data de Validade / Caducidade</label>
+              <input type="date" id="upload-doc-expiry-date">
+              <div style="margin-top: 6px;">
+                <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="checkbox" id="upload-doc-permanent" onchange="document.getElementById('upload-doc-expiry-date').disabled = this.checked">
+                  <span>Documento permanente (sem data de caducidade)</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Ficheiro (PDF ou Imagem até 8MB)</label>
+              <input type="file" id="upload-doc-file" accept=".pdf,image/png,image/jpeg,image/webp">
+              <small style="color: var(--muted); display: block; margin-top: 4px;">Pode selecionar um ficheiro local ou indicar um link direto abaixo.</small>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">URL Direto / Link Externo (Opcional)</label>
+              <input type="url" id="upload-doc-url" placeholder="https://exemplo.com/ficheiro.pdf">
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Observações & Notas de Conformidade</label>
+              <textarea id="upload-doc-notes" rows="2" placeholder="Notas de validação, restrições ou termos específicos..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMDocuments && window.CRMDocuments.closeUploadModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Documento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Verificação de Conformidade (Fase B6) -->
+  <div id="modal-verify-document" class="modal-overlay">
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="verify-doc-title">Auditoria de Documento</h3>
+        <button class="btn btn-sm" onclick="window.CRMDocuments && window.CRMDocuments.closeVerifyModal()">Fechar</button>
+      </div>
+      <form id="form-verify-document" onsubmit="event.preventDefault()">
+        <input type="hidden" id="verify-doc-id">
+        <div class="modal-body">
+          <div id="verify-doc-error-box" class="alert alert-danger" style="display: none; margin-bottom: 14px;"></div>
+          <p style="font-size: 13px; color: var(--muted); margin-bottom: 14px;">
+            Valide a conformidade legal deste documento em relação às exigências de conformidade do cliente.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Notas da Verificação / Motivo</label>
+            <textarea id="verify-doc-notes" rows="3" placeholder="Indique eventuais observações, carimbos verificados ou motivo de inconformidade..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between;">
+          <button type="button" class="btn btn-danger-ghost" onclick="window.CRMDocuments && window.CRMDocuments.handleVerifySubmit('REJECTED')">
+            ✕ Rejeitar Inconforme
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn" onclick="window.CRMDocuments && window.CRMDocuments.closeVerifyModal()">Cancelar</button>
+            <button type="button" class="btn btn-primary" onclick="window.CRMDocuments && window.CRMDocuments.handleVerifySubmit('VERIFIED')">
+              ✓ Aprovar Conforme
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal Diff de Auditoria -->
   <div id="modal-audit-diff" class="modal-overlay">
     <div class="modal-content" style="max-width: 720px;">
@@ -1575,15 +1803,16 @@
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
-  <script src="/assets/js/crm/crm-core.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-companies.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-contacts.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-leads.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-activities.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-proposals.js?v=1.6.5"></script>
-  <script src="/assets/js/crm/crm-contracts.js?v=1.6.5"></script>
-  <script src="/assets/js/crm.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-core.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-companies.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-contacts.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-leads.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-activities.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-proposals.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-contracts.js?v=1.6.6"></script>
+  <script src="/assets/js/crm/crm-documents.js?v=1.6.6"></script>
+  <script src="/assets/js/crm.js?v=1.6.6"></script>
   <script src="/assets/js/audit.js"></script>
   <script src="/assets/js/sellmais.js"></script>
   <script src="/assets/js/email-settings.js?v=1.6.0"></script>

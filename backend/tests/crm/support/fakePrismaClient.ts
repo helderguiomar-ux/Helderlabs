@@ -21,6 +21,7 @@ export function createFakePrismaClient() {
   const proposals: any[] = [];
   const proposalItems: any[] = [];
   const contracts: any[] = [];
+  const companyDocuments: any[] = [];
 
   const db = {
     // --- helpers só para preparar cenários de teste ---
@@ -33,7 +34,8 @@ export function createFakePrismaClient() {
       companies,
       proposals,
       proposalItems,
-      contracts
+      contracts,
+      companyDocuments
     },
 
     company: {
@@ -443,6 +445,114 @@ export function createFakePrismaClient() {
         if (include?.company) res.company = companies.find((comp) => comp.id === c.companyId) ?? null;
         if (include?.proposal) res.proposal = proposals.find((p) => p.id === c.proposalId) ?? null;
         return res;
+      }
+    },
+
+    companyDocument: {
+      findFirst: async ({ where, include }: any = {}) => {
+        const item = companyDocuments.find((d) => {
+          if (where?.id && d.id !== where.id) return false;
+          if (where?.tenantId && d.tenantId !== where.tenantId) return false;
+          if (where?.companyId && d.companyId !== where.companyId) return false;
+          if (where?.deletedAt === null && d.deletedAt) return false;
+          if (where?.company?.tenantId) {
+            const comp = companies.find((c) => c.id === d.companyId);
+            if (!comp || comp.tenantId !== where.company.tenantId) return false;
+          }
+          return true;
+        });
+        if (!item) return null;
+        const res = { ...item };
+        if (include?.company) {
+          res.company = companies.find((c) => c.id === item.companyId) ?? null;
+        }
+        return res;
+      },
+      count: async ({ where }: any = {}) => {
+        return companyDocuments.filter((d) => {
+          if (where?.tenantId && d.tenantId !== where.tenantId) return false;
+          if (where?.companyId && d.companyId !== where.companyId) return false;
+          if (where?.deletedAt === null && d.deletedAt) return false;
+          if (where?.status && d.status !== where.status) return false;
+          if (where?.verificationStatus && d.verificationStatus !== where.verificationStatus) return false;
+          if (where?.docType && d.docType !== where.docType) return false;
+          return true;
+        }).length;
+      },
+      findMany: async ({ where, orderBy, take, skip, include }: any = {}) => {
+        let items = companyDocuments.filter((d) => {
+          if (where?.tenantId && d.tenantId !== where.tenantId) return false;
+          if (where?.companyId && d.companyId !== where.companyId) return false;
+          if (where?.deletedAt === null && d.deletedAt) return false;
+          if (where?.status && d.status !== where.status) return false;
+          if (where?.verificationStatus && d.verificationStatus !== where.verificationStatus) return false;
+          if (where?.docType && d.docType !== where.docType) return false;
+          if (where?.company?.tenantId) {
+            const comp = companies.find((c) => c.id === d.companyId);
+            if (!comp || comp.tenantId !== where.company.tenantId) return false;
+          }
+          return true;
+        });
+
+        if (orderBy?.expiryDate === 'asc') {
+          items.sort((a, b) => {
+            if (!a.expiryDate) return 1;
+            if (!b.expiryDate) return -1;
+            return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+          });
+        } else if (orderBy?.createdAt === 'desc') {
+          items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        }
+
+        const res = items.map((d) => {
+          const item = { ...d };
+          if (include?.company) {
+            item.company = companies.find((c) => c.id === d.companyId) ?? null;
+          }
+          return item;
+        });
+
+        const start = skip || 0;
+        const end = take ? start + take : undefined;
+        return res.slice(start, end);
+      },
+      create: async ({ data, include }: any) => {
+        const d = {
+          id: fakeId('doc'),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          status: 'VALID',
+          verificationStatus: 'PENDING',
+          ...data
+        };
+        companyDocuments.push(d);
+        const res = { ...d };
+        if (include?.company) {
+          res.company = companies.find((c) => c.id === d.companyId) ?? null;
+        }
+        return res;
+      },
+      update: async ({ where, data, include }: any) => {
+        const d = companyDocuments.find((item) => item.id === where.id);
+        if (!d) throw new Error(`Documento ${where.id} não encontrado no fake client`);
+        Object.assign(d, data, { updatedAt: new Date() });
+        const res = { ...d };
+        if (include?.company) {
+          res.company = companies.find((c) => c.id === d.companyId) ?? null;
+        }
+        return res;
+      },
+      updateMany: async ({ where, data }: any) => {
+        let count = 0;
+        companyDocuments.forEach((item) => {
+          if (where?.id && item.id !== where.id) return;
+          if (where?.companyId && item.companyId !== where.companyId) return;
+          if (where?.tenantId && item.tenantId !== where.tenantId) return;
+          Object.assign(item, data, { updatedAt: new Date() });
+          count++;
+        });
+        return { count };
       }
     }
   };

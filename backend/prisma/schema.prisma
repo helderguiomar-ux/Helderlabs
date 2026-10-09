@@ -240,6 +240,7 @@ model Company {
   transactions  FinanceTransaction[]
   leads         Lead[]
   customers     Customer[]
+  opportunities Opportunity[]
 
   @@index([tenantId])
   @@index([status])
@@ -268,6 +269,8 @@ model CompanyContact {
   deletedAt    DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  opportunities Opportunity[]
 
   @@index([companyId])
   @@map("crm_company_contacts")
@@ -409,21 +412,30 @@ model Opportunity {
   tenantId       String
   tenant         Tenant           @relation(fields: [tenantId], references: [id])
   title          String
-  leadId         String?
-  lead           Lead?            @relation(fields: [leadId], references: [id])
-  customerId     String?
-  customer       Customer?        @relation(fields: [customerId], references: [id])
-  stage          OpportunityStage @default(QUALIFICATION)
-  estimatedValue Float
-  probability    Int              @default(0)
-  assignedUserId String?
-  assignedUser   User?            @relation("OpportunityAssignedUser", fields: [assignedUserId], references: [id])
-  deletedAt      DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  leadId             String?
+  lead               Lead?            @relation(fields: [leadId], references: [id])
+  customerId         String?
+  customer           Customer?        @relation(fields: [customerId], references: [id])
+  companyId          String?
+  company            Company?         @relation(fields: [companyId], references: [id])
+  contactId          String?
+  contact            CompanyContact?  @relation(fields: [contactId], references: [id])
+  stage              OpportunityStage @default(QUALIFICATION)
+  estimatedValue     Float
+  probability        Int              @default(0)
+  expectedCloseDate  DateTime?
+  lostReason         String?
+  notes              String?
+  assignedUserId     String?
+  assignedUser       User?            @relation("OpportunityAssignedUser", fields: [assignedUserId], references: [id])
+  deletedAt          DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   @@index([tenantId])
   @@index([stage])
+  @@index([companyId])
+  @@index([contactId])
   @@index([deletedAt])
   @@map("opportunities")
 }

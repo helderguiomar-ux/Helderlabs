@@ -6,9 +6,29 @@
   'use strict';
 
   window.CRMModule = {
+    currentView: 'companies',
+
     async init() {
       if (window.CRMCompanies) {
         await window.CRMCompanies.init();
+      }
+    },
+
+    async switchCRMView(view) {
+      this.currentView = view;
+      ['companies', 'pipeline', 'leads'].forEach(v => {
+        const btn = document.getElementById(`crm-btn-subview-${v}`);
+        const panel = document.getElementById(`crm-view-${v}`);
+        if (btn) btn.classList.toggle('active', v === view);
+        if (panel) panel.style.display = v === view ? 'block' : 'none';
+      });
+
+      if (view === 'pipeline' && window.CRMPipelineModule) {
+        await window.CRMPipelineModule.init();
+      } else if (view === 'leads' && window.CRMLeadsModule) {
+        await window.CRMLeadsModule.init();
+      } else if (view === 'companies' && window.CRMCompanies) {
+        await window.CRMCompanies.loadCompanies();
       }
     },
 
@@ -32,13 +52,17 @@
           errorBox.hidden = true;
           errorBox.innerHTML = '';
         }
+        modal.classList.add('active');
         modal.classList.add('show');
       }
     },
 
     closeModal(modalId) {
       const modal = document.getElementById(modalId);
-      if (modal) modal.classList.remove('show');
+      if (modal) {
+        modal.classList.remove('active');
+        modal.classList.remove('show');
+      }
     },
 
     async submitCreateCompany(event) {
@@ -51,6 +75,12 @@
       const targetId = companyId || (window.CRMCompanies && window.CRMCompanies.selectedCompany?.id);
       if (targetId && window.CRMContacts) {
         window.CRMContacts.openAddModal(targetId);
+      }
+    },
+
+    openCreateOpportunityModal(companyId) {
+      if (window.CRMPipelineModule) {
+        window.CRMPipelineModule.openCreateOpportunityModal(companyId);
       }
     }
   };

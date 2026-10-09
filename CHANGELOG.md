@@ -2,6 +2,20 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.2] - 2026-10-09
+
+### CRM Fase B2 — Pipeline Comercial, Funil de Vendas (Kanban) e Oportunidades
+- **Visualização Kanban Interativa**: Quadro com 5 colunas (`QUALIFICATION`, `PROPOSAL`, `NEGOTIATION`, `WON`, `LOST`), cada uma com contagem de cartões, valor total e cálculo de valor ponderado (`estimatedValue * (probability / 100)`).
+- **Previsão de Receita Ponderada (Forecast)**: Resumo em tempo real no topo com Pipeline Global, Receita Ponderada, Negócios Ganhos e Taxa de Conversão.
+- **Transições de Estágio Automatizadas**: Transição via `PATCH /api/crm/opportunities/:id/stage`.
+  - Ao mover para `WON`: define probabilidade para 100%, converte a empresa para estado `CUSTOMER`, marca a lead como `CONVERTED`, cria registo em `Customer` e audita `crm.opportunity.won`.
+  - Ao mover para `LOST`: define probabilidade para 0%, captura e grava motivo de perda (`lostReason`), abrindo modal informativo.
+- **Sub-navegação no Painel CRM**: Alternância fluida entre *Empresas 360º*, *Pipeline & Funil Kanban* e *Leads & Prospeção* sem recarregar a página.
+- **Gestão de Leads & Conversão**: Caderno de prospeção com conversão imediata de lead em Oportunidade Comercial (`POST /api/crm/leads/:id/convert`), com criação e sincronização automática da empresa no Diretório 360º.
+- **Modelo de Dados (Migração `20261009020000_crm_b2_pipeline`)**: Adicionados campos aditivos `companyId`, `contactId`, `expectedCloseDate`, `lostReason` e `notes` no modelo `Opportunity`.
+- **Soft Delete em Oportunidades**: `deletedAt` registado em `deleteOpportunity`.
+- **Testes Automatizados**: Suite `tests/crm/crm-b2-pipeline.test.ts` com 8 novos testes unitários e de integração (32 testes CRM no total, 59 testes conjuntos com Mail).
+
 ## [v1.6.1] - 2026-10-09
 
 ### CRM Fase B1 — Fundações, Segurança e Isolamento Multi-tenant

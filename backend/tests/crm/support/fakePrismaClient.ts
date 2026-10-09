@@ -17,6 +17,7 @@ export function createFakePrismaClient() {
   const customers: any[] = [];
   const contacts: any[] = [];
   const communications: any[] = [];
+  const companies: any[] = [];
 
   const db = {
     // --- helpers só para preparar cenários de teste ---
@@ -25,7 +26,25 @@ export function createFakePrismaClient() {
       opportunities,
       customers,
       contacts,
-      communications
+      communications,
+      companies
+    },
+
+    company: {
+      findFirst: async ({ where }: any = {}) =>
+        companies.find((c) => (!where?.id || c.id === where.id) && (!where?.tenantId || c.tenantId === where.tenantId)) ?? null,
+      create: async ({ data }: any) => {
+        const comp = { id: fakeId('comp'), ...data };
+        companies.push(comp);
+        return comp;
+      },
+      update: async ({ where, data }: any) => {
+        const comp = companies.find((c) => c.id === where.id);
+        if (comp) Object.assign(comp, data);
+        return comp;
+      },
+      findMany: async ({ where }: any = {}) =>
+        companies.filter((c) => !where?.tenantId || c.tenantId === where.tenantId)
     },
 
     lead: {

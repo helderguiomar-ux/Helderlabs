@@ -5,9 +5,56 @@ import { validatePortugueseNIF } from '../utils/validators';
 
 const controller = new CRMController();
 
+const opportunityStageEnum = z.enum(['QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'WON', 'LOST']);
+
 const convertLeadSchema = z
   .object({
-    estimatedValue: z.number().positive('O valor estimado tem de ser positivo.')
+    estimatedValue: z.number().positive('O valor estimado tem de ser positivo.'),
+    createCompany: z.boolean().optional().default(true),
+    title: z.string().trim().optional()
+  })
+  .strict();
+
+const createOpportunitySchema = z
+  .object({
+    title: z.string().trim().min(1, 'Título é obrigatório.'),
+    estimatedValue: z.number().positive('O valor estimado tem de ser positivo.'),
+    stage: opportunityStageEnum.optional().default('QUALIFICATION'),
+    probability: z.number().min(0).max(100).optional(),
+    companyId: z.string().optional().nullable(),
+    contactId: z.string().optional().nullable(),
+    leadId: z.string().optional().nullable(),
+    customerId: z.string().optional().nullable(),
+    expectedCloseDate: z.string().optional().nullable(),
+    lostReason: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    assignedUserId: z.string().optional().nullable()
+  })
+  .strict();
+
+const updateOpportunityStageSchema = z
+  .object({
+    stage: opportunityStageEnum,
+    probability: z.number().min(0).max(100).optional(),
+    lostReason: z.string().optional().nullable(),
+    notes: z.string().optional().nullable()
+  })
+  .strict();
+
+const updateOpportunitySchema = z
+  .object({
+    title: z.string().trim().min(1).optional(),
+    estimatedValue: z.number().positive().optional(),
+    stage: opportunityStageEnum.optional(),
+    probability: z.number().min(0).max(100).optional(),
+    companyId: z.string().optional().nullable(),
+    contactId: z.string().optional().nullable(),
+    leadId: z.string().optional().nullable(),
+    customerId: z.string().optional().nullable(),
+    expectedCloseDate: z.string().optional().nullable(),
+    lostReason: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    assignedUserId: z.string().optional().nullable()
   })
   .strict();
 
@@ -351,23 +398,54 @@ export async function crmRoutes(app: FastifyInstance) {
       return reply.status(204).send();
     });
 
+    // =========================================================================
+    // PIPELINE COMERCIAL & FUNIL KANBAN (FASE B2)
+    // =========================================================================
+
+    protectedApp.get('/pipeline', async (request, reply) => {
+      const { assignedUserId } = request.query as any;
+      const kanban = await controller.getPipelineKanban(contextFrom(request), { assignedUserId });
+      return reply.status(200).send(kanban);
+    });
+
     protectedApp.get('/opportunities', async (request, reply) => {
       const opportunities = await controller.listOpportunities(contextFrom(request));
       return reply.status(200).send(opportunities);
     });
 
-    protectedApp.get('/customers', async (request, reply) => {
-      const customers = await controller.listCustomers(contextFrom(request));
-      return reply.status(200).send(customers);
+    protectedApp.post('/opportunities', async (request, reply) => {
+      const data = createOpportunitySchema.parse(request.body);
+      const opportunity = await controller.createOpportunity(contextFrom(request), data);
+      return reply.status(201).send({ success: true, opportunity, message: 'Oportunidade registada com sucesso!' });
+    });
+
+    protectedApp.patch<{ Params: { id: string } }>('/opportunities/:id/stage', async (request, reply) => {
+      const { id } = request.params;
+      const data = updateOpportunityStageSchema.parse(request.body);
+      const opportunity = await controller.updateOpportunityStage(contextFrom(request), id, data);
+      return reply.status(200).send({ success: true, opportunity, message: 'Estágio atualizado com sucesso!' });
+    });
+
+    protectedApp.put<{ Params: { id: string } }>('/opportunities/:id', async (request, reply) => {
+      const { id } = request.params;
+      const data = updateOpportunitySchema.parse(request.body);
+      const opportunity = await controller.updateOpportunity(contextFrom(request), id, data);
+      return reply.status(200).send({ success: true, opportunity, message: 'Oportunidade atualizada!' });
+    });
+
+    protectedApp.delete<{ Params: { id: string } }>('/opportunities/:id', async (request, reply) => {
+      const { id } = request.params;
+      await controller.deleteOpportunity(contextFrom(request), id);
+      return reply.status(204).send();
     });
 
     protectedApp.post<{ Params: { leadId: string }; Body: unknown }>(
       '/leads/:leadId/convert',
       async (request, reply) => {
         const { leadId } = request.params;
-        const { estimatedValue } = convertLeadSchema.parse(request.body);
-        const opportunity = await controller.convertLead(contextFrom(request), leadId, estimatedValue);
-        return reply.status(201).send(opportunity);
+        const body = convertLeadSchema.parse(request.body);
+        const opportunity = await controller.convertLead(contextFrom(request), leadId, body.estimatedValue, body);
+        return reply.status(201).send({ success: true, opportunity, message: 'Lead convertida com sucesso!' });
       }
     );
 
@@ -379,6 +457,11 @@ export async function crmRoutes(app: FastifyInstance) {
         return reply.status(200).send(customer);
       }
     );
+
+    protectedApp.get('/customers', async (request, reply) => {
+      const customers = await controller.listCustomers(contextFrom(request));
+      return reply.status(200).send(customers);
+    });
 
     protectedApp.get('/dashboard', async (request, reply) => {
       const metrics = await controller.dashboardMetrics(contextFrom(request));

@@ -37,7 +37,7 @@
   <link rel="stylesheet" href="/assets/css/styles.css">
   <link rel="stylesheet" href="/assets/css/app.css">
   <link rel="stylesheet" href="/assets/css/email-settings.css?v=1.6.0b">
-  <link rel="stylesheet" href="/assets/css/crm.css?v=1.6.1">
+  <link rel="stylesheet" href="/assets/css/crm.css?v=1.6.2">
 <script src="/assets/js/config.js"></script>
 <script src="/assets/js/api.js"></script>
 </head>
@@ -199,40 +199,84 @@
          PAINEL CRM (EMPRESAS 360º + CONTRATOS + CONTACTOS)
          ===================================================================== -->
     <div id="panel-crm" class="tab-panel">
-      <div class="toolbar">
-        <div>
-          <h2 style="margin: 0; font-size: 18px; font-weight: 700;">CRM & Diretório Empresa 360º</h2>
-          <span class="kpi-subtext">Caderno unificado de Clientes, Fornecedores, Parceiros, Contactos e Contratos</span>
-        </div>
-        <div class="toolbar-group">
-          <button class="btn btn-primary" onclick="window.CRMModule.openCreateModal()">+ Nova Empresa</button>
-        </div>
+      <!-- Sub-navegação do CRM -->
+      <div class="crm-subnav">
+        <button class="crm-subnav-btn active" id="crm-btn-subview-companies" onclick="window.CRMModule.switchCRMView('companies')">
+          Empresas 360º
+        </button>
+        <button class="crm-subnav-btn" id="crm-btn-subview-pipeline" onclick="window.CRMModule.switchCRMView('pipeline')">
+          Pipeline & Funil Kanban
+        </button>
+        <button class="crm-subnav-btn" id="crm-btn-subview-leads" onclick="window.CRMModule.switchCRMView('leads')">
+          Leads & Prospeção
+        </button>
       </div>
 
-      <!-- CRM Metrics -->
-      <div class="kpi-grid" id="crm-metrics-container">
-        <!-- Rendered by crm.js -->
-      </div>
-
-      <!-- Filtros e Grelha 360º -->
-      <div class="panel-card">
-        <div class="panel-header">
-          <h3 class="panel-title">Diretório de Empresas</h3>
+      <!-- VISTA 1: EMPRESAS 360º -->
+      <div id="crm-view-companies">
+        <div class="toolbar">
+          <div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700;">CRM & Diretório Empresa 360º</h2>
+            <span class="kpi-subtext">Caderno unificado de Clientes, Fornecedores, Parceiros, Contactos e Contratos</span>
+          </div>
           <div class="toolbar-group">
-            <input type="text" id="crm-search-input" placeholder="Pesquisar por nome, NIF ou email..." oninput="window.CRMModule.currentFilter.search = this.value; window.CRMModule.renderCompaniesGrid();">
-            <select id="crm-status-filter" onchange="window.CRMModule.currentFilter.status = this.value; window.CRMModule.renderCompaniesGrid();">
-              <option value="">Todos os Estados</option>
-              <option value="CUSTOMER">Clientes</option>
-              <option value="LEAD">Leads / Prospetos</option>
-              <option value="SUPPLIER">Fornecedores</option>
-              <option value="PARTNER">Parceiros</option>
-            </select>
+            <button class="btn btn-primary" onclick="window.CRMModule.openCreateModal()">+ Nova Empresa</button>
           </div>
         </div>
 
-        <div class="companies-grid" id="companies-grid-container">
+        <!-- CRM Metrics -->
+        <div class="kpi-grid" id="crm-metrics-container">
           <!-- Rendered by crm.js -->
         </div>
+
+        <!-- Filtros e Grelha 360º -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3 class="panel-title">Diretório de Empresas</h3>
+            <div class="toolbar-group">
+              <input type="text" id="crm-search-input" placeholder="Pesquisar por nome, NIF ou email..." oninput="window.CRMModule.currentFilter.search = this.value; window.CRMModule.renderCompaniesGrid();">
+              <select id="crm-status-filter" onchange="window.CRMModule.currentFilter.status = this.value; window.CRMModule.renderCompaniesGrid();">
+                <option value="">Todos os Estados</option>
+                <option value="CUSTOMER">Clientes</option>
+                <option value="LEAD">Leads / Prospetos</option>
+                <option value="SUPPLIER">Fornecedores</option>
+                <option value="PARTNER">Parceiros</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="companies-grid" id="companies-grid-container">
+            <!-- Rendered by crm.js -->
+          </div>
+        </div>
+      </div>
+
+      <!-- VISTA 2: PIPELINE & KANBAN -->
+      <div id="crm-view-pipeline" style="display: none;">
+        <div class="toolbar" style="margin-bottom: 16px;">
+          <div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Pipeline Comercial & Funil de Vendas (Kanban)</h2>
+            <span class="kpi-subtext">Acompanhamento e previsão de fecho ponderada por estágio de qualificação</span>
+          </div>
+          <div class="toolbar-group">
+            <button class="btn btn-primary" onclick="window.CRMPipelineModule.openCreateOpportunityModal()">+ Nova Oportunidade</button>
+          </div>
+        </div>
+        <div id="crm-pipeline-container"></div>
+      </div>
+
+      <!-- VISTA 3: LEADS & PROSPEÇÃO -->
+      <div id="crm-view-leads" style="display: none;">
+        <div class="toolbar" style="margin-bottom: 16px;">
+          <div>
+            <h2 style="margin: 0; font-size: 18px; font-weight: 700;">Leads & Prospeção Comercial</h2>
+            <span class="kpi-subtext">Caderno de prospeção para qualificação e conversão imediata em negócio</span>
+          </div>
+          <div class="toolbar-group">
+            <button class="btn btn-primary" onclick="window.CRMLeadsModule.openCreateLeadModal()">+ Nova Lead</button>
+          </div>
+        </div>
+        <div id="crm-leads-container"></div>
       </div>
     </div>
 
@@ -731,6 +775,167 @@
     </div>
   </div>
 
+  <!-- Modal Nova Oportunidade CRM -->
+  <div id="modal-create-opportunity" class="modal-overlay">
+    <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Registar Nova Oportunidade no Funil</h3>
+        <button class="btn btn-sm" onclick="window.CRMPipelineModule.closeModal('modal-create-opportunity')">Fechar</button>
+      </div>
+      <form onsubmit="window.CRMPipelineModule.submitCreateOpportunity(event)">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Título da Oportunidade *</label>
+              <input type="text" name="title" required placeholder="Ex: Fornecimento de Software Enterprise">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Empresa Associada</label>
+              <select name="companyId" id="opp-company-select">
+                <option value="">-- Nenhuma / Prospeto Avulso --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Valor Estimado (€) *</label>
+              <input type="number" step="0.01" min="1" name="estimatedValue" required placeholder="Ex: 5000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Estágio Inicial</label>
+              <select name="stage">
+                <option value="QUALIFICATION">Qualificação (20%)</option>
+                <option value="PROPOSAL">Proposta Apresentada (50%)</option>
+                <option value="NEGOTIATION">Negociação & Fecho (80%)</option>
+                <option value="WON">Ganho / Fechado (100%)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Probabilidade Personalizada (%)</label>
+              <input type="number" min="0" max="100" name="probability" placeholder="Opcional (usa estágio)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Data Prevista de Fecho</label>
+              <input type="date" name="expectedCloseDate">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Notas / Contexto do Negócio</label>
+              <textarea name="notes" rows="3" placeholder="Detalhes dos requisitos, concorrentes ou prazos..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMPipelineModule.closeModal('modal-create-opportunity')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Gravar Oportunidade</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Declarar Perdida -->
+  <div id="modal-declare-lost" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: #ef4444;">Declarar Negócio Perdido</h3>
+        <button class="btn btn-sm" onclick="window.CRMPipelineModule.closeModal('modal-declare-lost')">Fechar</button>
+      </div>
+      <form onsubmit="window.CRMPipelineModule.submitDeclareLost(event)">
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+            Para aprendizagem comercial e relatórios rigorosos, indique o motivo principal de perda desta oportunidade:
+          </p>
+          <div class="form-group">
+            <label class="form-label">Motivo de Perda *</label>
+            <select id="lost-reason-input" required>
+              <option value="Preço / Orçamento insuficiente">Preço / Orçamento insuficiente</option>
+              <option value="Optou por solução da concorrência">Optou por solução da concorrência</option>
+              <option value="Timing / Projeto adiado">Timing / Projeto adiado</option>
+              <option value="Perda de interesse / Sem resposta">Perda de interesse / Sem resposta</option>
+              <option value="Requisitos técnicos incompatíveis">Requisitos técnicos incompatíveis</option>
+              <option value="Outro motivo">Outro motivo</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMPipelineModule.closeModal('modal-declare-lost')">Cancelar</button>
+          <button type="submit" class="btn btn-danger">Confirmar Perda</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Nova Lead -->
+  <div id="modal-create-lead" class="modal-overlay">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Registar Novo Prospeto / Lead</h3>
+        <button class="btn btn-sm" onclick="window.CRMLeadsModule.closeModal('modal-create-lead')">Fechar</button>
+      </div>
+      <form onsubmit="window.CRMLeadsModule.submitCreateLead(event)">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Nome da Empresa / Organização *</label>
+              <input type="text" name="company" required placeholder="Ex: TecnoDigital Lda">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Nome do Contacto / Decisor *</label>
+              <input type="text" name="name" required placeholder="Ex: Eng. Carlos Mendes">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" placeholder="carlos@tecnodigital.pt">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefone / Telemóvel</label>
+              <input type="tel" name="phone" placeholder="+351 910 000 000">
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Origem da Prospeção</label>
+              <input type="text" name="source" placeholder="Ex: LinkedIn, Website, Recomendação, Feira">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMLeadsModule.closeModal('modal-create-lead')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Gravar Lead</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Converter Lead em Oportunidade -->
+  <div id="modal-convert-lead" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 class="modal-title" style="color: #3b82f6;">⚡ Converter Prospeto em Negócio</h3>
+        <button class="btn btn-sm" onclick="window.CRMLeadsModule.closeModal('modal-convert-lead')">Fechar</button>
+      </div>
+      <form onsubmit="window.CRMLeadsModule.submitConvertLead(event)">
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Título da Oportunidade *</label>
+              <input type="text" id="convert-opp-title" required>
+            </div>
+            <div class="form-group col-span-2">
+              <label class="form-label">Valor Estimado do Negócio (€) *</label>
+              <input type="number" step="0.01" min="1" id="convert-opp-value" required>
+            </div>
+            <div class="form-group col-span-2" style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+              <input type="checkbox" id="convert-create-company" checked style="width: 18px; height: 18px;">
+              <label for="convert-create-company" style="font-size: 13px; cursor: pointer;">
+                Criar ficha 360º no Diretório de Empresas unificado
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMLeadsModule.closeModal('modal-convert-lead')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Converter Agora</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal Diff de Auditoria -->
   <div id="modal-audit-diff" class="modal-overlay">
     <div class="modal-content" style="max-width: 720px;">
@@ -927,10 +1132,12 @@
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
-  <script src="/assets/js/crm/crm-core.js?v=1.6.1"></script>
-  <script src="/assets/js/crm/crm-companies.js?v=1.6.1"></script>
-  <script src="/assets/js/crm/crm-contacts.js?v=1.6.1"></script>
-  <script src="/assets/js/crm.js?v=1.6.1"></script>
+  <script src="/assets/js/crm/crm-core.js?v=1.6.2"></script>
+  <script src="/assets/js/crm/crm-companies.js?v=1.6.2"></script>
+  <script src="/assets/js/crm/crm-contacts.js?v=1.6.2"></script>
+  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.2"></script>
+  <script src="/assets/js/crm/crm-leads.js?v=1.6.2"></script>
+  <script src="/assets/js/crm.js?v=1.6.2"></script>
   <script src="/assets/js/audit.js"></script>
   <script src="/assets/js/sellmais.js"></script>
   <script src="/assets/js/email-settings.js?v=1.6.0"></script>

@@ -108,11 +108,31 @@ export class CRMController {
   }
 
   // =========================================================================
-  // PIPELINE & DASHBOARD (COMPATIBILIDADE LEADS/OPPORTUNITIES)
+  // PIPELINE COMERCIAL & FUNIL KANBAN (FASE B2)
   // =========================================================================
 
-  async convertLead(context: CRMRequestContext, leadId: string, estimatedValue: number) {
-    return serviceFor(context).convertLeadToOpportunity(leadId, estimatedValue);
+  async getPipelineKanban(context: CRMRequestContext, filters?: { assignedUserId?: string }) {
+    return serviceFor(context).getPipelineKanban(filters);
+  }
+
+  async createOpportunity(context: CRMRequestContext, data: any) {
+    return serviceFor(context).createOpportunity(data);
+  }
+
+  async updateOpportunityStage(context: CRMRequestContext, opportunityId: string, data: any) {
+    return serviceFor(context).updateOpportunityStage(opportunityId, data.stage, data);
+  }
+
+  async updateOpportunity(context: CRMRequestContext, opportunityId: string, data: any) {
+    return serviceFor(context).updateOpportunity(opportunityId, data);
+  }
+
+  async deleteOpportunity(context: CRMRequestContext, opportunityId: string) {
+    return serviceFor(context).deleteOpportunity(opportunityId);
+  }
+
+  async convertLead(context: CRMRequestContext, leadId: string, estimatedValue: number, options?: any) {
+    return serviceFor(context).convertLeadToOpportunity(leadId, estimatedValue, options);
   }
 
   async winOpportunity(context: CRMRequestContext, opportunityId: string) {

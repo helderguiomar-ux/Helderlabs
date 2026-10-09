@@ -101,8 +101,8 @@ export class EnterpriseCRMService {
 
   public async assertOpportunityOwned(oppId: string) {
     const opp = await this.db.opportunity.findFirst({
-      where: { id: oppId, tenantId: this.tenantId },
-      include: { lead: true }
+      where: { id: oppId, tenantId: this.tenantId, deletedAt: null },
+      include: { lead: true, company: true, contact: true, customer: true }
     });
     if (!opp) {
       throw notFound('Oportunidade não encontrada.');
@@ -673,10 +673,415 @@ export class EnterpriseCRMService {
   }
 
   // =========================================================================
-  // LEGACY LEADS & OPPORTUNITIES PIPELINE (PRESERVADO COM SOFT-DELETE)
+  // PIPELINE COMERCIAL, FUNIL KANBAN & OPORTUNIDADES (FASE B2)
   // =========================================================================
 
-  public async convertLeadToOpportunity(leadId: string, estimatedValue: number) {
+  public async getPipelineKanban(filters?: { assignedUserId?: string }) {
+    const where: any = {
+      tenantId: this.tenantId,
+      deletedAt: null
+    };
+    if (filters?.assignedUserId) {
+      where.assignedUserId = filters.assignedUserId;
+    }
+
+    const opportunities = await this.db.opportunity.findMany({
+      where,
+      include: {
+        company: {
+          select: { id: true, tradeName: true, taxNumber: true, status: true, sector: true }
+        },
+        contact: {
+          select: { id: true, name: true, phone: true, email: true, role: true, decisionPower: true }
+        },
+        lead: {
+          select: { id: true, company: true, name: true, phone: true, email: true, source: true }
+        },
+        customer: {
+          select: { id: true, companyName: true }
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    const columns: Record<string, { stage: string; label: string; defaultProbability: number; count: number; totalValue: number; weightedValue: number; opportunities: any[] }> = {
+      QUALIFICATION: {
+        stage: 'QUALIFICATION',
+        label: 'Qualificação',
+        defaultProbability: 20,
+        count: 0,
+        totalValue: 0,
+        weightedValue: 0,
+        opportunities: []
+      },
+      PROPOSAL: {
+        stage: 'PROPOSAL',
+        label: 'Proposta Apresentada',
+        defaultProbability: 50,
+        count: 0,
+        totalValue: 0,
+        weightedValue: 0,
+        opportunities: []
+      },
+      NEGOTIATION: {
+        stage: 'NEGOTIATION',
+        label: 'Negociação & Fecho',
+        defaultProbability: 80,
+        count: 0,
+        totalValue: 0,
+        weightedValue: 0,
+        opportunities: []
+      },
+      WON: {
+        stage: 'WON',
+        label: 'Ganho / Fechado',
+        defaultProbability: 100,
+        count: 0,
+        totalValue: 0,
+        weightedValue: 0,
+        opportunities: []
+      },
+      LOST: {
+        stage: 'LOST',
+        label: 'Perdido',
+        defaultProbability: 0,
+        count: 0,
+        totalValue: 0,
+        weightedValue: 0,
+        opportunities: []
+      }
+    };
+
+    let totalPipelineValue = 0;
+    let totalWeightedValue = 0;
+    let wonValue = 0;
+
+    for (const opp of opportunities) {
+      const stageKey = opp.stage in columns ? opp.stage : 'QUALIFICATION';
+      const col = columns[stageKey];
+      col.count += 1;
+      col.totalValue += opp.estimatedValue;
+      const weighted = opp.estimatedValue * (opp.probability / 100);
+      col.weightedValue += weighted;
+      col.opportunities.push(opp);
+
+      if (opp.stage !== 'LOST') {
+        totalPipelineValue += opp.estimatedValue;
+        totalWeightedValue += weighted;
+      }
+      if (opp.stage === 'WON') {
+        wonValue += opp.estimatedValue;
+      }
+    }
+
+    const wonCount = columns.WON.count;
+    const lostCount = columns.LOST.count;
+    const totalClosed = wonCount + lostCount;
+    const conversionRate = totalClosed > 0 ? Number(((wonCount / totalClosed) * 100).toFixed(1)) : 0;
+
+    return {
+      columns,
+      summary: {
+        totalOpportunities: opportunities.length,
+        totalPipelineValue,
+        totalWeightedValue,
+        wonValue,
+        wonCount,
+        lostCount,
+        conversionRate
+      }
+    };
+  }
+
+  public async createOpportunity(
+    data: {
+      title: string;
+      estimatedValue: number;
+      stage?: any;
+      probability?: number;
+      companyId?: string;
+      contactId?: string;
+      leadId?: string;
+      customerId?: string;
+      expectedCloseDate?: Date | string;
+      lostReason?: string;
+      notes?: string;
+      assignedUserId?: string;
+    },
+    userId?: string
+  ) {
+    if (data.companyId) {
+      await this.assertCompanyOwned(data.companyId);
+    }
+    if (data.leadId) {
+      await this.assertLeadOwned(data.leadId);
+    }
+
+    const stage = data.stage || 'QUALIFICATION';
+    let probability = data.probability;
+    if (probability === undefined || probability === null) {
+      const defaults: Record<string, number> = {
+        QUALIFICATION: 20,
+        PROPOSAL: 50,
+        NEGOTIATION: 80,
+        WON: 100,
+        LOST: 0
+      };
+      probability = defaults[stage] ?? 20;
+    }
+
+    const opportunity = await this.db.opportunity.create({
+      data: {
+        tenantId: this.tenantId,
+        title: data.title,
+        estimatedValue: data.estimatedValue,
+        stage,
+        probability,
+        companyId: data.companyId || null,
+        contactId: data.contactId || null,
+        leadId: data.leadId || null,
+        customerId: data.customerId || null,
+        expectedCloseDate: data.expectedCloseDate ? new Date(data.expectedCloseDate) : null,
+        lostReason: stage === 'LOST' ? data.lostReason : null,
+        notes: data.notes || null,
+        assignedUserId: data.assignedUserId || null
+      },
+      include: {
+        company: true,
+        contact: true,
+        lead: true,
+        customer: true
+      }
+    });
+
+    if (stage === 'WON') {
+      await this.handleOpportunityWon(opportunity, userId);
+    }
+
+    await AuditService.audit({
+      action: 'crm.opportunity.create',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'Opportunity',
+      description: `Oportunidade criada: ${opportunity.title} (${opportunity.estimatedValue}€, ${opportunity.stage})`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
+
+    return opportunity;
+  }
+
+  public async updateOpportunityStage(
+    opportunityId: string,
+    stage: 'QUALIFICATION' | 'PROPOSAL' | 'NEGOTIATION' | 'WON' | 'LOST',
+    metadata?: {
+      probability?: number;
+      lostReason?: string;
+      notes?: string;
+    },
+    userId?: string
+  ) {
+    const opp = await this.assertOpportunityOwned(opportunityId);
+
+    const updateData: any = { stage };
+
+    if (stage === 'WON') {
+      updateData.probability = 100;
+    } else if (stage === 'LOST') {
+      updateData.probability = 0;
+      updateData.lostReason = metadata?.lostReason || 'Não especificado';
+    } else if (metadata?.probability !== undefined) {
+      updateData.probability = metadata.probability;
+    } else {
+      const defaults: Record<string, number> = {
+        QUALIFICATION: 20,
+        PROPOSAL: 50,
+        NEGOTIATION: 80
+      };
+      updateData.probability = defaults[stage] ?? 20;
+    }
+
+    if (metadata?.notes !== undefined) {
+      updateData.notes = metadata.notes;
+    }
+
+    const updated = await this.db.opportunity.update({
+      where: { id: opportunityId },
+      data: updateData,
+      include: {
+        company: true,
+        contact: true,
+        lead: true,
+        customer: true
+      }
+    });
+
+    if (stage === 'WON') {
+      const oppWithRelations = {
+        ...updated,
+        lead: updated.lead || opp.lead,
+        company: updated.company || opp.company
+      };
+      await this.handleOpportunityWon(oppWithRelations, userId);
+      await AuditService.audit({
+        action: 'crm.opportunity.won',
+        module: 'crm',
+        category: 'APPLICATION',
+        resource: 'Opportunity',
+        description: `Oportunidade ganha: ${updated.title} (${updated.estimatedValue}€, empresa sincronizada)`,
+        tenantId: this.tenantId,
+        actorType: 'USER'
+      }).catch(() => undefined);
+    } else if (stage === 'LOST') {
+      await AuditService.audit({
+        action: 'crm.opportunity.lost',
+        module: 'crm',
+        category: 'APPLICATION',
+        resource: 'Opportunity',
+        description: `Oportunidade perdida: ${updated.title} (Motivo: ${updateData.lostReason})`,
+        tenantId: this.tenantId,
+        actorType: 'USER'
+      }).catch(() => undefined);
+    } else {
+      await AuditService.audit({
+        action: 'crm.opportunity.stage_change',
+        module: 'crm',
+        category: 'APPLICATION',
+        resource: 'Opportunity',
+        description: `Transição de estágio: ${opp.stage} -> ${stage} (${updated.title})`,
+        tenantId: this.tenantId,
+        actorType: 'USER'
+      }).catch(() => undefined);
+    }
+
+    return updated;
+  }
+
+  public async updateOpportunity(
+    opportunityId: string,
+    data: {
+      title?: string;
+      estimatedValue?: number;
+      stage?: any;
+      probability?: number;
+      expectedCloseDate?: Date | string | null;
+      companyId?: string | null;
+      contactId?: string | null;
+      lostReason?: string | null;
+      notes?: string | null;
+      assignedUserId?: string | null;
+    },
+    userId?: string
+  ) {
+    await this.assertOpportunityOwned(opportunityId);
+    if (data.companyId) {
+      await this.assertCompanyOwned(data.companyId);
+    }
+
+    const payload: any = { ...data };
+    if (data.expectedCloseDate) {
+      payload.expectedCloseDate = new Date(data.expectedCloseDate);
+    }
+
+    const updated = await this.db.opportunity.update({
+      where: { id: opportunityId },
+      data: payload,
+      include: { company: true, contact: true, lead: true, customer: true }
+    });
+
+    await AuditService.audit({
+      action: 'crm.opportunity.update',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'Opportunity',
+      description: `Oportunidade atualizada: ${updated.title} (campos: ${Object.keys(data).join(', ')})`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
+
+    return updated;
+  }
+
+  public async deleteOpportunity(opportunityId: string, userId?: string) {
+    await this.assertOpportunityOwned(opportunityId);
+
+    const deleted = await this.db.opportunity.update({
+      where: { id: opportunityId },
+      data: { deletedAt: new Date() }
+    });
+
+    await AuditService.audit({
+      action: 'crm.opportunity.delete',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'Opportunity',
+      description: `Oportunidade arquivada via soft delete (ID: ${opportunityId})`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
+
+    return deleted;
+  }
+
+  private async handleOpportunityWon(opportunity: any, userId?: string) {
+    // 1. Se tem empresa associada, atualiza status para CUSTOMER
+    if (opportunity.companyId && this.db.company) {
+      await this.db.company.update({
+        where: { id: opportunity.companyId },
+        data: { status: 'CUSTOMER' }
+      });
+    }
+
+    // 2. Se tem lead associada, atualiza status para CONVERTED
+    if (opportunity.leadId && this.db.lead) {
+      await this.db.lead.update({
+        where: { id: opportunity.leadId },
+        data: { status: 'CONVERTED' }
+      });
+    }
+
+    // 3. Se não tem customerId, cria Customer correspondente
+    if (!opportunity.customerId && this.db.customer) {
+      const customer = await this.db.customer.create({
+        data: {
+          tenantId: this.tenantId,
+          companyName: opportunity.company?.tradeName || opportunity.lead?.company || opportunity.title,
+          website: opportunity.company?.website || opportunity.lead?.website || null,
+          assignedUserId: opportunity.assignedUserId || userId || null,
+          contacts: opportunity.lead
+            ? {
+                create: {
+                  name: opportunity.lead.name,
+                  email: opportunity.lead.email,
+                  phone: opportunity.lead.phone || opportunity.lead.mobile || null,
+                  role: opportunity.lead.role || 'Contacto Principal',
+                  isPrimary: true
+                }
+              }
+            : undefined
+        }
+      });
+
+      await this.db.opportunity.update({
+        where: { id: opportunity.id },
+        data: { customerId: customer.id }
+      });
+
+      if (opportunity.leadId && this.db.communication) {
+        await this.db.communication.updateMany({
+          where: { leadId: opportunity.leadId },
+          data: { customerId: customer.id }
+        });
+      }
+    }
+  }
+
+  public async convertLeadToOpportunity(
+    leadId: string,
+    estimatedValue: number,
+    options?: { createCompany?: boolean; title?: string },
+    userId?: string
+  ) {
     const lead = await this.assertLeadOwned(leadId);
 
     await this.db.lead.update({
@@ -684,60 +1089,92 @@ export class EnterpriseCRMService {
       data: { status: 'QUALIFICATION' }
     });
 
+    let companyId = lead.companyId || null;
+
+    if (!companyId && options?.createCompany !== false && this.db.company && typeof this.db.company.findFirst === 'function') {
+      const existing = await this.db.company.findFirst({
+        where: {
+          tenantId: this.tenantId,
+          deletedAt: null,
+          tradeName: lead.company
+        }
+      });
+
+      if (existing) {
+        companyId = existing.id;
+      } else {
+        const newCompany = await this.db.company.create({
+          data: {
+            tenantId: this.tenantId,
+            tradeName: lead.company,
+            email: lead.email,
+            phone: lead.phone || lead.mobile,
+            website: lead.website,
+            status: 'LEAD',
+            completenessPercent: 20
+          }
+        });
+        companyId = newCompany.id;
+
+        if (lead.name && this.db.companyContact) {
+          await this.db.companyContact.create({
+            data: {
+              companyId: newCompany.id,
+              name: lead.name,
+              email: lead.email,
+              phone: lead.phone || lead.mobile,
+              role: lead.role || 'Contacto Principal',
+              isPrimary: true
+            }
+          });
+        }
+      }
+
+      await this.db.lead.update({
+        where: { id: leadId },
+        data: { companyId }
+      });
+    }
+
     const opportunity = await this.db.opportunity.create({
       data: {
-        title: `Oportunidade Comercial - ${lead.company}`,
+        title: options?.title || `Oportunidade Comercial - ${lead.company}`,
         leadId: lead.id,
+        companyId,
         stage: 'QUALIFICATION',
         estimatedValue,
         probability: 20,
         tenantId: this.tenantId,
-        assignedUserId: lead.assignedUserId
+        assignedUserId: lead.assignedUserId || userId || null
+      },
+      include: {
+        company: true,
+        lead: true
       }
     });
+
+    await AuditService.audit({
+      action: 'crm.lead.convert',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'Lead',
+      description: `Lead convertida em Oportunidade: ${opportunity.title} (${opportunity.estimatedValue}€)`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
 
     return opportunity;
   }
 
-  public async winOpportunityAndCreateCustomer(opportunityId: string) {
-    const opp = await this.assertOpportunityOwned(opportunityId);
-
-    const customer = await this.db.customer.create({
-      data: {
-        tenantId: this.tenantId,
-        companyName: opp.lead ? opp.lead.company : opp.title,
-        website: opp.lead ? opp.lead.website : null,
-        assignedUserId: opp.assignedUserId,
-        contacts: opp.lead
-          ? {
-              create: {
-                name: opp.lead.name,
-                email: opp.lead.email,
-                phone: opp.lead.phone || opp.lead.mobile || null,
-                role: opp.lead.role || 'Contacto Principal',
-                isPrimary: true
-              }
-            }
-          : undefined
-      }
-    });
-
-    await this.db.opportunity.update({
-      where: { id: opportunityId },
-      data: {
-        stage: 'WON',
-        customerId: customer.id
-      }
-    });
-
-    if (opp.leadId) {
-      await this.db.communication.updateMany({
-        where: { leadId: opp.leadId },
-        data: { customerId: customer.id }
-      });
+  public async winOpportunityAndCreateCustomer(opportunityId: string, userId?: string) {
+    const opp = await this.updateOpportunityStage(opportunityId, 'WON', {}, userId);
+    if (opp.customerId && this.db.customer) {
+      const cust = this.db.customer.findUnique
+        ? await this.db.customer.findUnique({ where: { id: opp.customerId } })
+        : (await this.db.customer.findMany({ where: { id: opp.customerId } }))?.[0];
+      if (cust) return cust;
     }
-
-    return customer;
+    return opp;
   }
 
   public async createLead(data: {

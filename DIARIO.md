@@ -190,4 +190,13 @@ Construção progressiva, validação rigorosa de segurança multi-tenant e publ
    - Impressão A4 formatada (`/statement/print`) e envio por email através do tenant (`/statement/send`).
    - Salvaguarda legal mandatória expressa: *"Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal."*
    - Suite de testes `tests/crm/crm-b7-account-entries.test.ts` com 8 novos testes unitários e de integração (68 testes CRM, 95 testes conjuntos aprovados a 100%).
+10. **Fase B8 (v1.6.8)**: Painel Executivo do CRM & Relatórios com Gráficos SVG Nativos.
+    - Agregação do funil comercial (`getExecutiveDashboard`): valor nominal e ponderado por estágio, contagem de negócios ativos, win rate global e ciclo médio de venda em dias.
+    - Previsão mensal (`forecastByMonth`) agregando fechos previstos por mês com valores ponderados.
+    - Deteção inteligente de riscos comerciais: negócios sem próximo passo (`dealsWithoutNextStep`) alertando para potenciais oportunidades abandonadas.
+    - Gráficos em SVG nativo puro (`crm-dashboard.js`): funil de vendas, barras de previsão mensal, donut polar de origens e barras de aging da conta corrente sem bibliotecas externas.
+    - Exportação de relatórios em CSV (`exportCsv`): blindagem contra CSV Formula Injection (`sanitizeCsvCell`), codificação UTF-8 com BOM (`\uFEFF`) para Excel.
+    - Interface web com sub-vista *Painel Executivo*, filtros temporais e de responsável e botões de exportação direta em CSV.
+    - Suite de testes `tests/crm/crm-b8-executive-dashboard.test.ts` com 5 testes dedicados (73 testes CRM, 100 testes conjuntos no repositório com 100% de sucesso).
+
 

@@ -2,7 +2,35 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
-## [v1.6.7] - 2026-10-09
+## [v1.6.8] - 2026-10-09
+
+### CRM Fase B8 — Painel Executivo do CRM & Relatórios com Gráficos SVG Nativos
+- **Painel Executivo Comercial Consolidado (`GET /api/crm/dashboard/executive`)**:
+  - Métricas chave do funil de vendas: Valor total em pipeline, valor ponderado (`weightedValue`), negócios ativos, win rate global e ciclo médio de fecho em dias.
+  - Distribuição analítica por estágio (`QUALIFICATION`, `PROPOSAL`, `NEGOTIATION`, `WON`, `LOST`) com contagens e valores nominais/ponderados.
+  - Previsão mensal (`forecastByMonth`) com agregação de oportunidades ativas por data prevista de fecho.
+  - Deteção inteligente de riscos comerciais: Negócios sem próximo passo (`dealsWithoutNextStep`) sem follow-up ou comunicação futura agendada.
+  - Resumo de propostas comerciais (taxa de conversão, total enviado e rascunhos) e saúde de conta corrente (dentro do prazo vs vencido).
+- **Gráficos em SVG Nativo Puro (Zero Bibliotecas Externas)**:
+  - Implementação de geradores SVG puros no módulo `crm-dashboard.js`:
+    - Funil de Vendas (`renderPipelineFunnelSvg`): Visualização trapezoidal interativa por estágio comercial.
+    - Previsão Mensal (`renderMonthlyForecastSvg`): Gráfico de barras verticais comparando valor nominal e valor ponderado.
+    - Origem de Leads (`renderDonutSvg`): Gráfico donut polar SVG para distribuição percentual de leads.
+    - Posição Financeira (`renderAgingBarsSvg`): Barras de risco e envelhecimento da conta corrente.
+  - Performance ultra-rápida, zero sobrecarga de bibliotecas (sem Chart.js ou D3) e total conformidade com acessibilidade.
+- **Exportação de Relatórios CSV Segura (`GET /api/crm/reports/export/:entity`)**:
+  - Endpoints dedicados para exportação de dados em CSV: `companies`, `deals`, `proposals` e `account-entries`.
+  - Proteção estrita contra **CSV Formula Injection**: Sanitização de células iniciadas por carateres executáveis (`=`, `+`, `-`, `@`, `\t`, `\r`) prefixando apóstrofo `'`.
+  - Codificação UTF-8 com BOM (`\uFEFF`) e delimitador `;` para compatibilidade total e imediata com Microsoft Excel e LibreOffice.
+- **Interface e Navegação Web**:
+  - Nova sub-vista *Painel Executivo* na barra de navegação do CRM (`crm-btn-subview-dashboard` e `crm-view-dashboard`).
+  - Painel de filtros temporais e de responsável comercial com atualização instantânea.
+  - Tabela de alerta de negócios sem próximo passo com ligação rápida para agendamento.
+  - Barra de ações com exportação instantânea de relatórios em CSV.
+- **Testes Automatizados & Governação**:
+  - Suite dedicada `tests/crm/crm-b8-executive-dashboard.test.ts` com 5 testes de integração.
+  - Suite de testes consolidada com **100/100 testes com sucesso (0 falhas)**.
+
 
 ### CRM Fase B7 — Conta Corrente de Clientes, Extrato Progressivo, Alocação de Pagamentos e Análise de Antiguidade (Aging)
 - **Salvaguarda Legal & Regulamentar Inviolável**:

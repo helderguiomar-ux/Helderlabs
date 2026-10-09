@@ -2,9 +2,9 @@
 
 **Data:** 2026-10-09  
 **Módulo:** HelderLabs CRM — Fase B8 (Painel Executivo do CRM & Relatórios com Gráficos SVG Nativos)  
-**Destino de Produção:** `https://helderlabs.eu` (Vercel `helderlabs-erp`, Deployment ID: `dpl_36YyGNheeXvjW95ESsMNc6aTyfrQ`)  
+**Destino de Produção:** `https://helderlabs.eu` (Vercel `helderlabs-erp`, Deployment ID: `dpl_CSKq1CMpiZh56osVU6Rnnocszj6G`)  
 **Commit de Código:** `7b9d6e8`  
-**Commit de Governação:** `00a6c18`  
+**Commit de Governação:** `00a6c18` / `57012da`  
 
 ---
 

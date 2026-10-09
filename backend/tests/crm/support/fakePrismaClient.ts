@@ -20,6 +20,7 @@ export function createFakePrismaClient() {
   const companies: any[] = [];
   const proposals: any[] = [];
   const proposalItems: any[] = [];
+  const contracts: any[] = [];
 
   const db = {
     // --- helpers só para preparar cenários de teste ---
@@ -31,7 +32,8 @@ export function createFakePrismaClient() {
       communications,
       companies,
       proposals,
-      proposalItems
+      proposalItems,
+      contracts
     },
 
     company: {
@@ -367,6 +369,80 @@ export function createFakePrismaClient() {
       },
       findMany: async ({ where }: any = {}) => {
         return proposalItems.filter((it) => !where?.proposalId || it.proposalId === where.proposalId);
+      }
+    },
+
+    contract: {
+      count: async ({ where }: any = {}) => {
+        return contracts.filter((c) => {
+          if (where?.tenantId && c.tenantId !== where.tenantId) return false;
+          if (where?.deletedAt === null && c.deletedAt) return false;
+          if (where?.companyId && c.companyId !== where.companyId) return false;
+          if (where?.status && c.status !== where.status) return false;
+          return true;
+        }).length;
+      },
+      findFirst: async ({ where, include }: any = {}) => {
+        const c = contracts.find((item) => {
+          if (where?.id && item.id !== where.id) return false;
+          if (where?.tenantId && item.tenantId !== where.tenantId) return false;
+          if (where?.contractNumber && item.contractNumber !== where.contractNumber) return false;
+          if (where?.deletedAt === null && item.deletedAt) return false;
+          return true;
+        });
+        if (!c) return null;
+        const res = { ...c };
+        if (include?.company) res.company = companies.find((comp) => comp.id === c.companyId) ?? null;
+        if (include?.proposal) res.proposal = proposals.find((p) => p.id === c.proposalId) ?? null;
+        return res;
+      },
+      findMany: async ({ where, include, orderBy, skip, take }: any = {}) => {
+        let items = contracts.filter((c) => {
+          if (where?.tenantId && c.tenantId !== where.tenantId) return false;
+          if (where?.deletedAt === null && c.deletedAt) return false;
+          if (where?.companyId && c.companyId !== where.companyId) return false;
+          if (where?.status && c.status !== where.status) return false;
+          if (where?.autoRenew !== undefined && c.autoRenew !== where.autoRenew) return false;
+          return true;
+        });
+
+        if (orderBy?.startDate === 'desc') {
+          items.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+        }
+
+        const res = items.map((c) => {
+          const item = { ...c };
+          if (include?.company) item.company = companies.find((comp) => comp.id === c.companyId) ?? null;
+          if (include?.proposal) item.proposal = proposals.find((p) => p.id === c.proposalId) ?? null;
+          return item;
+        });
+
+        const start = skip || 0;
+        const end = take ? start + take : undefined;
+        return res.slice(start, end);
+      },
+      create: async ({ data, include }: any) => {
+        const c = {
+          id: fakeId('contract'),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          ...data
+        };
+        contracts.push(c);
+        const res = { ...c };
+        if (include?.company) res.company = companies.find((comp) => comp.id === c.companyId) ?? null;
+        if (include?.proposal) res.proposal = proposals.find((p) => p.id === c.proposalId) ?? null;
+        return res;
+      },
+      update: async ({ where, data, include }: any) => {
+        const c = contracts.find((item) => item.id === where.id);
+        if (!c) throw new Error(`Contract ${where.id} não encontrado no fake client`);
+        Object.assign(c, data, { updatedAt: new Date() });
+        const res = { ...c };
+        if (include?.company) res.company = companies.find((comp) => comp.id === c.companyId) ?? null;
+        if (include?.proposal) res.proposal = proposals.find((p) => p.id === c.proposalId) ?? null;
+        return res;
       }
     }
   };

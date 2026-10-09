@@ -216,6 +216,9 @@
         <button class="crm-subnav-btn" id="crm-btn-subview-proposals" onclick="window.CRMModule.switchCRMView('proposals')">
           Propostas & Orçamentos
         </button>
+        <button class="crm-subnav-btn" id="crm-btn-subview-contracts" onclick="window.CRMModule.switchCRMView('contracts')">
+          Contratos & Avenças
+        </button>
       </div>
 
       <!-- VISTA 1: EMPRESAS 360º -->
@@ -301,6 +304,9 @@
 
       <!-- VISTA 5: PROPOSTAS & ORÇAMENTOS (FASE B4) -->
       <div id="crm-view-proposals" style="display: none;"></div>
+
+      <!-- VISTA 6: CONTRATOS & AVENÇAS (FASE B5) -->
+      <div id="crm-view-contracts" style="display: none;"></div>
     </div>
 
     <!-- =====================================================================
@@ -1175,6 +1181,204 @@
     </div>
   </div>
 
+  <!-- Modal Criar Contrato de Avença & SLA (Fase B5) -->
+  <div id="modal-create-contract" class="modal-overlay">
+    <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h3 class="modal-title">Novo Contrato de Avença & SLA</h3>
+        <button class="btn btn-sm" onclick="window.CRMContractsModule.closeCreateModal()">Fechar</button>
+      </div>
+      <form id="form-create-contract" onsubmit="window.CRMContractsModule.submitCreateContract(event)">
+        <input type="hidden" id="contract-create-proposal-id" name="proposalId">
+        <div class="modal-body">
+          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 13px; color: #92400e;">
+            ⚠️ <strong>Salvaguarda Legal Inviolável:</strong> Resumo de Contrato Comercial de Prestação de Serviços / Avença. Não serve de fatura nem de documento de quitação fiscal.
+          </div>
+
+          <div id="contract-create-error-box" class="alert alert-danger" hidden style="margin-bottom: 14px;"></div>
+
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Título do Contrato / Avença *</label>
+              <input type="text" name="title" required placeholder="Ex.: Avença Mensal de Suporte Técnico & Consultoria Cloud">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Empresa / Cliente *</label>
+              <select id="contract-create-company" name="companyId" required style="width: 100%;">
+                <option value="">Selecione a empresa...</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Periocidade de Faturação *</label>
+              <select id="contract-create-frequency" name="billingFrequency" onchange="window.CRMContractsModule.recalculateMRRPreview()" style="width: 100%;">
+                <option value="MONTHLY" selected>Mensal (12 faturas/ano)</option>
+                <option value="QUARTERLY">Trimestral (4 faturas/ano)</option>
+                <option value="SEMIANNUAL">Semestral (2 faturas/ano)</option>
+                <option value="ANNUAL">Anual (1 fatura/ano)</option>
+                <option value="ONE_OFF">Pontual / Avulso</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Valor do Período (€) *</label>
+              <input type="number" step="0.01" min="0" id="contract-create-value" name="valueEur" required placeholder="0.00" oninput="window.CRMContractsModule.recalculateMRRPreview()">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Receita Mensal Equivalente (MRR)</label>
+              <div style="font-size: 16px; font-weight: 700; color: #2563eb; padding-top: 8px;" id="contract-preview-mrr">
+                €0,00 / mês
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data de Início *</label>
+              <input type="date" name="startDate" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data de Término</label>
+              <input type="date" id="contract-create-end-date" name="endDate">
+              <div style="margin-top: 6px;">
+                <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                  <input type="checkbox" id="contract-create-indefinite" name="isIndefinite" onchange="document.getElementById('contract-create-end-date').disabled = this.checked;">
+                  Contrato por tempo indeterminado
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nível de Serviço (SLA)</label>
+              <select name="slaLevel" style="width: 100%;">
+                <option value="STANDARD" selected>Standard (Padrão)</option>
+                <option value="BRONZE">Bronze (8x5 comercial)</option>
+                <option value="SILVER">Silver (Prioritário)</option>
+                <option value="GOLD">Gold (Crítico / 24x7)</option>
+                <option value="PLATINUM">Platinum (Dedicado)</option>
+                <option value="CUSTOM">Custom (Personalizado)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tempo Máx. Resposta (Horas)</label>
+              <input type="number" step="1" min="1" name="slaResponseHours" placeholder="Ex.: 4">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Renovação Contratual</label>
+              <div style="padding-top: 6px;">
+                <label style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                  <input type="checkbox" name="autoRenew" checked>
+                  Renovação Automática
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Dias de Pré-aviso para Denúncia</label>
+              <input type="number" step="1" min="0" name="renewalNoticeDays" value="30">
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Termos de SLA e Condições Específicas</label>
+              <textarea name="termsAndConditions" rows="3" placeholder="Ex.: Intervenções fora de horas sujeitas a tarifa majorada de 50%. Inclui 10 horas de apoio remoto mensais."></textarea>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Notas Internas</label>
+              <textarea name="notes" rows="2" placeholder="Notas comerciais confidenciais sobre este contrato..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMContractsModule.closeCreateModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Gravar Contrato de Avença</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Renovar Contrato de Avença (Fase B5) -->
+  <div id="modal-renew-contract" class="modal-overlay">
+    <div class="modal-content" style="max-width: 540px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Renovar Contrato de Avença</h3>
+        <button class="btn btn-sm" onclick="window.CRMContractsModule.closeRenewModal()">Fechar</button>
+      </div>
+      <form id="form-renew-contract" onsubmit="window.CRMContractsModule.submitRenewContract(event)">
+        <div class="modal-body">
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px; color: var(--primary);" id="renew-contract-title"></div>
+
+          <div id="renew-contract-error-box" class="alert alert-danger" hidden style="margin-bottom: 14px;"></div>
+
+          <div style="background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+            <div style="font-size: 12px; color: var(--muted);">MRR Atual:</div>
+            <div style="font-size: 18px; font-weight: 800; color: #0f172a;" id="renew-contract-current-mrr">€0,00</div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Período de Prorrogação (Meses) *</label>
+              <input type="number" step="1" min="1" name="extensionMonths" value="12" required>
+              <small style="color: var(--muted);">Padrão: 12 meses (1 ano adicional)</small>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Atualização de Preço (%) (Inflação / IPC)</label>
+              <input type="number" step="0.1" name="adjustmentPercent" value="0" placeholder="Ex.: 3.5">
+              <small style="color: var(--muted);">Indique 0% se não houver atualização do valor.</small>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Notas da Renovação</label>
+              <textarea name="notes" rows="3" placeholder="Ex.: Renovado conforme adenda assinada pelas duas partes."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMContractsModule.closeRenewModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar Renovação</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Rescindir / Cancelar Contrato (Fase B5) -->
+  <div id="modal-terminate-contract" class="modal-overlay">
+    <div class="modal-content" style="max-width: 540px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Rescindir Contrato de Avença</h3>
+        <button class="btn btn-sm" onclick="window.CRMContractsModule.closeTerminateModal()">Fechar</button>
+      </div>
+      <form id="form-terminate-contract" onsubmit="window.CRMContractsModule.submitTerminateContract(event)">
+        <div class="modal-body">
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 12px; color: #dc2626;" id="terminate-contract-title"></div>
+
+          <div id="terminate-contract-error-box" class="alert alert-danger" hidden style="margin-bottom: 14px;"></div>
+
+          <div class="form-grid">
+            <div class="form-group col-span-2">
+              <label class="form-label">Motivo da Rescisão / Cancelamento *</label>
+              <textarea name="reason" rows="3" required placeholder="Ex.: Denúncia pelo cliente nos termos legais com 30 dias de pré-aviso."></textarea>
+            </div>
+
+            <div class="form-group col-span-2">
+              <label class="form-label">Data Efetiva de Cancelamento</label>
+              <input type="date" name="cancelledAt">
+              <small style="color: var(--muted);">Por omissão é considerada a data de hoje.</small>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn" onclick="window.CRMContractsModule.closeTerminateModal()">Voltar</button>
+          <button type="submit" class="btn btn-danger">Confirmar Rescisão</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modal Diff de Auditoria -->
   <div id="modal-audit-diff" class="modal-overlay">
     <div class="modal-content" style="max-width: 720px;">
@@ -1371,14 +1575,15 @@
   <script src="/assets/js/theme.js"></script>
   <script src="/assets/js/modules.js"></script>
   <script src="/assets/js/finance.js"></script>
-  <script src="/assets/js/crm/crm-core.js?v=1.6.4"></script>
-  <script src="/assets/js/crm/crm-companies.js?v=1.6.4"></script>
-  <script src="/assets/js/crm/crm-contacts.js?v=1.6.4"></script>
-  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.4"></script>
-  <script src="/assets/js/crm/crm-leads.js?v=1.6.4"></script>
-  <script src="/assets/js/crm/crm-activities.js?v=1.6.4"></script>
-  <script src="/assets/js/crm/crm-proposals.js?v=1.6.4"></script>
-  <script src="/assets/js/crm.js?v=1.6.4"></script>
+  <script src="/assets/js/crm/crm-core.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-companies.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-contacts.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-pipeline.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-leads.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-activities.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-proposals.js?v=1.6.5"></script>
+  <script src="/assets/js/crm/crm-contracts.js?v=1.6.5"></script>
+  <script src="/assets/js/crm.js?v=1.6.5"></script>
   <script src="/assets/js/audit.js"></script>
   <script src="/assets/js/sellmais.js"></script>
   <script src="/assets/js/email-settings.js?v=1.6.0"></script>

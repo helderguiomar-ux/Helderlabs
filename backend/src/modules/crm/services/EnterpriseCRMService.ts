@@ -69,9 +69,9 @@ export class EnterpriseCRMService {
   public async assertContractOwned(contractId: string) {
     const contract = await this.db.contract.findFirst({
       where: { id: contractId, tenantId: this.tenantId, deletedAt: null },
-      include: { company: true }
+      include: { company: true, proposal: true }
     });
-    if (!contract || contract.company.tenantId !== this.tenantId || contract.company.deletedAt !== null) {
+    if (!contract || !contract.company || contract.company.tenantId !== this.tenantId || Boolean(contract.company.deletedAt)) {
       throw notFound('Contrato não encontrado.');
     }
     return contract;
@@ -607,91 +607,604 @@ export class EnterpriseCRMService {
     });
   }
 
-  public async listContracts(companyId?: string) {
+  public async generateContractNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const count = await this.db.contract.count({
+      where: { tenantId: this.tenantId }
+    });
+    return `CTR-${year}-${String(count + 1).padStart(4, '0')}`;
+  }
+
+  public static calculateMonthlyValue(valueCents: number, billingFrequency: string): number {
+    switch (billingFrequency) {
+      case 'MONTHLY':
+        return valueCents;
+      case 'QUARTERLY':
+        return Math.round(valueCents / 3);
+      case 'SEMIANNUAL':
+        return Math.round(valueCents / 6);
+      case 'ANNUAL':
+        return Math.round(valueCents / 12);
+      case 'ONE_OFF':
+      default:
+        return 0;
+    }
+  }
+
+  public async getContractById(id: string) {
+    const contract = await this.db.contract.findFirst({
+      where: { id, tenantId: this.tenantId, deletedAt: null },
+      include: {
+        company: true,
+        proposal: {
+          select: { id: true, proposalNumber: true, title: true, totalCents: true }
+        }
+      }
+    });
+    if (!contract) {
+      throw notFound('Contrato não encontrado.');
+    }
+
+    let daysUntilEnd: number | null = null;
+    let isExpiringSoon = false;
+    if (contract.endDate && !contract.isIndefinite) {
+      const now = new Date();
+      const diffMs = new Date(contract.endDate).getTime() - now.getTime();
+      daysUntilEnd = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (contract.status === 'ACTIVE' && daysUntilEnd <= 30 && daysUntilEnd >= 0) {
+        isExpiringSoon = true;
+      }
+    }
+
+    return {
+      ...contract,
+      daysUntilEnd,
+      isExpiringSoon
+    };
+  }
+
+  public async listContracts(params?: string | {
+    companyId?: string;
+    status?: string;
+    expiringDays?: number;
+    autoRenew?: boolean;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    // Compatibilidade com chamada simples listContracts(companyId)
+    if (typeof params === 'string') {
+      const where: any = {
+        tenantId: this.tenantId,
+        deletedAt: null,
+        companyId: params
+      };
+      await this.assertCompanyOwned(params);
+      return this.db.contract.findMany({
+        where,
+        include: { company: true, proposal: true },
+        orderBy: { startDate: 'desc' }
+      });
+    }
+
+    const filters = params || {};
     const where: any = {
       tenantId: this.tenantId,
       deletedAt: null
     };
-    if (companyId) {
-      await this.assertCompanyOwned(companyId);
-      where.companyId = companyId;
+
+    if (filters.companyId) {
+      await this.assertCompanyOwned(filters.companyId);
+      where.companyId = filters.companyId;
     }
 
-    return this.db.contract.findMany({
-      where,
-      include: { company: true },
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.autoRenew !== undefined) {
+      where.autoRenew = filters.autoRenew;
+    }
+
+    const now = new Date();
+    if (filters.expiringDays && filters.expiringDays > 0) {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + filters.expiringDays);
+      where.endDate = {
+        gte: now,
+        lte: futureDate
+      };
+      where.isIndefinite = false;
+    }
+
+    const allContracts = await this.db.contract.findMany({
+      where: { tenantId: this.tenantId, deletedAt: null },
+      include: { company: true, proposal: true },
       orderBy: { startDate: 'desc' }
     });
+
+    let activeCount = 0;
+    let mrrCents = 0;
+    let expiringIn30Days = 0;
+    let pendingSignatureCount = 0;
+
+    const in30Days = new Date();
+    in30Days.setDate(in30Days.getDate() + 30);
+
+    for (const c of allContracts) {
+      if (c.status === 'ACTIVE') {
+        activeCount += 1;
+        mrrCents += c.monthlyValueCents || 0;
+        if (c.endDate && !c.isIndefinite && new Date(c.endDate) >= now && new Date(c.endDate) <= in30Days) {
+          expiringIn30Days += 1;
+        }
+      } else if (c.status === 'PENDING_SIGNATURE') {
+        pendingSignatureCount += 1;
+      }
+    }
+
+    let filtered: any[] = allContracts;
+    if (filters.companyId) {
+      filtered = filtered.filter((c: any) => c.companyId === filters.companyId);
+    }
+    if (filters.status) {
+      filtered = filtered.filter((c: any) => c.status === filters.status);
+    }
+    if (filters.autoRenew !== undefined) {
+      filtered = filtered.filter((c: any) => c.autoRenew === filters.autoRenew);
+    }
+    if (filters.expiringDays && filters.expiringDays > 0) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + filters.expiringDays);
+      filtered = filtered.filter((c: any) => c.endDate && !c.isIndefinite && new Date(c.endDate) >= now && new Date(c.endDate) <= targetDate);
+    }
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      filtered = filtered.filter((c: any) =>
+        (c.contractNumber && c.contractNumber.toLowerCase().includes(q)) ||
+        (c.title && c.title.toLowerCase().includes(q)) ||
+        (c.company?.tradeName && c.company.tradeName.toLowerCase().includes(q))
+      );
+    }
+
+    const total = filtered.length;
+    const offset = filters.offset || 0;
+    const limit = filters.limit || 50;
+    const paginated = filtered.slice(offset, offset + limit).map((c: any) => {
+      let daysUntilEnd: number | null = null;
+      let isExpiringSoon = false;
+      if (c.endDate && !c.isIndefinite) {
+        const diffMs = new Date(c.endDate).getTime() - now.getTime();
+        daysUntilEnd = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (c.status === 'ACTIVE' && daysUntilEnd <= 30 && daysUntilEnd >= 0) {
+          isExpiringSoon = true;
+        }
+      }
+      return {
+        ...c,
+        daysUntilEnd,
+        isExpiringSoon
+      };
+    });
+
+    return {
+      items: paginated,
+      total,
+      kpis: {
+        totalCount: allContracts.length,
+        activeCount,
+        mrrCents,
+        arrCents: mrrCents * 12,
+        expiringIn30Days,
+        pendingSignatureCount
+      }
+    };
   }
 
-  public async createContract(companyId: string, data: {
-    contractNumber: string;
-    title: string;
-    type?: string;
-    status?: string;
-    valueCents?: number;
-    monthlyValueCents?: number;
-    annualValueCents?: number;
-    totalValueCents?: number;
-    billingFrequency?: string;
-    autoRenew?: boolean;
-    startDate: Date | string;
-    endDate?: Date | string;
-    renewalType?: string;
-    noticePeriodDays?: number;
-    documentUrl?: string;
-    terms?: string;
-  }) {
+  public async createContract(firstArg: string | any, secondArg?: any) {
+    let companyId: string;
+    let data: any;
+
+    if (typeof firstArg === 'string') {
+      companyId = firstArg;
+      data = secondArg || {};
+    } else {
+      data = firstArg || {};
+      companyId = data.companyId;
+    }
+
+    if (!companyId) {
+      throw new AppError('COMPANY_REQUIRED', 'É obrigatório indicar a empresa para o contrato.', 400);
+    }
+
     await this.assertCompanyOwned(companyId);
 
-    const valueCents = data.valueCents ?? data.monthlyValueCents ?? data.annualValueCents ?? data.totalValueCents ?? 0;
-    const autoRenew = data.autoRenew !== undefined ? data.autoRenew : (data.renewalType === 'AUTOMATIC' || data.renewalType === 'AUTO');
-    return this.db.contract.create({
+    if (data.proposalId) {
+      await this.assertProposalOwned(data.proposalId);
+    }
+
+    const contractNumber = data.contractNumber || (await this.generateContractNumber());
+    const billingFrequency = data.billingFrequency || 'MONTHLY';
+    const valueCents = Math.round(data.valueCents ?? data.monthlyValueCents ?? data.annualValueCents ?? 0);
+    const monthlyValueCents = data.monthlyValueCents !== undefined
+      ? Math.round(data.monthlyValueCents)
+      : EnterpriseCRMService.calculateMonthlyValue(valueCents, billingFrequency);
+
+    const autoRenew = data.autoRenew !== undefined
+      ? data.autoRenew
+      : (data.renewalType === 'AUTOMATIC' || data.renewalType === 'AUTO');
+
+    const isIndefinite = Boolean(data.isIndefinite);
+    const startDate = data.startDate ? new Date(data.startDate) : new Date();
+    const endDate = isIndefinite || !data.endDate ? null : new Date(data.endDate);
+
+    const contract = await this.db.contract.create({
       data: {
         tenantId: this.tenantId,
         companyId,
-        contractNumber: data.contractNumber,
+        proposalId: data.proposalId || null,
+        contractNumber,
         title: data.title,
         type: data.type || 'SERVICE',
         status: data.status || 'ACTIVE',
-        valueCents: Math.round(valueCents),
-        billingFrequency: data.billingFrequency || (data.monthlyValueCents ? 'MONTHLY' : (data.annualValueCents ? 'ANNUAL' : 'ONE_OFF')),
+        valueCents,
+        monthlyValueCents,
+        billingFrequency,
+        isIndefinite,
         autoRenew,
-        startDate: new Date(data.startDate),
-        endDate: data.endDate ? new Date(data.endDate) : null,
+        startDate,
+        endDate,
+        slaLevel: data.slaLevel || 'STANDARD',
+        slaResponseHours: data.slaResponseHours ?? null,
+        slaResolutionHours: data.slaResolutionHours ?? null,
+        renewalNoticeDays: data.renewalNoticeDays ?? data.noticePeriodDays ?? 30,
+        termsAndConditions: data.termsAndConditions || data.terms || null,
+        notes: data.notes || null,
         documentUrl: data.documentUrl || null
+      },
+      include: {
+        company: true,
+        proposal: true
       }
     });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'CREATE_CONTRACT',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'contract',
+      description: `Contrato de avença criado: ${contract.contractNumber} - ${contract.title} (MRR: €${(contract.monthlyValueCents / 100).toFixed(2)})`
+    });
+
+    return contract;
   }
 
   public async updateContract(contractId: string, data: any) {
-    await this.assertContractOwned(contractId);
+    const existing = await this.assertContractOwned(contractId);
 
-    const updateData: any = { ...data };
-    if (updateData.startDate) updateData.startDate = new Date(updateData.startDate);
-    if (updateData.endDate) updateData.endDate = new Date(updateData.endDate);
-    if (updateData.monthlyValueCents !== undefined && updateData.valueCents === undefined) {
-      updateData.valueCents = updateData.monthlyValueCents;
+    if (data.companyId && data.companyId !== existing.companyId) {
+      await this.assertCompanyOwned(data.companyId);
     }
-    delete updateData.monthlyValueCents;
-    delete updateData.annualValueCents;
-    delete updateData.totalValueCents;
-    delete updateData.renewalType;
-    delete updateData.noticePeriodDays;
-    delete updateData.terms;
+    if (data.proposalId && data.proposalId !== existing.proposalId) {
+      await this.assertProposalOwned(data.proposalId);
+    }
 
-    return this.db.contract.update({
+    const updateData: any = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.type !== undefined) updateData.type = data.type;
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.billingFrequency !== undefined) updateData.billingFrequency = data.billingFrequency;
+    if (data.isIndefinite !== undefined) {
+      updateData.isIndefinite = Boolean(data.isIndefinite);
+      if (updateData.isIndefinite) updateData.endDate = null;
+    }
+    if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
+    if (data.endDate !== undefined && !updateData.isIndefinite) {
+      updateData.endDate = data.endDate ? new Date(data.endDate) : null;
+    }
+    if (data.autoRenew !== undefined) updateData.autoRenew = Boolean(data.autoRenew);
+    if (data.slaLevel !== undefined) updateData.slaLevel = data.slaLevel;
+    if (data.slaResponseHours !== undefined) updateData.slaResponseHours = data.slaResponseHours;
+    if (data.slaResolutionHours !== undefined) updateData.slaResolutionHours = data.slaResolutionHours;
+    if (data.renewalNoticeDays !== undefined) updateData.renewalNoticeDays = data.renewalNoticeDays;
+    if (data.documentUrl !== undefined) updateData.documentUrl = data.documentUrl;
+    if (data.termsAndConditions !== undefined) updateData.termsAndConditions = data.termsAndConditions;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+
+    if (data.valueCents !== undefined) {
+      updateData.valueCents = Math.round(data.valueCents);
+      const freq = data.billingFrequency || existing.billingFrequency;
+      updateData.monthlyValueCents = data.monthlyValueCents !== undefined
+        ? Math.round(data.monthlyValueCents)
+        : EnterpriseCRMService.calculateMonthlyValue(updateData.valueCents, freq);
+    } else if (data.monthlyValueCents !== undefined) {
+      updateData.monthlyValueCents = Math.round(data.monthlyValueCents);
+    }
+
+    const updated = await this.db.contract.update({
       where: { id: contractId },
-      data: updateData
+      data: updateData,
+      include: { company: true, proposal: true }
     });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'UPDATE_CONTRACT',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'contract',
+      description: `Contrato atualizado: ${updated.contractNumber}`
+    });
+
+    return updated;
+  }
+
+  public async renewContract(
+    contractId: string,
+    options?: {
+      extensionMonths?: number;
+      newEndDate?: Date | string;
+      adjustmentPercent?: number;
+      notes?: string;
+    },
+    actorUserId?: string
+  ) {
+    const contract = await this.assertContractOwned(contractId);
+    const months = options?.extensionMonths || 12;
+    let newEndDate: Date;
+
+    if (options?.newEndDate) {
+      newEndDate = new Date(options.newEndDate);
+    } else if (contract.endDate) {
+      newEndDate = new Date(contract.endDate);
+      newEndDate.setMonth(newEndDate.getMonth() + months);
+    } else {
+      newEndDate = new Date();
+      newEndDate.setMonth(newEndDate.getMonth() + months);
+    }
+
+    const adjustment = options?.adjustmentPercent || 0;
+    const multiplier = 1 + (adjustment / 100);
+    const newValueCents = adjustment !== 0 ? Math.round(contract.valueCents * multiplier) : contract.valueCents;
+    const newMonthlyCents = adjustment !== 0 ? Math.round(contract.monthlyValueCents * multiplier) : contract.monthlyValueCents;
+
+    const renewalDateStr = new Date().toLocaleDateString('pt-PT');
+    const renewalNote = `[Renovação de Contrato em ${renewalDateStr}]: Prorrogado até ${newEndDate.toLocaleDateString('pt-PT')} (+${months} meses)${adjustment !== 0 ? ` com atualização de ${adjustment}%` : ''}.${options?.notes ? ` Notas: ${options.notes}` : ''}`;
+    const appendedNotes = contract.notes ? `${contract.notes}\n${renewalNote}` : renewalNote;
+
+    const updated = await this.db.contract.update({
+      where: { id: contractId },
+      data: {
+        endDate: newEndDate,
+        isIndefinite: false,
+        status: 'ACTIVE',
+        valueCents: newValueCents,
+        monthlyValueCents: newMonthlyCents,
+        lastRenewedAt: new Date(),
+        notes: appendedNotes
+      },
+      include: { company: true, proposal: true }
+    });
+
+    // Regista atividade comercial de renovação
+    try {
+      await this.createActivity({
+        type: 'task',
+        subject: `Renovação Contratual: ${contract.contractNumber}`,
+        content: `Contrato de avença "${contract.title}" renovado até ${newEndDate.toLocaleDateString('pt-PT')}. MRR Atualizado: €${(newMonthlyCents / 100).toFixed(2)}.`,
+        companyId: contract.companyId,
+        status: 'COMPLETED',
+        occurredAt: new Date(),
+        createdByUserId: actorUserId
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de renovação:', e);
+    }
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'RENEW_CONTRACT',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'contract',
+      description: `Contrato ${contract.contractNumber} renovado até ${newEndDate.toLocaleDateString('pt-PT')} (Ajuste: ${adjustment}%)`
+    });
+
+    return updated;
+  }
+
+  public async terminateContract(
+    contractId: string,
+    options: {
+      reason: string;
+      cancelledAt?: Date | string;
+    },
+    actorUserId?: string
+  ) {
+    const contract = await this.assertContractOwned(contractId);
+    const cancelDate = options.cancelledAt ? new Date(options.cancelledAt) : new Date();
+
+    const cancellationNote = `[Contrato Cancelado/Rescindido em ${cancelDate.toLocaleDateString('pt-PT')}]: Motivo: ${options.reason.trim()}`;
+    const appendedNotes = contract.notes ? `${contract.notes}\n${cancellationNote}` : cancellationNote;
+
+    const updated = await this.db.contract.update({
+      where: { id: contractId },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: cancelDate,
+        cancellationReason: options.reason.trim(),
+        notes: appendedNotes
+      },
+      include: { company: true, proposal: true }
+    });
+
+    try {
+      await this.createActivity({
+        type: 'note',
+        subject: `Rescisão de Contrato: ${contract.contractNumber}`,
+        content: `Contrato "${contract.title}" cancelado em ${cancelDate.toLocaleDateString('pt-PT')}.\nMotivo: ${options.reason.trim()}`,
+        companyId: contract.companyId,
+        status: 'COMPLETED',
+        occurredAt: cancelDate,
+        createdByUserId: actorUserId
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de rescisão:', e);
+    }
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'CANCEL_CONTRACT',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'contract',
+      description: `Contrato ${contract.contractNumber} cancelado. Motivo: ${options.reason.trim()}`
+    });
+
+    return updated;
   }
 
   public async deleteContract(contractId: string) {
-    await this.assertContractOwned(contractId);
-    return this.db.contract.update({
+    const contract = await this.assertContractOwned(contractId);
+
+    await this.db.contract.update({
       where: { id: contractId },
       data: { deletedAt: new Date() }
     });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'DELETE_CONTRACT',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'contract',
+      description: `Contrato ${contract.contractNumber} arquivado via soft-delete`
+    });
+
+    return { success: true };
+  }
+
+  public async renderContractSummaryHtml(contractId: string): Promise<string> {
+    const contract = await this.getContractById(contractId);
+    const fmtEur = (cents: number) => `€${(cents / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
+
+    return `
+      <!DOCTYPE html>
+      <html lang="pt">
+      <head>
+        <meta charset="utf-8">
+        <title>Resumo de Contrato — ${contract.contractNumber}</title>
+        <style>
+          @page { size: A4; margin: 20mm; }
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.5; font-size: 14px; margin: 0; padding: 24px; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
+          .contract-title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 6px 0; }
+          .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+          .badge-active { background: #dcfce7; color: #15803d; }
+          .badge-cancelled { background: #fee2e2; color: #b91c1c; }
+          .badge-pending { background: #fef3c7; color: #b45309; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+          .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+          .label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px; }
+          .value { font-size: 14px; font-weight: 600; color: #0f172a; }
+          .legal-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 12px; font-size: 12px; color: #92400e; margin: 24px 0; }
+          .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 48px; page-break-inside: avoid; }
+          .sig-line { border-top: 1px solid #94a3b8; margin-top: 48px; text-align: center; font-size: 12px; color: #64748b; padding-top: 6px; }
+          @media print { .no-print { display: none; } body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; background: #0f172a; color: #fff; padding: 12px 20px; border-radius: 6px;">
+          <span>Contrato de Avença Comercial: ${contract.contractNumber}</span>
+          <button onclick="window.print()" style="background: #3b82f6; color: #fff; border: 0; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+            Imprimir ou Guardar em PDF
+          </button>
+        </div>
+
+        <div class="header">
+          <div>
+            <div style="font-size: 12px; text-transform: uppercase; color: #64748b; font-weight: 700;">Contrato Comercial & SLA</div>
+            <h1 class="contract-title">${contract.title}</h1>
+            <div style="color: #64748b; font-size: 13px;">Número: <strong>${contract.contractNumber}</strong></div>
+          </div>
+          <div style="text-align: right;">
+            <span class="badge ${contract.status === 'ACTIVE' ? 'badge-active' : (contract.status === 'CANCELLED' ? 'badge-cancelled' : 'badge-pending')}">
+              ${contract.status}
+            </span>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="label">Entidade Adjudicatária / Cliente</div>
+            <div class="value">${contract.company?.tradeName || '—'}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">NIF: ${contract.company?.taxNumber || '—'}</div>
+            <div style="font-size: 12px; color: #64748b;">${contract.company?.email || ''} ${contract.company?.phone ? `• ${contract.company.phone}` : ''}</div>
+          </div>
+          <div class="card">
+            <div class="label">Vigência & Período</div>
+            <div class="value">
+              ${new Date(contract.startDate).toLocaleDateString('pt-PT')} até ${contract.isIndefinite ? 'Tempo Indeterminado' : (contract.endDate ? new Date(contract.endDate).toLocaleDateString('pt-PT') : 'Não definido')}
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              Renovação Automática: ${contract.autoRenew ? `Sim (${contract.renewalNoticeDays} dias pré-aviso)` : 'Não'}
+            </div>
+            ${contract.lastRenewedAt ? `<div style="font-size: 11px; color: #059669;">Última renovação: ${new Date(contract.lastRenewedAt).toLocaleDateString('pt-PT')}</div>` : ''}
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="label">Condições Financeiras & Faturação</div>
+            <div style="font-size: 20px; font-weight: 800; color: #0f172a; margin: 4px 0;">
+              ${fmtEur(contract.monthlyValueCents)} <span style="font-size: 13px; font-weight: 500; color: #64748b;">/ mês (MRR)</span>
+            </div>
+            <div style="font-size: 13px; color: #64748b;">
+              Valor do Período (${contract.billingFrequency}): ${fmtEur(contract.valueCents)}
+            </div>
+          </div>
+          <div class="card">
+            <div class="label">Nível de Serviço (SLA)</div>
+            <div class="value" style="color: #2563eb;">Nível ${contract.slaLevel || 'STANDARD'}</div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              Tempo de Resposta: ${contract.slaResponseHours ? `${contract.slaResponseHours} horas` : 'Padrão'}
+            </div>
+            <div style="font-size: 12px; color: #64748b;">
+              Tempo de Resolução: ${contract.slaResolutionHours ? `${contract.slaResolutionHours} horas` : 'Padrão'}
+            </div>
+          </div>
+        </div>
+
+        ${contract.termsAndConditions ? `
+          <div style="margin-bottom: 20px;">
+            <div class="label">Termos e Condições Específicos</div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 13px; white-space: pre-wrap;">${contract.termsAndConditions}</div>
+          </div>
+        ` : ''}
+
+        ${contract.notes ? `
+          <div style="margin-bottom: 20px;">
+            <div class="label">Notas & Histórico</div>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; font-size: 13px; white-space: pre-wrap;">${contract.notes}</div>
+          </div>
+        ` : ''}
+
+        <div class="legal-box">
+          ⚠️ <strong>Salvaguarda Legal Inviolável:</strong> Resumo de Contrato Comercial de Prestação de Serviços / Avença. Não serve de fatura nem de documento de quitação fiscal.
+        </div>
+
+        <div class="signatures">
+          <div>
+            <div class="sig-line">Pelo Prestador de Serviços</div>
+          </div>
+          <div>
+            <div class="sig-line">Pelo Cliente / Segundo Outorgante</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 
   // =========================================================================

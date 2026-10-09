@@ -2,6 +2,26 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.5] - 2026-10-09
+
+### CRM Fase B5 — Gestão de Contratos de Avença, SLA e Renovações Automáticas
+- **Gestão de Avenças e Subscrições**: Contratos com numeração sequencial estruturada (`CTR-YYYY-XXXX`), associação a empresa e proposta adjudicada, data de início, data de término ou tempo indeterminado (`isIndefinite`), periocidade de faturação (`MONTHLY`, `QUARTERLY`, `SEMIANNUAL`, `ANNUAL`, `ONE_OFF`).
+- **Métricas e Previsão de Receita Recorrente (MRR & ARR)**: Cálculo em tempo real de Monthly Recurring Revenue (MRR) e Annual Recurring Revenue (ARR) com base na periocidade contratada, contagem de avenças ativas e controlo de renovações.
+- **Níveis de Serviço (SLA) & Alertas de Expiração**: Suporte a níveis de SLA (Standard, Bronze, Silver, Gold, Platinum, Custom) com horas garantidas de primeira resposta e resolução. Monitorização de expirações iminentes (30, 60, 90 dias) e contratos em formalização.
+- **Ciclo de Vida & Renovações Automáticas**:
+  - Ação de Renovação (`PATCH /api/crm/contracts/:id/renew`) com extensão de vigência (ex: +12 meses), atualização percentual de preço por inflação/IPC, carimbo de `lastRenewedAt` e registo automático de atividade comercial.
+  - Ação de Rescisão/Cancelamento (`PATCH /api/crm/contracts/:id/terminate`) com captura obrigatória de motivo e data de efeito.
+- **Documento Resumo & Salvaguarda Legal Inviolável**: Rota `GET /api/crm/contracts/:id/summary` com visualização e impressão A4 contendo o aviso legal obrigatório: *"Resumo de Contrato Comercial de Prestação de Serviços / Avença. Não serve de fatura nem de documento de quitação fiscal."*
+- **Interface Modular e Ficha 360º**:
+  - Nova sub-vista *Contratos & Avenças* no painel CRM com KPIs de MRR/ARR e filtros avançados.
+  - Separador *Contratos* renovado na Ficha 360º de Empresa com listagem de avenças, SLAs e botão direto de novo contrato.
+  - Modais `#modal-create-contract`, `#modal-renew-contract` e `#modal-terminate-contract`.
+- **Modelo de Dados (Migração `20261009050000_crm_b5_contracts`)**:
+  - Extensão do modelo `Contract` com colunas aditivas `proposalId`, `isIndefinite`, `monthlyValueCents`, `slaLevel`, `slaResponseHours`, `slaResolutionHours`, `renewalNoticeDays`, `lastRenewedAt`, `cancelledAt`, `cancellationReason`, `termsAndConditions`, `notes`.
+  - Índices otimizados por `tenantId`, `contractNumber`, `proposalId`, `endDate` e `deletedAt`.
+- **Auditoria Transversal**: Ações `CREATE_CONTRACT`, `UPDATE_CONTRACT`, `RENEW_CONTRACT`, `CANCEL_CONTRACT` e `DELETE_CONTRACT` auditadas no sistema transversal.
+- **Testes Automatizados**: Suite `tests/crm/crm-b5-contracts.test.ts` com 8 novos testes unitários e de integração (52 testes CRM no total, 79 testes conjuntos com 100% de aprovação).
+
 ## [v1.6.4] - 2026-10-09
 
 ### CRM Fase B4 — Propostas Comerciais, Orçamentos com Impressão A4/PDF e Envio por Email do Tenant

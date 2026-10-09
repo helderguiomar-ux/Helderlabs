@@ -298,27 +298,44 @@
       if (this.active360Tab === 'contracts') {
         const contracts = c.contracts || [];
         return `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">Contratos de avença recorrente, subscrições e acordos de nível de serviço (SLA)</span>
+            <button class="btn btn-primary btn-sm" onclick="window.CRMContractsModule ? window.CRMContractsModule.openCreateContractModal('${esc(c.id)}') : null">
+              + Novo Contrato de Avença
+            </button>
+          </div>
           <div class="table-responsive">
             <table>
               <thead>
                 <tr>
                   <th>Nº Contrato</th>
                   <th>Título</th>
-                  <th>Valor Mensal</th>
+                  <th>SLA</th>
+                  <th style="text-align: right;">Valor MRR</th>
                   <th>Início</th>
                   <th>Fim</th>
+                  <th>Renovação</th>
                   <th>Estado</th>
+                  <th style="text-align: right;">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                ${contracts.length === 0 ? '<tr><td colspan="6" style="text-align: center; color: var(--muted);">Sem contratos registados.</td></tr>' : contracts.map(ct => `
+                ${contracts.length === 0 ? '<tr><td colspan="9" style="text-align: center; color: var(--muted); padding: 20px;">Sem contratos registados para esta empresa.</td></tr>' : contracts.map(ct => `
                   <tr>
                     <td><strong>${esc(ct.contractNumber)}</strong></td>
                     <td>${esc(ct.title)}</td>
-                    <td>${fmtCurrency(ct.monthlyValueCents || ct.valueCents)}</td>
+                    <td><span class="badge badge-neutral">${esc(ct.slaLevel || 'STANDARD')}</span></td>
+                    <td style="text-align: right; font-weight: 700;">${fmtCurrency(ct.monthlyValueCents || ct.valueCents)}</td>
                     <td>${fmtDate(ct.startDate)}</td>
-                    <td>${ct.endDate ? fmtDate(ct.endDate) : 'Indeterminado'}</td>
-                    <td><span class="badge badge-paid">${esc(ct.status)}</span></td>
+                    <td>${ct.isIndefinite ? 'Indeterminado' : (ct.endDate ? fmtDate(ct.endDate) : '—')}</td>
+                    <td>${ct.autoRenew ? '<span style="color: #059669; font-weight: 600;">Auto</span>' : 'Manual'}</td>
+                    <td><span class="badge ${ct.status === 'ACTIVE' ? 'badge-paid' : (ct.status === 'CANCELLED' ? 'badge-danger' : 'badge-planned')}">${esc(ct.status)}</span></td>
+                    <td style="text-align: right; white-space: nowrap;">
+                      <a href="/api/crm/contracts/${escAttr(ct.id)}/summary" target="_blank" class="btn btn-sm" style="margin-right: 4px;">📄 Resumo</a>
+                      ${ct.status === 'ACTIVE' ? `
+                        <button class="btn btn-sm btn-info" onclick="window.CRMContractsModule ? window.CRMContractsModule.openRenewModal('${escAttr(ct.id)}') : null">🔄 Renovar</button>
+                      ` : ''}
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>

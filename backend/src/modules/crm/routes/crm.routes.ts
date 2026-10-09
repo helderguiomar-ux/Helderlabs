@@ -268,7 +268,9 @@ const documentSchema = z
 
 const contractSchema = z
   .object({
-    contractNumber: z.string().trim().min(1, 'Número do contrato é obrigatório'),
+    companyId: z.string().optional(),
+    proposalId: z.string().optional().nullable(),
+    contractNumber: z.string().trim().optional(),
     title: z.string().trim().min(1, 'Título do contrato é obrigatório'),
     type: z.string().optional().default('SERVICE'),
     status: z.string().optional().default('ACTIVE'),
@@ -276,14 +278,36 @@ const contractSchema = z
     monthlyValueCents: z.number().int().optional().nullable(),
     annualValueCents: z.number().int().optional().nullable(),
     totalValueCents: z.number().int().optional().nullable(),
-    billingFrequency: z.string().optional(),
-    autoRenew: z.boolean().optional(),
+    billingFrequency: z.enum(['MONTHLY', 'QUARTERLY', 'SEMIANNUAL', 'ANNUAL', 'ONE_OFF']).optional().default('MONTHLY'),
+    isIndefinite: z.boolean().optional().default(false),
+    autoRenew: z.boolean().optional().default(false),
     startDate: z.string().min(1, 'Data de início é obrigatória'),
     endDate: z.string().optional().nullable(),
-    renewalType: z.string().optional().default('MANUAL'),
-    noticePeriodDays: z.number().int().optional().default(30),
+    slaLevel: z.string().optional().default('STANDARD'),
+    slaResponseHours: z.number().int().positive().optional().nullable(),
+    slaResolutionHours: z.number().int().positive().optional().nullable(),
+    renewalNoticeDays: z.number().int().optional().default(30),
+    noticePeriodDays: z.number().int().optional(),
     documentUrl: z.string().optional().nullable(),
-    terms: z.string().optional().nullable()
+    termsAndConditions: z.string().optional().nullable(),
+    terms: z.string().optional().nullable(),
+    notes: z.string().optional().nullable()
+  })
+  .strict();
+
+const renewContractSchema = z
+  .object({
+    extensionMonths: z.number().int().positive().optional().default(12),
+    newEndDate: z.string().optional().nullable(),
+    adjustmentPercent: z.number().optional().default(0),
+    notes: z.string().optional().nullable()
+  })
+  .strict();
+
+const terminateContractSchema = z
+  .object({
+    reason: z.string().trim().min(1, 'Motivo de rescisão/cancelamento é obrigatório.'),
+    cancelledAt: z.string().optional()
   })
   .strict();
 
@@ -413,9 +437,47 @@ export async function crmRoutes(app: FastifyInstance) {
     });
 
     protectedApp.get('/contracts', async (request, reply) => {
-      const { companyId } = request.query as { companyId?: string };
-      const contracts = await controller.listContracts(contextFrom(request), companyId);
-      return reply.status(200).send({ success: true, contracts });
+      const query = request.query as {
+        companyId?: string;
+        status?: string;
+        expiringDays?: string;
+        search?: string;
+        limit?: string;
+        offset?: string;
+      };
+      const result = await controller.listContracts(contextFrom(request), {
+        companyId: query.companyId,
+        status: query.status,
+        expiringDays: query.expiringDays ? parseInt(query.expiringDays, 10) : undefined,
+        search: query.search,
+        limit: query.limit ? parseInt(query.limit, 10) : 50,
+        offset: query.offset ? parseInt(query.offset, 10) : 0
+      });
+      return reply.status(200).send({
+        success: true,
+        contracts: result.items || result,
+        items: result.items || result,
+        total: result.total ?? (Array.isArray(result) ? result.length : 0),
+        kpis: result.kpis
+      });
+    });
+
+    protectedApp.get<{ Params: { contractId: string } }>('/contracts/:contractId', async (request, reply) => {
+      const { contractId } = request.params;
+      const contract = await controller.getContract(contextFrom(request), contractId);
+      return reply.status(200).send({ success: true, contract });
+    });
+
+    protectedApp.get<{ Params: { contractId: string } }>('/contracts/:contractId/summary', async (request, reply) => {
+      const { contractId } = request.params;
+      const html = await controller.renderContractSummaryHtml(contextFrom(request), contractId);
+      return reply.type('text/html; charset=utf-8').send(html);
+    });
+
+    protectedApp.post('/contracts', async (request, reply) => {
+      const data = contractSchema.parse(request.body);
+      const contract = await controller.createContract(contextFrom(request), data);
+      return reply.status(201).send({ success: true, contract });
     });
 
     protectedApp.post<{ Params: { id: string } }>('/companies/:id/contracts', async (request, reply) => {
@@ -430,6 +492,20 @@ export async function crmRoutes(app: FastifyInstance) {
       const data = contractSchema.partial().strict().parse(request.body);
       const updated = await controller.updateContract(contextFrom(request), contractId, data);
       return reply.status(200).send({ success: true, contract: updated });
+    });
+
+    protectedApp.patch<{ Params: { contractId: string } }>('/contracts/:contractId/renew', async (request, reply) => {
+      const { contractId } = request.params;
+      const data = renewContractSchema.parse(request.body);
+      const contract = await controller.renewContract(contextFrom(request), contractId, data);
+      return reply.status(200).send({ success: true, contract });
+    });
+
+    protectedApp.patch<{ Params: { contractId: string } }>('/contracts/:contractId/terminate', async (request, reply) => {
+      const { contractId } = request.params;
+      const data = terminateContractSchema.parse(request.body);
+      const contract = await controller.terminateContract(contextFrom(request), contractId, data);
+      return reply.status(200).send({ success: true, contract });
     });
 
     protectedApp.delete<{ Params: { contractId: string } }>('/contracts/:contractId', async (request, reply) => {

@@ -80,20 +80,36 @@ export class CRMController {
     return serviceFor(context).deleteCompanyDocument(docId);
   }
 
-  async listContracts(context: CRMRequestContext, companyId?: string) {
-    return serviceFor(context).listContracts(companyId);
+  async listContracts(context: CRMRequestContext, options?: any) {
+    return serviceFor(context).listContracts(options);
   }
 
-  async createContract(context: CRMRequestContext, companyId: string, data: any) {
-    return serviceFor(context).createContract(companyId, data);
+  async getContract(context: CRMRequestContext, contractId: string) {
+    return serviceFor(context).getContractById(contractId);
+  }
+
+  async createContract(context: CRMRequestContext, firstArg: string | any, data?: any) {
+    return serviceFor(context).createContract(firstArg, data);
   }
 
   async updateContract(context: CRMRequestContext, contractId: string, data: any) {
     return serviceFor(context).updateContract(contractId, data);
   }
 
+  async renewContract(context: CRMRequestContext, contractId: string, options?: any) {
+    return serviceFor(context).renewContract(contractId, options, context.userId);
+  }
+
+  async terminateContract(context: CRMRequestContext, contractId: string, options: { reason: string; cancelledAt?: string }) {
+    return serviceFor(context).terminateContract(contractId, options, context.userId);
+  }
+
   async deleteContract(context: CRMRequestContext, contractId: string) {
     return serviceFor(context).deleteContract(contractId);
+  }
+
+  async renderContractSummaryHtml(context: CRMRequestContext, contractId: string) {
+    return serviceFor(context).renderContractSummaryHtml(contractId);
   }
 
   // =========================================================================

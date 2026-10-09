@@ -317,29 +317,46 @@ model CompanyDocument {
 }
 
 model Contract {
-  id               String    @id @default(cuid())
-  tenantId         String
-  tenant           Tenant    @relation(fields: [tenantId], references: [id])
-  companyId        String
-  company          Company   @relation(fields: [companyId], references: [id])
-  contractNumber   String
-  title            String
-  type             String    @default("SERVICE")
-  startDate        DateTime
-  endDate          DateTime?
-  autoRenew        Boolean   @default(false)
-  valueCents       Int       @default(0)
-  billingFrequency String    @default("MONTHLY")
-  status           String    @default("ACTIVE")
-  documentUrl      String?
-  managerId        String?
-  deletedAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+  companyId           String
+  company             Company   @relation(fields: [companyId], references: [id])
+  proposalId          String?
+  proposal            Proposal? @relation(fields: [proposalId], references: [id])
+  contractNumber      String
+  title               String
+  type                String    @default("SERVICE")
+  startDate           DateTime
+  endDate             DateTime?
+  isIndefinite        Boolean   @default(false)
+  autoRenew           Boolean   @default(false)
+  valueCents          Int       @default(0)
+  monthlyValueCents   Int       @default(0)
+  billingFrequency    String    @default("MONTHLY")
+  status              String    @default("ACTIVE")
+  slaLevel            String?   @default("STANDARD")
+  slaResponseHours    Int?
+  slaResolutionHours  Int?
+  renewalNoticeDays   Int       @default(30)
+  lastRenewedAt       DateTime?
+  cancelledAt         DateTime?
+  cancellationReason  String?
+  termsAndConditions  String?
+  notes               String?
+  documentUrl         String?
+  managerId           String?
+  deletedAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
+  @@index([tenantId, contractNumber])
   @@index([tenantId])
   @@index([companyId])
+  @@index([proposalId])
   @@index([status])
+  @@index([endDate])
+  @@index([deletedAt])
   @@map("crm_contracts")
 }
 
@@ -381,6 +398,7 @@ model Proposal {
   updatedAt          DateTime        @updatedAt
 
   items              ProposalItem[]
+  contracts          Contract[]
 
   @@unique([tenantId, proposalNumber])
   @@index([tenantId])

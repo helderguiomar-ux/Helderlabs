@@ -3,6 +3,7 @@ import { prisma as defaultPrismaClient } from '../../../database/prisma/client';
 import { AppError } from '../../../utils/errors';
 import { AuditService } from '../../platform/services/AuditService';
 import { normalizePhoneNumber } from '../utils/validators';
+import { TenantMailService, type MailActor } from '../../mail/services/TenantMailService';
 
 function notFound(message = 'Registo não encontrado.') {
   return new AppError('NOT_FOUND', message, 404);
@@ -33,10 +34,14 @@ export class EnterpriseCRMService {
       where: { id: contactId, deletedAt: null },
       include: { company: true }
     });
-    if (!contact || contact.company.tenantId !== this.tenantId || contact.company.deletedAt !== null) {
+    if (!contact || !contact.company || contact.company.tenantId !== this.tenantId || Boolean(contact.company.deletedAt)) {
       throw notFound('Contacto não encontrado.');
     }
     return contact;
+  }
+
+  public async getOpportunityById(opportunityId: string) {
+    return this.assertOpportunityOwned(opportunityId);
   }
 
   public async assertAddressOwned(addressId: string) {
@@ -119,6 +124,22 @@ export class EnterpriseCRMService {
       throw notFound('Atividade não encontrada.');
     }
     return activity;
+  }
+
+  public async assertProposalOwned(proposalId: string) {
+    const proposal = await this.db.proposal.findFirst({
+      where: { id: proposalId, tenantId: this.tenantId, deletedAt: null },
+      include: {
+        company: true,
+        contact: true,
+        opportunity: true,
+        items: { orderBy: { sortOrder: 'asc' } }
+      }
+    });
+    if (!proposal) {
+      throw notFound('Proposta não encontrada.');
+    }
+    return proposal;
   }
 
   // =========================================================================
@@ -270,6 +291,12 @@ export class EnterpriseCRMService {
             contact: { select: { id: true, name: true, email: true, phone: true } },
             opportunity: { select: { id: true, title: true, stage: true } }
           }
+        },
+        proposals: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          include: { items: true }
         },
         assignedUser: { select: { id: true, name: true, email: true } }
       }
@@ -1584,5 +1611,621 @@ export class EnterpriseCRMService {
     });
 
     return { success: true };
+  }
+
+  // =========================================================================
+  // PROPOSTAS COMERCIAIS & ORÇAMENTOS (FASE B4)
+  // =========================================================================
+
+  public async generateProposalNumber(year: number = new Date().getFullYear()): Promise<string> {
+    const prefix = `PROP-${year}-`;
+    const count = await this.db.proposal.count({
+      where: {
+        tenantId: this.tenantId,
+        proposalNumber: { startsWith: prefix }
+      }
+    });
+    const nextSeq = count + 1;
+    return `${prefix}${String(nextSeq).padStart(4, '0')}`;
+  }
+
+  public static calculateProposalTotals(
+    items: Array<{
+      description: string;
+      quantity?: number;
+      unitPriceCents: number;
+      discountPercent?: number;
+      vatRatePercent?: number;
+      sortOrder?: number;
+    }>,
+    globalVatRate: number = 23.0
+  ) {
+    let subtotalCents = 0;
+    const computedItems = items.map((item, index) => {
+      const quantity = item.quantity !== undefined ? item.quantity : 1.0;
+      const discount = item.discountPercent || 0.0;
+      const vatRate = item.vatRatePercent !== undefined ? item.vatRatePercent : globalVatRate;
+      
+      const discountedUnit = item.unitPriceCents * (1 - discount / 100);
+      const lineTotalCents = Math.round(quantity * discountedUnit);
+      subtotalCents += lineTotalCents;
+
+      return {
+        description: item.description,
+        quantity,
+        unitPriceCents: item.unitPriceCents,
+        discountPercent: discount,
+        vatRatePercent: vatRate,
+        totalCents: lineTotalCents,
+        sortOrder: item.sortOrder !== undefined ? item.sortOrder : index + 1
+      };
+    });
+
+    const vatCents = Math.round(subtotalCents * (globalVatRate / 100));
+    const totalCents = subtotalCents + vatCents;
+
+    return {
+      items: computedItems,
+      subtotalCents,
+      vatRatePercent: globalVatRate,
+      vatCents,
+      totalCents
+    };
+  }
+
+  public async listProposals(filters?: {
+    companyId?: string;
+    opportunityId?: string;
+    status?: string;
+    search?: string;
+    limit?: number;
+  }) {
+    const where: any = {
+      tenantId: this.tenantId,
+      deletedAt: null
+    };
+
+    if (filters?.companyId) where.companyId = filters.companyId;
+    if (filters?.opportunityId) where.opportunityId = filters.opportunityId;
+    if (filters?.status) where.status = filters.status;
+    if (filters?.search) {
+      where.OR = [
+        { proposalNumber: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search, mode: 'insensitive' } }
+      ];
+    }
+
+    const limit = Math.min(filters?.limit ?? 50, 100);
+
+    return this.db.proposal.findMany({
+      where,
+      include: {
+        company: { select: { id: true, tradeName: true, taxNumber: true, email: true } },
+        contact: { select: { id: true, name: true, email: true, phone: true } },
+        opportunity: { select: { id: true, title: true, stage: true } },
+        _count: { select: { items: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+  }
+
+  public async getProposalById(id: string) {
+    return this.assertProposalOwned(id);
+  }
+
+  public async createProposal(data: {
+    title: string;
+    proposalNumber?: string;
+    companyId?: string | null;
+    contactId?: string | null;
+    opportunityId?: string | null;
+    issueDate?: string | Date | null;
+    validUntil?: string | Date | null;
+    vatRatePercent?: number;
+    notes?: string | null;
+    termsAndConditions?: string | null;
+    items: Array<{
+      description: string;
+      quantity?: number;
+      unitPriceCents: number;
+      discountPercent?: number;
+      vatRatePercent?: number;
+      sortOrder?: number;
+    }>;
+  }) {
+    if (data.companyId) {
+      await this.assertCompanyOwned(data.companyId);
+    }
+    if (data.contactId) {
+      await this.assertContactOwned(data.contactId);
+    }
+    if (data.opportunityId) {
+      const opp = await this.assertOpportunityOwned(data.opportunityId);
+      if (!data.companyId && opp.companyId) {
+        data.companyId = opp.companyId;
+      }
+    }
+
+    const proposalNumber = data.proposalNumber || (await this.generateProposalNumber());
+    const calculation = EnterpriseCRMService.calculateProposalTotals(data.items || [], data.vatRatePercent ?? 23.0);
+
+    const proposal = await this.db.proposal.create({
+      data: {
+        tenantId: this.tenantId,
+        proposalNumber,
+        title: data.title,
+        companyId: data.companyId || null,
+        contactId: data.contactId || null,
+        opportunityId: data.opportunityId || null,
+        status: 'DRAFT',
+        issueDate: data.issueDate ? new Date(data.issueDate) : new Date(),
+        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        subtotalCents: calculation.subtotalCents,
+        vatRatePercent: calculation.vatRatePercent,
+        vatCents: calculation.vatCents,
+        totalCents: calculation.totalCents,
+        currency: 'EUR',
+        notes: data.notes || null,
+        termsAndConditions: data.termsAndConditions || null,
+        items: {
+          create: calculation.items.map((it) => ({
+            description: it.description,
+            quantity: it.quantity,
+            unitPriceCents: it.unitPriceCents,
+            discountPercent: it.discountPercent,
+            vatRatePercent: it.vatRatePercent,
+            totalCents: it.totalCents,
+            sortOrder: it.sortOrder
+          }))
+        }
+      },
+      include: {
+        company: true,
+        contact: true,
+        opportunity: true,
+        items: { orderBy: { sortOrder: 'asc' } }
+      }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'CREATE_PROPOSAL',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'proposal',
+      description: `Proposta criada: ${proposal.proposalNumber} - ${proposal.title} (€${(proposal.totalCents / 100).toFixed(2)})`
+    });
+
+    return proposal;
+  }
+
+  public async updateProposal(
+    id: string,
+    data: {
+      title?: string;
+      companyId?: string | null;
+      contactId?: string | null;
+      opportunityId?: string | null;
+      issueDate?: string | Date | null;
+      validUntil?: string | Date | null;
+      vatRatePercent?: number;
+      notes?: string | null;
+      termsAndConditions?: string | null;
+      items?: Array<{
+        description: string;
+        quantity?: number;
+        unitPriceCents: number;
+        discountPercent?: number;
+        vatRatePercent?: number;
+        sortOrder?: number;
+      }>;
+    }
+  ) {
+    const existing = await this.assertProposalOwned(id);
+
+    if (data.companyId) await this.assertCompanyOwned(data.companyId);
+    if (data.contactId) await this.assertContactOwned(data.contactId);
+    if (data.opportunityId) await this.assertOpportunityOwned(data.opportunityId);
+
+    const updateData: any = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.companyId !== undefined) updateData.companyId = data.companyId;
+    if (data.contactId !== undefined) updateData.contactId = data.contactId;
+    if (data.opportunityId !== undefined) updateData.opportunityId = data.opportunityId;
+    if (data.issueDate !== undefined) updateData.issueDate = data.issueDate ? new Date(data.issueDate) : null;
+    if (data.validUntil !== undefined) updateData.validUntil = data.validUntil ? new Date(data.validUntil) : null;
+    if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.termsAndConditions !== undefined) updateData.termsAndConditions = data.termsAndConditions;
+
+    if (data.items) {
+      const calculation = EnterpriseCRMService.calculateProposalTotals(data.items, data.vatRatePercent ?? existing.vatRatePercent);
+      updateData.subtotalCents = calculation.subtotalCents;
+      updateData.vatRatePercent = calculation.vatRatePercent;
+      updateData.vatCents = calculation.vatCents;
+      updateData.totalCents = calculation.totalCents;
+
+      // Apagar itens antigos e criar novos
+      await this.db.proposalItem.deleteMany({ where: { proposalId: id } });
+      updateData.items = {
+        create: calculation.items.map((it) => ({
+          description: it.description,
+          quantity: it.quantity,
+          unitPriceCents: it.unitPriceCents,
+          discountPercent: it.discountPercent,
+          vatRatePercent: it.vatRatePercent,
+          totalCents: it.totalCents,
+          sortOrder: it.sortOrder
+        }))
+      };
+    }
+
+    const updated = await this.db.proposal.update({
+      where: { id },
+      data: updateData,
+      include: {
+        company: true,
+        contact: true,
+        opportunity: true,
+        items: { orderBy: { sortOrder: 'asc' } }
+      }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'UPDATE_PROPOSAL',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'proposal',
+      description: `Proposta atualizada: ${updated.proposalNumber}`
+    });
+
+    return updated;
+  }
+
+  public async deleteProposal(id: string) {
+    const proposal = await this.assertProposalOwned(id);
+
+    await this.db.proposal.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'DELETE_PROPOSAL',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'proposal',
+      description: `Proposta eliminada (soft-delete): ${proposal.proposalNumber}`
+    });
+
+    return { success: true };
+  }
+
+  public async updateProposalStatus(id: string, status: 'ACCEPTED' | 'REJECTED' | 'SENT', reason?: string) {
+    const proposal = await this.assertProposalOwned(id);
+
+    const updateData: any = { status };
+    const now = new Date();
+    if (status === 'ACCEPTED') updateData.acceptedAt = now;
+    if (status === 'REJECTED') updateData.rejectedAt = now;
+    if (status === 'SENT') updateData.sentAt = now;
+
+    if (reason && reason.trim()) {
+      updateData.notes = proposal.notes
+        ? `${proposal.notes}\n[Estado ${status} em ${now.toLocaleString('pt-PT')}]: ${reason.trim()}`
+        : `[Estado ${status} em ${now.toLocaleString('pt-PT')}]: ${reason.trim()}`;
+    }
+
+    const updated = await this.db.proposal.update({
+      where: { id },
+      data: updateData,
+      include: {
+        company: true,
+        contact: true,
+        opportunity: true,
+        items: true
+      }
+    });
+
+    // Se aceite e tiver oportunidade associada, converte a oportunidade em WON!
+    if (status === 'ACCEPTED' && proposal.opportunityId) {
+      try {
+        await this.updateOpportunityStage(proposal.opportunityId, 'WON', {
+          notes: `Ganha através da aprovação da proposta ${proposal.proposalNumber}.`
+        });
+      } catch (e) {
+        console.warn('Erro ao sincronizar oportunidade para WON:', e);
+      }
+    }
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'UPDATE_PROPOSAL_STATUS',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'proposal',
+      description: `Estado da proposta ${proposal.proposalNumber} alterado para ${status}`
+    });
+
+    return updated;
+  }
+
+  public async sendProposalEmail(
+    id: string,
+    options: { recipientEmail?: string; message?: string },
+    actor: MailActor
+  ) {
+    const proposal = await this.assertProposalOwned(id);
+
+    const recipient = options.recipientEmail || proposal.contact?.email || proposal.company?.email;
+    if (!recipient) {
+      throw new AppError('RECIPIENT_EMAIL_REQUIRED', 'Não foi indicado nem encontrado nenhum email de destinatário para esta proposta.', 400);
+    }
+
+    const htmlBody = await this.generateProposalEmailHtml(proposal, options.message);
+
+    const mailService = new TenantMailService(this.tenantId, this.db);
+    const result = await mailService.send(
+      {
+        to: recipient,
+        subject: `Proposta Comercial ${proposal.proposalNumber}: ${proposal.title}`,
+        html: htmlBody,
+        context: 'crm.proposal',
+        relatedType: 'proposal',
+        relatedId: proposal.id
+      },
+      actor
+    );
+
+    // Atualiza estado para SENT
+    await this.db.proposal.update({
+      where: { id: proposal.id },
+      data: {
+        status: proposal.status === 'DRAFT' ? 'SENT' : proposal.status,
+        sentAt: new Date()
+      }
+    });
+
+    // Regista comunicação / atividade comercial
+    try {
+      await this.createActivity({
+        type: 'email',
+        subject: `Proposta ${proposal.proposalNumber} enviada por email`,
+        content: `Proposta "${proposal.title}" enviada para ${recipient}.\nValor Total: €${(proposal.totalCents / 100).toFixed(2)}${options.message ? `\n\nMensagem personalizada:\n${options.message}` : ''}`,
+        companyId: proposal.companyId,
+        contactId: proposal.contactId,
+        opportunityId: proposal.opportunityId,
+        status: 'COMPLETED',
+        occurredAt: new Date(),
+        createdByUserId: actor.userId
+      });
+    } catch (e) {
+      console.warn('Aviso ao registar atividade de envio:', e);
+    }
+
+    await AuditService.audit({
+      tenantId: this.tenantId,
+      action: 'SEND_PROPOSAL',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'proposal',
+      description: `Proposta ${proposal.proposalNumber} enviada por email para ${recipient}`
+    });
+
+    return { success: true, recipient, result };
+  }
+
+  public async generateProposalEmailHtml(proposal: any, customMessage?: string): Promise<string> {
+    const fmtEur = (cents: number) => `€${(cents / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
+    const rows = proposal.items.map((it: any) => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px;">${it.description}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: center; font-size: 13px;">${it.quantity}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-size: 13px;">${fmtEur(it.unitPriceCents)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700; font-size: 13px;">${fmtEur(it.totalCents)}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="utf-8"></head>
+      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; background-color: #f8fafc; margin: 0; padding: 24px;">
+        <div style="max-width: 650px; margin: 0 auto; background: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          
+          <div style="background: #0f172a; padding: 24px; color: #ffffff;">
+            <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 4px;">Orçamento Comercial</div>
+            <h1 style="margin: 0; font-size: 20px; font-weight: 700;">${proposal.proposalNumber} — ${proposal.title}</h1>
+          </div>
+
+          <div style="padding: 24px;">
+            ${customMessage ? `
+              <div style="background: #f1f5f9; padding: 14px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; color: #334155; white-space: pre-wrap;">
+                ${customMessage}
+              </div>
+            ` : '<p style="margin-top: 0; font-size: 14px;">Apresentamos a seguinte proposta comercial para a sua apreciação:</p>'}
+
+            <div style="margin-bottom: 20px; font-size: 13px; color: #64748b;">
+              <div><strong>Destinatário:</strong> ${proposal.company?.tradeName || 'Exmo.(s) Senhor(es)'}</div>
+              ${proposal.contact?.name ? `<div><strong>À atenção de:</strong> ${proposal.contact.name}</div>` : ''}
+              <div><strong>Data de Emissão:</strong> ${new Date(proposal.issueDate).toLocaleDateString('pt-PT')}</div>
+              ${proposal.validUntil ? `<div><strong>Validade da Proposta:</strong> ${new Date(proposal.validUntil).toLocaleDateString('pt-PT')}</div>` : ''}
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+              <thead>
+                <tr style="background: #f8fafc;">
+                  <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: left; font-size: 12px; text-transform: uppercase;">Descrição</th>
+                  <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: center; font-size: 12px; text-transform: uppercase;">Qtd</th>
+                  <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: right; font-size: 12px; text-transform: uppercase;">P. Unit.</th>
+                  <th style="padding: 10px; border-bottom: 2px solid #cbd5e1; text-align: right; font-size: 12px; text-transform: uppercase;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+
+            <div style="margin-left: auto; width: 240px; margin-bottom: 24px;">
+              <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0;">
+                <span>Subtotal:</span>
+                <span>${fmtEur(proposal.subtotalCents)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: #64748b;">
+                <span>IVA (${proposal.vatRatePercent}%):</span>
+                <span>${fmtEur(proposal.vatCents)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; border-top: 2px solid #0f172a; padding: 8px 0; color: #0f172a;">
+                <span>Total:</span>
+                <span>${fmtEur(proposal.totalCents)}</span>
+              </div>
+            </div>
+
+            ${proposal.termsAndConditions ? `
+              <div style="margin-bottom: 20px; font-size: 12px; color: #64748b; background: #f8fafc; padding: 12px; border-radius: 6px;">
+                <strong>Condições Comerciais:</strong><br>
+                ${proposal.termsAndConditions}
+              </div>
+            ` : ''}
+
+            <div style="margin-top: 24px; padding: 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; font-size: 11px; color: #92400e;">
+              <strong>Aviso Legal Importante:</strong> Este documento é um orçamento comercial e proposta de honorários prestada a título informativo. Não serve de fatura nem de documento de quitação fiscal nos termos da legislação aplicável.
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  public async renderProposalHtml(id: string): Promise<string> {
+    const proposal = await this.assertProposalOwned(id);
+    const fmtEur = (cents: number) => `€${(cents / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
+
+    const rows = proposal.items.map((it: any, idx: number) => `
+      <tr>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">${idx + 1}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; font-weight: 500;">${it.description}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: center;">${it.quantity}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${fmtEur(it.unitPriceCents)}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${it.discountPercent > 0 ? `${it.discountPercent}%` : '—'}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${it.vatRatePercent}%</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; font-weight: 700;">${fmtEur(it.totalCents)}</td>
+      </tr>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="pt">
+      <head>
+        <meta charset="utf-8">
+        <title>Proposta Comercial ${proposal.proposalNumber}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1e293b;
+            margin: 0;
+            padding: 40px;
+            background: #fff;
+          }
+          .header-table { width: 100%; margin-bottom: 30px; }
+          .title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; }
+          .meta { font-size: 13px; color: #64748b; }
+          .badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+          .items-table { width: 100%; border-collapse: collapse; margin-top: 24px; margin-bottom: 24px; }
+          .items-table th { background: #f1f5f9; padding: 10px 12px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; }
+          .totals-wrap { margin-left: auto; width: 280px; margin-bottom: 30px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+          .totals-total { border-top: 2px solid #0f172a; padding: 10px 0; font-size: 18px; font-weight: 800; }
+          .legal-box { padding: 14px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; font-size: 11px; color: #92400e; margin-top: 30px; }
+          .btn-print {
+            padding: 10px 20px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 20px;
+          }
+          @media print {
+            .no-print { display: none !important; }
+            body { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print" style="margin-bottom: 20px;">
+          <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button>
+        </div>
+
+        <table class="header-table">
+          <tr>
+            <td style="vertical-align: top;">
+              <h1 class="title">${proposal.title}</h1>
+              <div class="meta"><strong>N.º Proposta:</strong> ${proposal.proposalNumber}</div>
+              <div class="meta"><strong>Data de Emissão:</strong> ${new Date(proposal.issueDate).toLocaleDateString('pt-PT')}</div>
+              ${proposal.validUntil ? `<div class="meta"><strong>Válida até:</strong> ${new Date(proposal.validUntil).toLocaleDateString('pt-PT')}</div>` : ''}
+              <div class="meta" style="margin-top: 8px;"><strong>Estado:</strong> <span class="badge" style="background:#e2e8f0;">${proposal.status}</span></div>
+            </td>
+            <td style="vertical-align: top; text-align: right; width: 45%;">
+              <div style="font-size: 16px; font-weight: 700; color: #0f172a;">${proposal.company?.tradeName || 'Cliente'}</div>
+              ${proposal.contact?.name ? `<div class="meta">À atenção de: ${proposal.contact.name}</div>` : ''}
+              ${proposal.company?.taxNumber ? `<div class="meta">NIF: ${proposal.company.taxNumber}</div>` : ''}
+              ${proposal.company?.address ? `<div class="meta">${proposal.company.address}</div>` : ''}
+              ${proposal.contact?.email ? `<div class="meta">${proposal.contact.email}</div>` : (proposal.company?.email ? `<div class="meta">${proposal.company.email}</div>` : '')}
+            </td>
+          </tr>
+        </table>
+
+        ${proposal.notes ? `<div style="background: #f8fafc; padding: 12px; border-radius: 6px; font-size: 13px; margin-bottom: 16px;">${proposal.notes.replace(/\n/g, '<br>')}</div>` : ''}
+
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 30px; text-align: center;">#</th>
+              <th>Descrição dos Serviços / Produtos</th>
+              <th style="text-align: center; width: 60px;">Qtd</th>
+              <th style="text-align: right; width: 100px;">P. Unitário</th>
+              <th style="text-align: right; width: 70px;">Desc.</th>
+              <th style="text-align: right; width: 60px;">IVA</th>
+              <th style="text-align: right; width: 110px;">Total (EUR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="totals-wrap">
+          <div class="totals-row">
+            <span>Subtotal:</span>
+            <span>${fmtEur(proposal.subtotalCents)}</span>
+          </div>
+          <div class="totals-row" style="color: #64748b;">
+            <span>IVA (${proposal.vatRatePercent}%):</span>
+            <span>${fmtEur(proposal.vatCents)}</span>
+          </div>
+          <div class="totals-row totals-total">
+            <span>Total da Proposta:</span>
+            <span>${fmtEur(proposal.totalCents)}</span>
+          </div>
+        </div>
+
+        ${proposal.termsAndConditions ? `
+          <div style="margin-top: 24px; font-size: 12px; color: #475569;">
+            <strong>Termos e Condições Comerciais:</strong>
+            <p style="margin: 4px 0; white-space: pre-wrap;">${proposal.termsAndConditions}</p>
+          </div>
+        ` : ''}
+
+        <div class="legal-box">
+          <strong>Aviso Legal & Regulamentar:</strong> Este documento consubstancia um orçamento comercial e proposta de prestação de serviços a título indicativo. Não serve de fatura nem de documento de quitação fiscal nos termos do artigo 36.º do Código do IVA.
+        </div>
+      </body>
+      </html>
+    `;
   }
 }

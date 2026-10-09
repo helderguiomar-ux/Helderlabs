@@ -205,6 +205,7 @@
           <button class="btn btn-sm ${this.active360Tab === 'overview' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('overview')">Visão Geral</button>
           <button class="btn btn-sm ${this.active360Tab === 'activities' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('activities')">Atividades & Histórico (${c.communications?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'opportunities' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('opportunities')">Oportunidades (${c.opportunities?.length || 0})</button>
+          <button class="btn btn-sm ${this.active360Tab === 'proposals' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('proposals')">Orçamentos & Propostas (${c.proposals?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'contacts' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('contacts')">Contactos (${c.contacts?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'contracts' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('contracts')">Contratos (${c.contracts?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'documents' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('documents')">Documentos (${c.documents?.length || 0})</button>
@@ -427,6 +428,49 @@
                     <td style="text-align: right; font-weight: 700;">€${esc(opp.estimatedValue?.toLocaleString('pt-PT', { minimumFractionDigits: 2 }))}</td>
                     <td style="text-align: right;">${esc(opp.probability)}%</td>
                     <td>${fmtDate(opp.expectedCloseDate)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      if (this.active360Tab === 'proposals') {
+        const props = c.proposals || [];
+        return `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-size: 13px; color: var(--text-secondary);">Propostas comerciais e orçamentos emitidos para esta empresa</span>
+            <button class="btn btn-primary btn-sm" onclick="window.CRMProposalsModule ? window.CRMProposalsModule.openCreateProposalModal('${esc(c.id)}') : null">
+              + Nova Proposta / Orçamento
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nº Proposta</th>
+                  <th>Título / Descrição</th>
+                  <th>Data Emissão</th>
+                  <th>Validade</th>
+                  <th style="text-align: right;">Total Líquido</th>
+                  <th>Estado</th>
+                  <th style="text-align: right;">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${props.length === 0 ? '<tr><td colspan="7" style="text-align: center; color: var(--muted); padding: 20px;">Sem propostas ou orçamentos registados para esta empresa.</td></tr>' : props.map(p => `
+                  <tr>
+                    <td><strong>${esc(p.proposalNumber)}</strong></td>
+                    <td>${esc(p.title)}</td>
+                    <td>${fmtDate(p.issueDate)}</td>
+                    <td>${p.validUntil ? fmtDate(p.validUntil) : '—'}</td>
+                    <td style="text-align: right; font-weight: 700;">${fmtCurrency(p.totalCents)}</td>
+                    <td><span class="badge ${p.status === 'ACCEPTED' ? 'badge-paid' : (p.status === 'REJECTED' ? 'badge-danger' : 'badge-planned')}">${esc(p.status)}</span></td>
+                    <td style="text-align: right;">
+                      <a href="/api/crm/proposals/${escAttr(p.id)}/print" target="_blank" class="btn btn-sm" style="margin-right: 4px;">🖨️ PDF</a>
+                      <button class="btn btn-sm btn-info" onclick="window.CRMProposalsModule ? window.CRMProposalsModule.openSendModal('${escAttr(p.id)}') : null">✉️ Enviar</button>
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>

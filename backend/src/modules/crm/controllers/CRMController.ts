@@ -207,4 +207,40 @@ export class CRMController {
   async deleteActivity(context: CRMRequestContext, id: string) {
     return serviceFor(context).deleteActivity(id);
   }
+
+  // =========================================================================
+  // PROPOSTAS COMERCIAIS & ORÇAMENTOS (FASE B4)
+  // =========================================================================
+
+  async listProposals(context: CRMRequestContext, filters?: any) {
+    return serviceFor(context).listProposals(filters);
+  }
+
+  async getProposal(context: CRMRequestContext, id: string) {
+    return serviceFor(context).getProposalById(id);
+  }
+
+  async createProposal(context: CRMRequestContext, data: any) {
+    return serviceFor(context).createProposal(data);
+  }
+
+  async updateProposal(context: CRMRequestContext, id: string, data: any) {
+    return serviceFor(context).updateProposal(id, data);
+  }
+
+  async deleteProposal(context: CRMRequestContext, id: string) {
+    return serviceFor(context).deleteProposal(id);
+  }
+
+  async updateProposalStatus(context: CRMRequestContext, id: string, status: any, reason?: string) {
+    return serviceFor(context).updateProposalStatus(id, status, reason);
+  }
+
+  async sendProposalEmail(context: CRMRequestContext, id: string, options: any, actor: any) {
+    return serviceFor(context).sendProposalEmail(id, options, actor);
+  }
+
+  async renderProposalHtml(context: CRMRequestContext, id: string) {
+    return serviceFor(context).renderProposalHtml(id);
+  }
 }

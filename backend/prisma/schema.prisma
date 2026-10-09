@@ -51,6 +51,7 @@ model Tenant {
   companies      Company[]
   contracts      Contract[]
   communications Communication[]
+  proposals      Proposal[]
   buildings      Building[]
 
   settings            TenantSetting[]
@@ -242,6 +243,7 @@ model Company {
   customers     Customer[]
   opportunities Opportunity[]
   communications Communication[]
+  proposals     Proposal[]
 
   @@index([tenantId])
   @@index([status])
@@ -273,6 +275,7 @@ model CompanyContact {
 
   opportunities Opportunity[]
   communications Communication[]
+  proposals     Proposal[]
 
   @@index([companyId])
   @@map("crm_company_contacts")
@@ -338,6 +341,70 @@ model Contract {
   @@index([companyId])
   @@index([status])
   @@map("crm_contracts")
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model Proposal {
+  id                 String          @id @default(cuid())
+  tenantId           String
+  tenant             Tenant          @relation(fields: [tenantId], references: [id])
+  proposalNumber     String
+  title              String
+  companyId          String?
+  company            Company?        @relation(fields: [companyId], references: [id])
+  contactId          String?
+  contact            CompanyContact? @relation(fields: [contactId], references: [id])
+  opportunityId      String?
+  opportunity        Opportunity?    @relation(fields: [opportunityId], references: [id])
+  status             ProposalStatus  @default(DRAFT)
+  issueDate          DateTime        @default(now())
+  validUntil         DateTime?
+  subtotalCents      Int             @default(0)
+  vatRatePercent     Float           @default(23.0)
+  vatCents           Int             @default(0)
+  totalCents         Int             @default(0)
+  currency           String          @default("EUR")
+  notes              String?
+  termsAndConditions String?
+  sentAt             DateTime?
+  acceptedAt         DateTime?
+  rejectedAt         DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  items              ProposalItem[]
+
+  @@unique([tenantId, proposalNumber])
+  @@index([tenantId])
+  @@index([companyId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("crm_proposals")
+}
+
+model ProposalItem {
+  id              String   @id @default(cuid())
+  proposalId      String
+  proposal        Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  description     String
+  quantity        Float    @default(1.0)
+  unitPriceCents  Int      @default(0)
+  discountPercent Float    @default(0.0)
+  vatRatePercent  Float    @default(23.0)
+  totalCents      Int      @default(0)
+  sortOrder       Int      @default(0)
+
+  @@index([proposalId])
+  @@map("crm_proposal_items")
 }
 
 model CompanyRelation {
@@ -435,6 +502,7 @@ model Opportunity {
   updatedAt          DateTime         @updatedAt
 
   communications     Communication[]
+  proposals          Proposal[]
 
   @@index([tenantId])
   @@index([stage])

@@ -453,3 +453,37 @@
   border-top: 1px solid rgba(148, 163, 184, 0.1);
 }
 
+/* CRM Propostas & Orçamentos (Fase B4) */
+.proposal-item-row {
+  background: var(--surface);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  transition: border-color 0.15s ease;
+}
+
+.proposal-item-row:hover {
+  border-color: var(--primary);
+}
+
+.badge-proposal-draft {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.badge-proposal-sent {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.badge-proposal-accepted {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge-proposal-rejected {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+

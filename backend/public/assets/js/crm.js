@@ -16,7 +16,7 @@
 
     async switchCRMView(view) {
       this.currentView = view;
-      ['companies', 'pipeline', 'leads', 'activities'].forEach(v => {
+      ['companies', 'pipeline', 'leads', 'activities', 'proposals'].forEach(v => {
         const btn = document.getElementById(`crm-btn-subview-${v}`);
         const panel = document.getElementById(`crm-view-${v}`);
         if (btn) btn.classList.toggle('active', v === view);
@@ -29,6 +29,8 @@
         await window.CRMLeadsModule.init();
       } else if (view === 'activities' && window.CRMActivitiesModule) {
         await window.CRMActivitiesModule.init();
+      } else if (view === 'proposals' && window.CRMProposalsModule) {
+        await window.CRMProposalsModule.init();
       } else if (view === 'companies' && window.CRMCompanies) {
         await window.CRMCompanies.loadCompanies();
       }

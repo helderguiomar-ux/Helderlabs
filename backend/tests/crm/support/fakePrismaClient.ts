@@ -18,6 +18,8 @@ export function createFakePrismaClient() {
   const contacts: any[] = [];
   const communications: any[] = [];
   const companies: any[] = [];
+  const proposals: any[] = [];
+  const proposalItems: any[] = [];
 
   const db = {
     // --- helpers só para preparar cenários de teste ---
@@ -27,7 +29,9 @@ export function createFakePrismaClient() {
       customers,
       contacts,
       communications,
-      companies
+      companies,
+      proposals,
+      proposalItems
     },
 
     company: {
@@ -106,8 +110,15 @@ export function createFakePrismaClient() {
     },
 
     companyContact: {
-      findFirst: async ({ where }: any = {}) =>
-        contacts.find((c) => (!where?.id || c.id === where.id) && (where?.deletedAt === undefined || (where.deletedAt === null && !c.deletedAt))) ?? null,
+      findFirst: async ({ where, include }: any = {}) => {
+        const c = contacts.find((item) => (!where?.id || item.id === where.id) && (where?.deletedAt === undefined || (where.deletedAt === null && !item.deletedAt))) ?? null;
+        if (!c) return null;
+        const res = { ...c };
+        if (include?.company) {
+          res.company = companies.find((comp) => comp.id === c.companyId) ?? null;
+        }
+        return res;
+      },
       create: async ({ data }: any) => {
         const c = { id: fakeId('cont'), createdAt: new Date(), ...data };
         contacts.push(c);
@@ -194,6 +205,168 @@ export function createFakePrismaClient() {
           }
         });
         return { count };
+      }
+    },
+
+    proposal: {
+      count: async ({ where }: any = {}) => {
+        return proposals.filter((p) => {
+          if (where?.tenantId && p.tenantId !== where.tenantId) return false;
+          if (where?.deletedAt === null && p.deletedAt) return false;
+          if (where?.status && p.status !== where.status) return false;
+          if (where?.companyId && p.companyId !== where.companyId) return false;
+          if (where?.opportunityId && p.opportunityId !== where.opportunityId) return false;
+          return true;
+        }).length;
+      },
+      findFirst: async ({ where, include }: any = {}) => {
+        const p = proposals.find((item) => {
+          if (where?.id && item.id !== where.id) return false;
+          if (where?.tenantId && item.tenantId !== where.tenantId) return false;
+          if (where?.proposalNumber && item.proposalNumber !== where.proposalNumber) return false;
+          if (where?.deletedAt === null && item.deletedAt) return false;
+          return true;
+        });
+        if (!p) return null;
+        const res = { ...p };
+        if (include?.items) {
+          res.items = proposalItems.filter((it) => it.proposalId === p.id);
+        }
+        if (include?.company) res.company = companies.find((comp) => comp.id === p.companyId) ?? null;
+        if (include?.contact) res.contact = contacts.find((cont) => cont.id === p.contactId) ?? null;
+        if (include?.opportunity) res.opportunity = opportunities.find((opp) => opp.id === p.opportunityId) ?? null;
+        return res;
+      },
+      findMany: async ({ where, include, orderBy, skip, take }: any = {}) => {
+        let items = proposals.filter((p) => {
+          if (where?.tenantId && p.tenantId !== where.tenantId) return false;
+          if (where?.deletedAt === null && p.deletedAt) return false;
+          if (where?.status && p.status !== where.status) return false;
+          if (where?.companyId && p.companyId !== where.companyId) return false;
+          if (where?.opportunityId && p.opportunityId !== where.opportunityId) return false;
+          return true;
+        });
+
+        if (orderBy?.createdAt === 'desc') {
+          items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        }
+
+        const res = items.map((p) => {
+          const item = { ...p };
+          if (include?.items) {
+            item.items = proposalItems.filter((it) => it.proposalId === p.id);
+          }
+          if (include?.company) item.company = companies.find((comp) => comp.id === p.companyId) ?? null;
+          if (include?.contact) item.contact = contacts.find((cont) => cont.id === p.contactId) ?? null;
+          if (include?.opportunity) item.opportunity = opportunities.find((opp) => opp.id === p.opportunityId) ?? null;
+          return item;
+        });
+
+        const start = skip || 0;
+        const end = take ? start + take : undefined;
+        return res.slice(start, end);
+      },
+      create: async ({ data, include }: any) => {
+        const { items: itemsInput, ...rest } = data;
+        const p = {
+          id: fakeId('prop'),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+          ...rest
+        };
+        proposals.push(p);
+
+        if (itemsInput?.create) {
+          itemsInput.create.forEach((it: any) => {
+            proposalItems.push({
+              id: fakeId('prop_item'),
+              proposalId: p.id,
+              createdAt: new Date(),
+              ...it
+            });
+          });
+        }
+
+        const res = { ...p };
+        if (include?.items) {
+          res.items = proposalItems.filter((it) => it.proposalId === p.id);
+        }
+        if (include?.company) res.company = companies.find((comp) => comp.id === p.companyId) ?? null;
+        if (include?.contact) res.contact = contacts.find((cont) => cont.id === p.contactId) ?? null;
+        if (include?.opportunity) res.opportunity = opportunities.find((opp) => opp.id === p.opportunityId) ?? null;
+        return res;
+      },
+      update: async ({ where, data, include }: any) => {
+        const p = proposals.find((item) => item.id === where.id);
+        if (!p) throw new Error(`Proposal ${where.id} não encontrada no fake client`);
+
+        const { items: itemsInput, ...rest } = data;
+        Object.assign(p, rest, { updatedAt: new Date() });
+
+        if (itemsInput?.create) {
+          itemsInput.create.forEach((it: any) => {
+            proposalItems.push({
+              id: fakeId('prop_item'),
+              proposalId: p.id,
+              createdAt: new Date(),
+              ...it
+            });
+          });
+        }
+
+        const res = { ...p };
+        if (include?.items) {
+          res.items = proposalItems.filter((it) => it.proposalId === p.id);
+        }
+        if (include?.company) res.company = companies.find((comp) => comp.id === p.companyId) ?? null;
+        if (include?.contact) res.contact = contacts.find((cont) => cont.id === p.contactId) ?? null;
+        if (include?.opportunity) res.opportunity = opportunities.find((opp) => opp.id === p.opportunityId) ?? null;
+        return res;
+      },
+      aggregate: async ({ where, _sum }: any = {}) => {
+        const items = proposals.filter((p) => {
+          if (where?.tenantId && p.tenantId !== where.tenantId) return false;
+          if (where?.deletedAt === null && p.deletedAt) return false;
+          if (where?.status && p.status !== where.status) return false;
+          return true;
+        });
+        const total = items.reduce((acc, curr) => acc + (curr.totalCents || 0), 0);
+        return {
+          _sum: {
+            totalCents: total
+          }
+        };
+      }
+    },
+
+    proposalItem: {
+      create: async ({ data }: any) => {
+        const item = { id: fakeId('prop_item'), createdAt: new Date(), ...data };
+        proposalItems.push(item);
+        return item;
+      },
+      createMany: async ({ data }: any) => {
+        if (Array.isArray(data)) {
+          data.forEach((it) => {
+            proposalItems.push({ id: fakeId('prop_item'), createdAt: new Date(), ...it });
+          });
+          return { count: data.length };
+        }
+        return { count: 0 };
+      },
+      deleteMany: async ({ where }: any = {}) => {
+        let count = 0;
+        for (let i = proposalItems.length - 1; i >= 0; i--) {
+          if (!where?.proposalId || proposalItems[i].proposalId === where.proposalId) {
+            proposalItems.splice(i, 1);
+            count += 1;
+          }
+        }
+        return { count };
+      },
+      findMany: async ({ where }: any = {}) => {
+        return proposalItems.filter((it) => !where?.proposalId || it.proposalId === where.proposalId);
       }
     }
   };

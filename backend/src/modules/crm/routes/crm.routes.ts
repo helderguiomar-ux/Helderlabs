@@ -105,6 +105,62 @@ const completeActivitySchema = z
   })
   .strict();
 
+const proposalStatusEnum = z.enum(['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED']);
+
+const proposalItemInputSchema = z.object({
+  description: z.string().trim().min(1, 'Descrição do item é obrigatória.'),
+  quantity: z.number().positive('Quantidade tem de ser positiva.').default(1.0),
+  unitPriceCents: z.number().int().min(0, 'Preço unitário em cêntimos não pode ser negativo.'),
+  discountPercent: z.number().min(0).max(100).optional().default(0.0),
+  vatRatePercent: z.number().min(0).max(100).optional().default(23.0),
+  sortOrder: z.number().int().optional()
+});
+
+const createProposalSchema = z
+  .object({
+    title: z.string().trim().min(1, 'Título da proposta é obrigatório.'),
+    proposalNumber: z.string().trim().optional(),
+    companyId: z.string().optional().nullable(),
+    contactId: z.string().optional().nullable(),
+    opportunityId: z.string().optional().nullable(),
+    issueDate: z.string().optional().nullable(),
+    validUntil: z.string().optional().nullable(),
+    vatRatePercent: z.number().min(0).max(100).optional().default(23.0),
+    notes: z.string().optional().nullable(),
+    termsAndConditions: z.string().optional().nullable(),
+    items: z.array(proposalItemInputSchema).min(1, 'A proposta tem de conter pelo menos um item.')
+  })
+  .strict();
+
+const updateProposalSchema = z
+  .object({
+    title: z.string().trim().min(1).optional(),
+    companyId: z.string().optional().nullable(),
+    contactId: z.string().optional().nullable(),
+    opportunityId: z.string().optional().nullable(),
+    issueDate: z.string().optional().nullable(),
+    validUntil: z.string().optional().nullable(),
+    vatRatePercent: z.number().min(0).max(100).optional(),
+    notes: z.string().optional().nullable(),
+    termsAndConditions: z.string().optional().nullable(),
+    items: z.array(proposalItemInputSchema).optional()
+  })
+  .strict();
+
+const updateProposalStatusSchema = z
+  .object({
+    status: z.enum(['ACCEPTED', 'REJECTED', 'SENT']),
+    reason: z.string().trim().optional().nullable()
+  })
+  .strict();
+
+const sendProposalEmailSchema = z
+  .object({
+    recipientEmail: z.string().trim().toLowerCase().email('Email inválido.').optional().nullable().or(z.literal('')),
+    message: z.string().trim().optional().nullable()
+  })
+  .strict();
+
 const companyBaseShape = {
   tradeName: z.string().trim().min(1, 'Nome Comercial é obrigatório'),
   legalName: z.string().trim().optional().nullable(),
@@ -558,6 +614,75 @@ export async function crmRoutes(app: FastifyInstance) {
       const { id } = request.params;
       await controller.deleteActivity(contextFrom(request), id);
       return reply.status(204).send();
+    });
+
+    // =========================================================================
+    // PROPOSTAS COMERCIAIS & ORÇAMENTOS (FASE B4)
+    // =========================================================================
+
+    protectedApp.get('/proposals', async (request, reply) => {
+      const query = request.query as any;
+      const filters = {
+        companyId: query.companyId || undefined,
+        opportunityId: query.opportunityId || undefined,
+        status: query.status || undefined,
+        search: query.search || undefined,
+        limit: query.limit ? parseInt(query.limit, 10) : undefined
+      };
+      const proposals = await controller.listProposals(contextFrom(request), filters);
+      return reply.status(200).send(proposals);
+    });
+
+    protectedApp.get<{ Params: { id: string } }>('/proposals/:id', async (request, reply) => {
+      const { id } = request.params;
+      const proposal = await controller.getProposal(contextFrom(request), id);
+      return reply.status(200).send(proposal);
+    });
+
+    protectedApp.get<{ Params: { id: string } }>('/proposals/:id/print', async (request, reply) => {
+      const { id } = request.params;
+      const html = await controller.renderProposalHtml(contextFrom(request), id);
+      return reply.type('text/html; charset=utf-8').send(html);
+    });
+
+    protectedApp.post('/proposals', async (request, reply) => {
+      const data = createProposalSchema.parse(request.body);
+      const proposal = await controller.createProposal(contextFrom(request), data);
+      return reply.status(201).send({ success: true, proposal, message: 'Proposta comercial registada com sucesso!' });
+    });
+
+    protectedApp.put<{ Params: { id: string } }>('/proposals/:id', async (request, reply) => {
+      const { id } = request.params;
+      const data = updateProposalSchema.parse(request.body);
+      const proposal = await controller.updateProposal(contextFrom(request), id, data);
+      return reply.status(200).send({ success: true, proposal, message: 'Proposta atualizada!' });
+    });
+
+    protectedApp.delete<{ Params: { id: string } }>('/proposals/:id', async (request, reply) => {
+      const { id } = request.params;
+      await controller.deleteProposal(contextFrom(request), id);
+      return reply.status(204).send();
+    });
+
+    protectedApp.patch<{ Params: { id: string } }>('/proposals/:id/status', async (request, reply) => {
+      const { id } = request.params;
+      const body = updateProposalStatusSchema.parse(request.body);
+      const proposal = await controller.updateProposalStatus(contextFrom(request), id, body.status, body.reason ?? undefined);
+      return reply.status(200).send({ success: true, proposal, message: `Estado da proposta atualizado para ${body.status}!` });
+    });
+
+    protectedApp.post<{ Params: { id: string } }>('/proposals/:id/send', async (request, reply) => {
+      const { id } = request.params;
+      const body = sendProposalEmailSchema.parse(request.body || {});
+      const actor = {
+        userId: (request.user as any)?.sub || (request.user as any)?.id,
+        email: (request.user as any)?.email,
+        role: (request.user as any)?.role,
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent']
+      };
+      const result = await controller.sendProposalEmail(contextFrom(request), id, body, actor);
+      return reply.status(200).send({ success: true, result, message: 'Proposta enviada por email com sucesso!' });
     });
   });
 }

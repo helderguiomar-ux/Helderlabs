@@ -2,6 +2,26 @@
 
 Todas as alterações notáveis do repositório unificado **HELDERLABS ERP** são registadas neste ficheiro.
 
+## [v1.6.4] - 2026-10-09
+
+### CRM Fase B4 — Propostas Comerciais, Orçamentos com Impressão A4/PDF e Envio por Email do Tenant
+- **Motor de Orçamentação e Propostas**: Criação de propostas comerciais completas com numeração sequencial única (`PROP-YYYY-XXXX`), associação a empresa, contacto e oportunidade, data de emissão, validade, notas e condições de fornecimento.
+- **Grelha Dinâmica de Linhas e Precisão Monetária**: Suporte a múltiplas linhas de serviço/artigo com descrição, quantidade, preço unitário em cêntimos (`unitPriceCents`), desconto percentual (`discountPercent`), taxa de IVA configurável (23%, 13%, 6%, 0%), com recálculo em tempo real de subtotais, valor do IVA e total geral.
+- **Salvaguarda Legal Inviolável**: Inclusão mandatória do aviso legal *"Orçamento Comercial / Proposta de Honorários. Não serve de fatura nem de documento de quitação fiscal."* em todos os ecrãs, emails e impressões A4.
+- **Página de Impressão A4 / Exportação PDF**: Endpoint dedicado `GET /api/crm/proposals/:id/print` com folha de estilo de impressão A4 limpa, logotipo, dados fiscais, linhas detalhadas e acionamento nativo `window.print()` sem dependências pesadas de headless browser.
+- **Envio por Email Integrado com o Tenant**: Endpoint `POST /api/crm/proposals/:id/send` com envio HTML formatado através do `TenantMailService` (SMTP do próprio tenant ou plataforma), transição de estado para `SENT` e registo automático de atividade comercial `Communication` (`email`).
+- **Sincronização com Pipeline de Vendas**: Ao aprovar a proposta (`ACCEPTED`), a oportunidade comercial associada é automaticamente convertida em `WON` (ganha), qualificando o cliente.
+- **Interface e Ficha 360º Integrada**:
+  - Nova sub-vista *Propostas & Orçamentos* no painel CRM com KPIs em tempo real (Volume Orçamentado, Volume Aceite, Rascunhos) e filtros avançados.
+  - Novo separador *Orçamentos & Propostas* na Ficha 360º de Empresa com listagem de propostas e botão direto de nova proposta.
+  - Modais modulares `#modal-create-proposal` e `#modal-send-proposal` com linhas dinâmicas recalculadas em tempo real.
+- **Modelo de Dados (Migração `20261009040000_crm_b4_proposals`)**:
+  - Enum `ProposalStatus` (`DRAFT`, `SENT`, `ACCEPTED`, `REJECTED`, `EXPIRED`).
+  - Modelos `Proposal` e `ProposalItem` com RLS multi-tenant, soft-delete (`deletedAt`) e índices otimizados.
+  - Adicionado `'Proposal'` a `TENANT_SCOPED_MODELS`.
+- **Auditoria Transversal**: Ações `CREATE_PROPOSAL`, `UPDATE_PROPOSAL`, `UPDATE_PROPOSAL_STATUS`, `SEND_PROPOSAL` e `DELETE_PROPOSAL` auditadas no sistema transversal.
+- **Testes Automatizados**: Suite `tests/crm/crm-b4-proposals.test.ts` com 6 novos testes unitários e de integração (44 testes CRM no total, 71 testes conjuntos com 100% de aprovação).
+
 ## [v1.6.3] - 2026-10-09
 
 ### CRM Fase B3 — Atividades Comerciais, Histórico 360º e Follow-ups

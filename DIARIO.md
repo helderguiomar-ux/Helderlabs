@@ -163,3 +163,21 @@ Resolver o bloqueio de login em produção, estabilizar a persistência de sess�
       - 86 testes unitários e E2E aprovados (100% green em 20 suites).
       - 24 asserções full-stack no script de auditoria E2E.
       - Typecheck e build limpos com zero erros.
+
+---
+
+## 2026-10-09 · [antigravity] — CRM HelderLabs Enterprise (Fases B1 a B6 · v1.6.0 a v1.6.6)
+
+### 🎯 Objetivo
+Construção progressiva, validação rigorosa de segurança multi-tenant e publicação em produção (Vercel `https://helderlabs.eu`) do CRM corporativo do HelderLabs ERP.
+
+### 🔍 Ações Efetuadas
+1. **Parte A (v1.6.0)**: Publicação do serviço de email por tenant (`TenantMailService`) com cifra AES-256-GCM (`EMAIL_CREDENTIALS_KEY`), guarda anti-SSRF de servidores SMTP e modos Plataforma / SMTP próprio.
+2. **Fase B1 (v1.6.1)**: Segurança multi-tenant estrita para registos filhos (contactos, endereços, relações societárias), validação de NIF português mod 11, sanitização XSS com `esc()`, paginação por cursor no servidor e soft delete.
+3. **Fase B2 (v1.6.2)**: Pipeline comercial visual com funil Kanban, cálculo de receita ponderada por probabilidade de fecho, transições com regras estritas (WON/LOST) e sincronização automática de empresas.
+4. **Fase B3 (v1.6.3)**: Histórico comercial 360º, atividades tipadas (`task`, `call`, `meeting`, `email`, `note`, `whatsapp`), monitorização de follow-ups atrasados (`isOverdue`) e conclusão rápida com 1 clique.
+5. **Fase B4 (v1.6.4)**: Orçamentos e propostas comerciais com numeração sequencial (`PROP-YYYY-XXXX`), precisão ao cêntimo em valores monetários, envio por email pelo remetente do tenant, folha de impressão limpa A4/PDF e aposição obrigatória da salvaguarda legal de não servir de fatura fiscal.
+6. **Fase B5 (v1.6.5)**: Gestão de contratos de avença e serviços recorrentes, cálculo de MRR e ARR, níveis padronizados de SLA (Bronze, Silver, Gold, Platinum), modal de renovação com ajuste percentual de inflação/IPC e minuta A4 com aviso legal.
+7. **Fase B6 (v1.6.6)**: Dossier empresarial de documentos do cliente, tipos padronizados (Certidão Permanente, RCBE, NIF, Alvarás, Não Dívida AT/SS, etc.), suporte a códigos de acesso com cópia rápida, motor dinâmico de prazos de caducidade (`computeDocumentStatus`), fluxo de auditoria e conformidade (`verifyCompanyDocument`), e upload seguro de ficheiros até 8MB.
+8. **QA & Produção**: 87 testes unitários e de integração verdes (0 falhas). Migrações SQL aditivas executadas. Verificação real de produção em `https://helderlabs.eu` (HTTP 200 nas páginas e recursos estáticos, HTTP 401 nas rotas protegidas).
+

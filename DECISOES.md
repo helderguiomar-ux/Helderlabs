@@ -34,3 +34,14 @@
 - **Decisão**: O teste da backdoor `admin1234` deve testar o mecanismo em isolamento: criar o seu próprio utilizador com password conhecida e verificar que uma tentativa falhada não autentica **e não reescreve o hash guardado**.
 - **Raciocínio**: Corrigir o ambiente de desenvolvimento alterando passwords na base de dados para o teste passar esconde o facto de que remover código não altera dados já escritos. Um teste de segurança que pode ficar verde por alteração do ambiente não é um teste de segurança fiável.
 
+## ADR 007 · CRM: Valores Monetários em Cêntimos Inteiros e Salvaguarda Fiscal Inviolável
+- **Data**: 2026-10-09
+- **Decisão**: Todos os montantes de orçamentos, propostas e contratos de avença são expressos em inteiros (`valueCents`, `monthlyValueCents`). Todos os documentos e minutas impressas A4 ou enviadas por email devem ostentar obrigatoriamente a advertência legal: *"Não serve de fatura nem de documento de quitação fiscal."*
+- **Raciocínio**: Evita erros de arredondamento inerentes a números de vírgula flutuante (IEEE 754) e cumpre escrupulosamente a legislação fiscal portuguesa, deixando a emissão de documentos com eficácia tributária para software certificado ou registo de conta corrente exterior.
+
+## ADR 008 · CRM: Controlo de Validades e Dossier Empresarial Resiliente em Serverless
+- **Data**: 2026-10-09
+- **Decisão**: A gestão de documentos empresariais (`CompanyDocument`) armazena ficheiros como Data URI base64 ou URL externo seguro, associando códigos de acesso online de certidões e motor dinâmico de prazos de caducidade (`computeDocumentStatus`).
+- **Raciocínio**: Garante funcionamento 100% autónomo na Vercel Serverless sem requerer credenciais S3/R2 externas de terceiros, preservando integridade e rastreabilidade total no histórico 360º de cada cliente.
+
+

@@ -94,6 +94,23 @@ export class EnterpriseCRMService {
     return relation;
   }
 
+  public async assertAccountEntryOwned(entryId: string) {
+    const entry = await this.db.crmAccountEntry.findFirst({
+      where: { id: entryId, tenantId: this.tenantId },
+      include: {
+        company: true,
+        paymentAllocations: { where: { isCancelled: false } },
+        documentAllocations: { where: { isCancelled: false } },
+        reversedEntry: true,
+        reversals: true
+      }
+    });
+    if (!entry || !entry.company || entry.company.tenantId !== this.tenantId) {
+      throw notFound('Lançamento de conta corrente não encontrado.');
+    }
+    return entry;
+  }
+
   public async assertLeadOwned(leadId: string) {
     const lead = await this.db.lead.findFirst({
       where: { id: leadId, tenantId: this.tenantId, deletedAt: null }
@@ -3097,4 +3114,788 @@ export class EnterpriseCRMService {
       </html>
     `;
   }
+
+  // =========================================================================
+  // FASE B7 — CONTA CORRENTE DE CLIENTES (REGISTO SEM FATURAÇÃO FISCAL)
+  // =========================================================================
+
+  public async createAccountEntry(
+    companyId: string,
+    data: {
+      type: string;
+      amountCents: number;
+      entryDate?: string | Date;
+      externalDocumentNumber?: string | null;
+      dueDate?: string | Date | null;
+      method?: string | null;
+      reference?: string | null;
+      notes?: string | null;
+      proposalId?: string | null;
+      autoAllocate?: boolean;
+    },
+    userId?: string
+  ) {
+    const company = await this.assertCompanyOwned(companyId);
+
+    const amountCents = Math.round(Number(data.amountCents));
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      throw new AppError('INVALID_AMOUNT', 'O montante deve ser um valor inteiro positivo em cêntimos.', 400);
+    }
+
+    const type = String(data.type || '').trim().toUpperCase();
+    const validTypes = [
+      'OPENING_BALANCE',
+      'INVOICE',
+      'DEBIT_NOTE',
+      'CREDIT_NOTE',
+      'PAYMENT',
+      'REFUND',
+      'ADJUSTMENT',
+      'REVERSAL'
+    ];
+    if (!validTypes.includes(type)) {
+      throw new AppError('INVALID_TYPE', `Tipo de lançamento inválido: ${type}`, 400);
+    }
+
+    // Validação estrita: INVOICE, DEBIT_NOTE e CREDIT_NOTE exigem número de documento externo emitido no software de faturação
+    if (['INVOICE', 'DEBIT_NOTE', 'CREDIT_NOTE'].includes(type)) {
+      if (!data.externalDocumentNumber || !data.externalDocumentNumber.trim()) {
+        throw new AppError(
+          'MISSING_EXTERNAL_DOC',
+          'O número de documento externo emitido no software de faturação certificado é obrigatório.',
+          400
+        );
+      }
+    }
+
+    const entryDate = data.entryDate ? new Date(data.entryDate) : new Date();
+    const dueDate = data.dueDate ? new Date(data.dueDate) : null;
+
+    const entry = await this.db.crmAccountEntry.create({
+      data: {
+        tenantId: this.tenantId,
+        companyId,
+        entryDate,
+        type,
+        externalDocumentNumber: data.externalDocumentNumber ? data.externalDocumentNumber.trim() : null,
+        dueDate,
+        amountCents,
+        method: data.method ? data.method.trim().toUpperCase() : null,
+        reference: data.reference ? data.reference.trim() : null,
+        notes: data.notes ? data.notes.trim() : null,
+        proposalId: data.proposalId || null,
+        createdBy: userId || null
+      }
+    });
+
+    // Se for pagamento com alocação automática (FIFO)
+    let autoAllocatedCents = 0;
+    if (type === 'PAYMENT' && data.autoAllocate) {
+      // Buscar documentos a débito em aberto ordenados cronologicamente
+      const debitEntries = await this.db.crmAccountEntry.findMany({
+        where: {
+          tenantId: this.tenantId,
+          companyId,
+          type: { in: ['INVOICE', 'DEBIT_NOTE', 'OPENING_BALANCE'] },
+          isReversed: false
+        },
+        include: {
+          documentAllocations: {
+            where: { isCancelled: false }
+          }
+        },
+        orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }]
+      });
+
+      let remainingPayment = amountCents;
+
+      for (const doc of debitEntries) {
+        if (remainingPayment <= 0) break;
+
+        const alreadyAllocated = doc.documentAllocations.reduce((sum: number, a: any) => sum + a.amountCents, 0);
+        const pendingOnDoc = doc.amountCents - alreadyAllocated;
+
+        if (pendingOnDoc > 0) {
+          const allocAmount = Math.min(remainingPayment, pendingOnDoc);
+          await this.db.crmAccountAllocation.create({
+            data: {
+              tenantId: this.tenantId,
+              companyId,
+              paymentEntryId: entry.id,
+              documentEntryId: doc.id,
+              amountCents: allocAmount
+            }
+          });
+          remainingPayment -= allocAmount;
+          autoAllocatedCents += allocAmount;
+        }
+      }
+    }
+
+    await AuditService.audit({
+      action: 'crm.account_entry.create',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'CrmAccountEntry',
+      resourceId: entry.id,
+      description: `Lançamento de conta corrente ${type} (€${(amountCents / 100).toFixed(2)}) para empresa ${companyId}`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
+
+    try {
+      await this.createActivity({
+        type: 'NOTE',
+        subject: `Conta Corrente: Lançamento de ${type} (€${(amountCents / 100).toFixed(2)})`,
+        content: `Registo de ${type} no valor de €${(amountCents / 100).toFixed(2)}. ${entry.externalDocumentNumber ? `Doc: ${entry.externalDocumentNumber}.` : ''} ${entry.notes ? `Notas: ${entry.notes}` : ''}`,
+        companyId,
+        createdByUserId: userId || null
+      });
+    } catch {
+      // Silêncio se o registo de atividade secundária falhar
+    }
+
+    return this.assertAccountEntryOwned(entry.id);
+  }
+
+  public async createReversal(entryId: string, reason: string, userId?: string) {
+    const entry = await this.assertAccountEntryOwned(entryId);
+
+    if (entry.isReversed) {
+      throw new AppError('ALREADY_REVERSED', 'Este lançamento já se encontra estornado.', 400);
+    }
+    if (entry.type === 'REVERSAL') {
+      throw new AppError('CANNOT_REVERSE_REVERSAL', 'Não é possível efetuar o estorno de um estorno.', 400);
+    }
+
+    // 1. Marcar o lançamento original como estornado
+    await this.db.crmAccountEntry.update({
+      where: { id: entry.id },
+      data: {
+        isReversed: true,
+        reversedAt: new Date()
+      }
+    });
+
+    // 2. Cancelar alocações ativas ligadas a este lançamento
+    if (entry.paymentAllocations && entry.paymentAllocations.length > 0) {
+      for (const alloc of entry.paymentAllocations) {
+        await this.db.crmAccountAllocation.update({
+          where: { id: alloc.id },
+          data: {
+            isCancelled: true,
+            cancelledAt: new Date()
+          }
+        });
+      }
+    }
+    if (entry.documentAllocations && entry.documentAllocations.length > 0) {
+      for (const alloc of entry.documentAllocations) {
+        await this.db.crmAccountAllocation.update({
+          where: { id: alloc.id },
+          data: {
+            isCancelled: true,
+            cancelledAt: new Date()
+          }
+        });
+      }
+    }
+
+    // 3. Criar contrapartida de tipo REVERSAL
+    const reversal = await this.db.crmAccountEntry.create({
+      data: {
+        tenantId: this.tenantId,
+        companyId: entry.companyId,
+        entryDate: new Date(),
+        type: 'REVERSAL',
+        externalDocumentNumber: entry.externalDocumentNumber ? `EST-${entry.externalDocumentNumber}` : null,
+        amountCents: entry.amountCents,
+        notes: reason ? reason.trim() : `Estorno do lançamento ${entry.id}`,
+        reversesEntryId: entry.id,
+        createdBy: userId || null
+      }
+    });
+
+    await AuditService.audit({
+      action: 'crm.account_entry.reverse',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'CrmAccountEntry',
+      resourceId: entry.id,
+      description: `Estorno do lançamento ${entry.id} (${reason || 'Sem motivo'})`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
+
+    try {
+      await this.createActivity({
+        type: 'NOTE',
+        subject: `Conta Corrente: Estorno de ${entry.type} (€${(entry.amountCents / 100).toFixed(2)})`,
+        content: `Estorno efetuado para o lançamento original ${entry.id} (${entry.externalDocumentNumber || ''}). Motivo: ${reason || 'Não indicado'}.`,
+        companyId: entry.companyId,
+        createdByUserId: userId || null
+      });
+    } catch {
+      // Ignorar falha de atividade secundária
+    }
+
+    return {
+      success: true,
+      originalEntryId: entry.id,
+      reversalEntryId: reversal.id
+    };
+  }
+
+  public async allocatePayment(
+    companyId: string,
+    paymentEntryId: string,
+    documentEntryId: string,
+    amountCents: number,
+    userId?: string
+  ) {
+    await this.assertCompanyOwned(companyId);
+
+    const payment = await this.assertAccountEntryOwned(paymentEntryId);
+    const doc = await this.assertAccountEntryOwned(documentEntryId);
+
+    if (payment.companyId !== companyId || doc.companyId !== companyId) {
+      throw new AppError('COMPANY_MISMATCH', 'Os lançamentos devem pertencer à mesma empresa.', 400);
+    }
+
+    if (payment.isReversed || doc.isReversed) {
+      throw new AppError('ENTRY_REVERSED', 'Não é possível alocar lançamentos estornados.', 400);
+    }
+
+    const creditTypes = ['PAYMENT', 'CREDIT_NOTE'];
+    const debitTypes = ['INVOICE', 'DEBIT_NOTE', 'OPENING_BALANCE'];
+
+    if (!creditTypes.includes(payment.type)) {
+      throw new AppError('INVALID_PAYMENT_ENTRY', 'O lançamento de pagamento deve ser de crédito (PAYMENT ou CREDIT_NOTE).', 400);
+    }
+
+    if (!debitTypes.includes(doc.type)) {
+      throw new AppError('INVALID_DOCUMENT_ENTRY', 'O documento a liquidar deve ser de débito (INVOICE, DEBIT_NOTE ou OPENING_BALANCE).', 400);
+    }
+
+    const allocCents = Math.round(Number(amountCents));
+    if (!Number.isInteger(allocCents) || allocCents <= 0) {
+      throw new AppError('INVALID_AMOUNT', 'O montante a alocar deve ser um inteiro positivo em cêntimos.', 400);
+    }
+
+    // Validar saldo disponível do pagamento
+    const currentPaymentAllocations = payment.paymentAllocations.reduce((acc: number, a: any) => acc + a.amountCents, 0);
+    const unallocatedPayment = payment.amountCents - currentPaymentAllocations;
+    if (allocCents > unallocatedPayment) {
+      throw new AppError('OVER_ALLOCATION_PAYMENT', `Montante a alocar (€${(allocCents / 100).toFixed(2)}) excede o saldo disponível do pagamento (€${(unallocatedPayment / 100).toFixed(2)}).`, 400);
+    }
+
+    // Validar saldo em aberto do documento
+    const currentDocAllocations = doc.documentAllocations.reduce((acc: number, a: any) => acc + a.amountCents, 0);
+    const pendingOnDoc = doc.amountCents - currentDocAllocations;
+    if (allocCents > pendingOnDoc) {
+      throw new AppError('OVER_ALLOCATION_DOC', `Montante a alocar (€${(allocCents / 100).toFixed(2)}) excede o valor pendente do documento (€${(pendingOnDoc / 100).toFixed(2)}).`, 400);
+    }
+
+    const allocation = await this.db.crmAccountAllocation.create({
+      data: {
+        tenantId: this.tenantId,
+        companyId,
+        paymentEntryId,
+        documentEntryId,
+        amountCents: allocCents
+      }
+    });
+
+    await AuditService.audit({
+      action: 'crm.account_allocation.create',
+      module: 'crm',
+      category: 'APPLICATION',
+      resource: 'CrmAccountAllocation',
+      resourceId: allocation.id,
+      description: `Alocação de pagamento ${paymentEntryId} ao documento ${documentEntryId} (€${(allocCents / 100).toFixed(2)})`,
+      tenantId: this.tenantId,
+      actorType: 'USER'
+    }).catch(() => undefined);
+
+    return allocation;
+  }
+
+  public async getCustomerStatement(
+    companyId: string,
+    filters?: {
+      from?: string | Date;
+      to?: string | Date;
+      status?: 'ALL' | 'OPEN' | 'SETTLED';
+    }
+  ) {
+    const company = await this.assertCompanyOwned(companyId);
+
+    const entries = await this.db.crmAccountEntry.findMany({
+      where: {
+        tenantId: this.tenantId,
+        companyId
+      },
+      include: {
+        paymentAllocations: {
+          where: { isCancelled: false },
+          include: {
+            documentEntry: {
+              select: { id: true, externalDocumentNumber: true, type: true }
+            }
+          }
+        },
+        documentAllocations: {
+          where: { isCancelled: false },
+          include: {
+            paymentEntry: {
+              select: { id: true, externalDocumentNumber: true, type: true, method: true }
+            }
+          }
+        },
+        reversedEntry: {
+          select: { id: true, type: true, externalDocumentNumber: true }
+        },
+        reversals: {
+          select: { id: true, type: true, createdAt: true }
+        }
+      },
+      orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }]
+    });
+
+    const isDebit = (type: string, reversesEntryType?: string | null) => {
+      if (type === 'REVERSAL') {
+        // Estorno de crédito funciona como débito; estorno de débito funciona como crédito
+        return ['PAYMENT', 'CREDIT_NOTE'].includes(reversesEntryType || '');
+      }
+      return ['INVOICE', 'DEBIT_NOTE', 'REFUND', 'OPENING_BALANCE'].includes(type);
+    };
+
+    let runningBalanceCents = 0;
+    let totalDebitCents = 0;
+    let totalCreditCents = 0;
+    let overdueBalanceCents = 0;
+    const now = new Date();
+
+    const formattedEntries = entries.map((e: any) => {
+      const debit = isDebit(e.type, e.reversedEntry?.type);
+      let debitCents = 0;
+      let creditCents = 0;
+
+      if (debit) {
+        debitCents = e.amountCents;
+        runningBalanceCents += e.amountCents;
+        totalDebitCents += e.amountCents;
+      } else {
+        creditCents = e.amountCents;
+        runningBalanceCents -= e.amountCents;
+        totalCreditCents += e.amountCents;
+      }
+
+      // Cálculo de montante em aberto
+      let allocatedCents = 0;
+      let pendingCents = 0;
+      let isSettled = false;
+
+      if (['INVOICE', 'DEBIT_NOTE', 'OPENING_BALANCE'].includes(e.type)) {
+        allocatedCents = e.documentAllocations.reduce((sum: number, a: any) => sum + a.amountCents, 0);
+        pendingCents = e.isReversed ? 0 : Math.max(0, e.amountCents - allocatedCents);
+        isSettled = pendingCents === 0;
+
+        if (pendingCents > 0 && e.dueDate && new Date(e.dueDate) < now) {
+          overdueBalanceCents += pendingCents;
+        }
+      } else if (['PAYMENT', 'CREDIT_NOTE'].includes(e.type)) {
+        allocatedCents = e.paymentAllocations.reduce((sum: number, a: any) => sum + a.amountCents, 0);
+        pendingCents = e.isReversed ? 0 : Math.max(0, e.amountCents - allocatedCents); // Saldo a favor por alocar
+        isSettled = pendingCents === 0;
+      }
+
+      return {
+        id: e.id,
+        entryDate: e.entryDate,
+        createdAt: e.createdAt,
+        type: e.type,
+        externalDocumentNumber: e.externalDocumentNumber,
+        dueDate: e.dueDate,
+        amountCents: e.amountCents,
+        debitCents,
+        creditCents,
+        runningBalanceCents,
+        allocatedCents,
+        pendingCents,
+        isSettled,
+        isReversed: e.isReversed,
+        reversedAt: e.reversedAt,
+        reversesEntryId: e.reversesEntryId,
+        reversedEntry: e.reversedEntry,
+        method: e.method,
+        reference: e.reference,
+        notes: e.notes,
+        paymentAllocations: e.paymentAllocations,
+        documentAllocations: e.documentAllocations
+      };
+    });
+
+    // Filtros adicionais se fornecidos
+    let filteredEntries = formattedEntries;
+    if (filters?.from) {
+      const fromDate = new Date(filters.from);
+      filteredEntries = filteredEntries.filter((e: any) => new Date(e.entryDate) >= fromDate);
+    }
+    if (filters?.to) {
+      const toDate = new Date(filters.to);
+      filteredEntries = filteredEntries.filter((e: any) => new Date(e.entryDate) <= toDate);
+    }
+    if (filters?.status === 'OPEN') {
+      filteredEntries = filteredEntries.filter((e: any) => !e.isSettled && !e.isReversed);
+    } else if (filters?.status === 'SETTLED') {
+      filteredEntries = filteredEntries.filter((e: any) => e.isSettled || e.isReversed);
+    }
+
+    return {
+      company: {
+        id: company.id,
+        tradeName: company.tradeName,
+        legalName: company.legalName,
+        taxNumber: company.taxNumber,
+        email: company.email,
+        phone: company.phone,
+        address: company.address,
+        postalCode: company.postalCode,
+        city: company.city
+      },
+      statementDate: now,
+      legalDisclaimer: 'Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal.',
+      totalDebitCents,
+      totalCreditCents,
+      balanceCents: totalDebitCents - totalCreditCents,
+      overdueBalanceCents,
+      entries: filteredEntries
+    };
+  }
+
+  public async getCustomerBalances(companyId: string) {
+    const statement = await this.getCustomerStatement(companyId);
+    const now = new Date().getTime();
+
+    let currentCents = 0;
+    let overdue1to30Cents = 0;
+    let overdue31to60Cents = 0;
+    let overdue61to90Cents = 0;
+    let overdueOver90Cents = 0;
+
+    const pendingDocuments: any[] = [];
+
+    for (const e of statement.entries) {
+      if (['INVOICE', 'DEBIT_NOTE', 'OPENING_BALANCE'].includes(e.type) && e.pendingCents > 0 && !e.isReversed) {
+        let daysOverdue = 0;
+        if (e.dueDate) {
+          const diffMs = now - new Date(e.dueDate).getTime();
+          daysOverdue = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        }
+
+        if (daysOverdue <= 0) {
+          currentCents += e.pendingCents;
+        } else if (daysOverdue <= 30) {
+          overdue1to30Cents += e.pendingCents;
+        } else if (daysOverdue <= 60) {
+          overdue31to60Cents += e.pendingCents;
+        } else if (daysOverdue <= 90) {
+          overdue61to90Cents += e.pendingCents;
+        } else {
+          overdueOver90Cents += e.pendingCents;
+        }
+
+        pendingDocuments.push({
+          id: e.id,
+          externalDocumentNumber: e.externalDocumentNumber,
+          type: e.type,
+          entryDate: e.entryDate,
+          dueDate: e.dueDate,
+          amountCents: e.amountCents,
+          allocatedCents: e.allocatedCents,
+          pendingCents: e.pendingCents,
+          daysOverdue: Math.max(0, daysOverdue)
+        });
+      }
+    }
+
+    return {
+      company: statement.company,
+      legalDisclaimer: statement.legalDisclaimer,
+      totalDebitCents: statement.totalDebitCents,
+      totalCreditCents: statement.totalCreditCents,
+      currentBalanceCents: statement.balanceCents,
+      overdueBalanceCents: statement.overdueBalanceCents,
+      aging: {
+        currentCents,
+        overdue1to30Cents,
+        overdue31to60Cents,
+        overdue61to90Cents,
+        overdueOver90Cents
+      },
+      pendingDocuments
+    };
+  }
+
+  public async getGlobalAccountSummary() {
+    const companies = await this.db.company.findMany({
+      where: {
+        tenantId: this.tenantId,
+        deletedAt: null
+      },
+      select: { id: true, tradeName: true, taxNumber: true }
+    });
+
+    let totalReceivableCents = 0;
+    let totalOverdueCents = 0;
+    let companiesWithDebtCount = 0;
+    let companiesOverdueCount = 0;
+
+    const debtors: any[] = [];
+
+    for (const c of companies) {
+      const balances = await this.getCustomerBalances(c.id);
+      if (balances.currentBalanceCents > 0) {
+        totalReceivableCents += balances.currentBalanceCents;
+        companiesWithDebtCount++;
+      }
+      if (balances.overdueBalanceCents > 0) {
+        totalOverdueCents += balances.overdueBalanceCents;
+        companiesOverdueCount++;
+      }
+      if (balances.currentBalanceCents > 0 || balances.overdueBalanceCents > 0) {
+        debtors.push({
+          companyId: c.id,
+          tradeName: c.tradeName,
+          taxNumber: c.taxNumber,
+          balanceCents: balances.currentBalanceCents,
+          overdueBalanceCents: balances.overdueBalanceCents,
+          aging: balances.aging
+        });
+      }
+    }
+
+    return {
+      legalDisclaimer: 'Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal.',
+      totalReceivableCents,
+      totalOverdueCents,
+      companiesWithDebtCount,
+      companiesOverdueCount,
+      debtors
+    };
+  }
+
+  public async renderStatementHtml(companyId: string, filters?: any): Promise<string> {
+    const statement = await this.getCustomerStatement(companyId, filters);
+    const fmtEur = (cents: number) => `€${(cents / 100).toLocaleString('pt-PT', { minimumFractionDigits: 2 })}`;
+    const fmtDate = (d: any) => d ? new Date(d).toLocaleDateString('pt-PT') : '—';
+
+    const rows = statement.entries.map((e: any, idx: number) => `
+      <tr style="${e.isReversed ? 'text-decoration: line-through; opacity: 0.6;' : ''}">
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: center;">${idx + 1}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${fmtDate(e.entryDate)}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 600;">${e.type}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${e.externalDocumentNumber || e.reference || '—'}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px;">${fmtDate(e.dueDate)}</td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: right; color: #dc2626; font-weight: ${e.debitCents > 0 ? '600' : 'normal'};">
+          ${e.debitCents > 0 ? fmtEur(e.debitCents) : '—'}
+        </td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: right; color: #16a34a; font-weight: ${e.creditCents > 0 ? '600' : 'normal'};">
+          ${e.creditCents > 0 ? fmtEur(e.creditCents) : '—'}
+        </td>
+        <td style="padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; text-align: right; font-weight: 700; color: ${e.runningBalanceCents > 0 ? '#b91c1c' : '#15803d'};">
+          ${fmtEur(e.runningBalanceCents)}
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <!DOCTYPE html>
+      <html lang="pt">
+      <head>
+        <meta charset="utf-8">
+        <title>Extrato de Conta Corrente — ${statement.company.tradeName}</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1e293b;
+            margin: 0;
+            padding: 30px;
+            background: #fff;
+          }
+          .header-box { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; border-bottom: 2px solid #0f172a; padding-bottom: 16px; }
+          .title { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 4px 0; }
+          .subtitle { font-size: 12px; color: #64748b; }
+          .client-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 20px; }
+          .client-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
+          .summary-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+          .summary-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; }
+          .card-label { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; }
+          .card-value { font-size: 16px; font-weight: 800; margin-top: 4px; }
+          .statement-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+          .statement-table th { background: #f1f5f9; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #cbd5e1; }
+          .legal-notice {
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #78350f;
+            margin-top: 30px;
+            line-height: 1.5;
+          }
+          @media print {
+            body { padding: 10mm; }
+            .btn-print { display: none !important; }
+          }
+        </style>
+      </head>
+      <body>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;" class="btn-print">
+          <button onclick="window.print()" style="background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 600; cursor: pointer;">Imprimir Extrato A4</button>
+        </div>
+
+        <div class="header-box">
+          <div>
+            <div class="title">EXTRATO DE CONTA CORRENTE</div>
+            <div class="subtitle">Extrato informativo — não é um documento fiscal</div>
+          </div>
+          <div style="text-align: right; font-size: 12px; color: #64748b;">
+            <div>Emissão: <strong>${fmtDate(statement.statementDate)}</strong></div>
+            <div>Posição Contabilística Integrada</div>
+          </div>
+        </div>
+
+        <div class="client-box">
+          <div class="client-grid">
+            <div><strong>Cliente:</strong> ${statement.company.tradeName} ${statement.company.legalName ? `(${statement.company.legalName})` : ''}</div>
+            <div><strong>NIF:</strong> ${statement.company.taxNumber || '—'}</div>
+            <div><strong>Email:</strong> ${statement.company.email || '—'}</div>
+            <div><strong>Morada:</strong> ${statement.company.address || '—'}, ${statement.company.postalCode || ''} ${statement.company.city || ''}</div>
+          </div>
+        </div>
+
+        <div class="summary-cards">
+          <div class="summary-card">
+            <div class="card-label">Total Débitos</div>
+            <div class="card-value" style="color: #dc2626;">${fmtEur(statement.totalDebitCents)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Total Créditos</div>
+            <div class="card-value" style="color: #16a34a;">${fmtEur(statement.totalCreditCents)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Saldo Atual</div>
+            <div class="card-value" style="color: ${statement.balanceCents > 0 ? '#b91c1c' : '#15803d'};">
+              ${fmtEur(statement.balanceCents)}
+            </div>
+          </div>
+          <div class="summary-card">
+            <div class="card-label">Saldo Vencido</div>
+            <div class="card-value" style="color: #ea580c;">${fmtEur(statement.overdueBalanceCents)}</div>
+          </div>
+        </div>
+
+        <table class="statement-table">
+          <thead>
+            <tr>
+              <th style="width: 30px; text-align: center;">#</th>
+              <th style="width: 85px;">Data</th>
+              <th style="width: 110px;">Tipo</th>
+              <th>Doc. / Referência</th>
+              <th style="width: 85px;">Vencimento</th>
+              <th style="text-align: right; width: 100px;">Débito</th>
+              <th style="text-align: right; width: 100px;">Crédito</th>
+              <th style="text-align: right; width: 110px;">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+
+        <div class="legal-notice">
+          <strong>Salvaguarda Legal & Regulamentar:</strong><br>
+          ${statement.legalDisclaimer}<br>
+          Este extrato reflete os lançamentos informativos geridos na relação comercial com o cliente. Não substitui faturas, notas de crédito ou recibos emitidos nos termos do Artigo 36.º do Código do IVA.
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  public async sendStatementEmail(
+    companyId: string,
+    targetEmail: string,
+    actor: MailActor,
+    notes?: string
+  ) {
+    const company = await this.assertCompanyOwned(companyId);
+    const balances = await this.getCustomerBalances(companyId);
+
+    const fmtEur = (c: number) => `€${(c / 100).toFixed(2)}`;
+
+    const subject = `Extrato de Conta Corrente — ${company.tradeName}`;
+    const textBody = `
+Estimado(a) Cliente,
+
+Enviamos o resumo da conta corrente para ${company.tradeName}:
+
+- Saldo em Débito: ${fmtEur(balances.currentBalanceCents)}
+- Saldo Vencido: ${fmtEur(balances.overdueBalanceCents)}
+
+${notes ? `Observações:\n${notes}\n\n` : ''}
+
+Salvaguarda Legal:
+Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal.
+    `.trim();
+
+    const htmlBody = `
+      <div style="font-family: sans-serif; color: #1e293b; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #0f172a; margin-bottom: 8px;">Extrato de Conta Corrente</h2>
+        <p style="font-size: 14px; color: #64748b;">Posição comercial para <strong>${company.tradeName}</strong></p>
+        
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+          <div style="margin-bottom: 8px; font-size: 14px;"><strong>Saldo em Aberto:</strong> <span style="font-size: 16px; font-weight: bold; color: ${balances.currentBalanceCents > 0 ? '#b91c1c' : '#15803d'};">${fmtEur(balances.currentBalanceCents)}</span></div>
+          <div style="font-size: 14px;"><strong>Saldo Vencido:</strong> <span style="font-weight: bold; color: #ea580c;">${fmtEur(balances.overdueBalanceCents)}</span></div>
+        </div>
+
+        ${notes ? `<p style="font-size: 14px; line-height: 1.5;">${notes.replace(/\n/g, '<br>')}</p>` : ''}
+
+        <div style="margin-top: 30px; padding: 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; font-size: 11px; color: #92400e;">
+          <strong>Aviso Regulamentar:</strong> Registo de documentos emitidos no seu software de faturação certificado. O HelderLabs CRM não emite faturas nem serve de documento fiscal.
+        </div>
+      </div>
+    `;
+
+    const mailService = new TenantMailService(this.tenantId, this.db);
+    const result = await mailService.send(
+      {
+        to: targetEmail,
+        subject,
+        text: textBody,
+        html: htmlBody,
+        context: 'crm.statement',
+        relatedType: 'CrmAccountStatement',
+        relatedId: companyId
+      },
+      actor
+    );
+
+    try {
+      await this.createActivity({
+        type: 'NOTE',
+        subject: `Extrato enviado por email para ${targetEmail}`,
+        content: `Extrato de conta corrente enviado com sucesso. Saldo informado: ${fmtEur(balances.currentBalanceCents)}.`,
+        companyId,
+        createdByUserId: actor.userId
+      });
+    } catch {
+      // Ignorar falha secundária
+    }
+
+    return result;
+  }
 }
+

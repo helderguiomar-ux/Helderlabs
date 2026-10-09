@@ -282,4 +282,47 @@ export class CRMController {
   async renderProposalHtml(context: CRMRequestContext, id: string) {
     return serviceFor(context).renderProposalHtml(id);
   }
+
+  // =========================================================================
+  // CONTA CORRENTE DE CLIENTES (FASE B7)
+  // =========================================================================
+
+  async createAccountEntry(context: CRMRequestContext, companyId: string, data: any) {
+    return serviceFor(context).createAccountEntry(companyId, data, context.userId);
+  }
+
+  async createReversal(context: CRMRequestContext, entryId: string, reason: string) {
+    return serviceFor(context).createReversal(entryId, reason, context.userId);
+  }
+
+  async allocatePayment(context: CRMRequestContext, companyId: string, data: any) {
+    return serviceFor(context).allocatePayment(
+      companyId,
+      data.paymentEntryId,
+      data.documentEntryId,
+      data.amountCents,
+      context.userId
+    );
+  }
+
+  async getCustomerStatement(context: CRMRequestContext, companyId: string, filters?: any) {
+    return serviceFor(context).getCustomerStatement(companyId, filters);
+  }
+
+  async getCustomerBalances(context: CRMRequestContext, companyId: string) {
+    return serviceFor(context).getCustomerBalances(companyId);
+  }
+
+  async getGlobalAccountSummary(context: CRMRequestContext) {
+    return serviceFor(context).getGlobalAccountSummary();
+  }
+
+  async renderStatementHtml(context: CRMRequestContext, companyId: string, filters?: any) {
+    return serviceFor(context).renderStatementHtml(companyId, filters);
+  }
+
+  async sendStatementEmail(context: CRMRequestContext, companyId: string, options: any, actor: any) {
+    return serviceFor(context).sendStatementEmail(companyId, options.to, actor, options.notes);
+  }
 }
+

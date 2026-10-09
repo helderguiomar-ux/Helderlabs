@@ -22,6 +22,8 @@ export function createFakePrismaClient() {
   const proposalItems: any[] = [];
   const contracts: any[] = [];
   const companyDocuments: any[] = [];
+  const accountEntries: any[] = [];
+  const accountAllocations: any[] = [];
 
   const db = {
     // --- helpers só para preparar cenários de teste ---
@@ -35,7 +37,9 @@ export function createFakePrismaClient() {
       proposals,
       proposalItems,
       contracts,
-      companyDocuments
+      companyDocuments,
+      accountEntries,
+      accountAllocations
     },
 
     company: {
@@ -553,6 +557,114 @@ export function createFakePrismaClient() {
           count++;
         });
         return { count };
+      }
+    },
+
+    crmAccountEntry: {
+      findFirst: async ({ where, include }: any = {}) => {
+        const item = accountEntries.find((e) => {
+          if (where?.id && e.id !== where.id) return false;
+          if (where?.tenantId && e.tenantId !== where.tenantId) return false;
+          if (where?.companyId && e.companyId !== where.companyId) return false;
+          return true;
+        });
+        if (!item) return null;
+        const res = { ...item };
+        if (include?.company) {
+          res.company = companies.find((c) => c.id === item.companyId) ?? null;
+        }
+        if (include?.paymentAllocations) {
+          res.paymentAllocations = accountAllocations.filter(
+            (a) => a.paymentEntryId === item.id && (!include.paymentAllocations?.where?.isCancelled || a.isCancelled === false)
+          );
+        }
+        if (include?.documentAllocations) {
+          res.documentAllocations = accountAllocations.filter(
+            (a) => a.documentEntryId === item.id && (!include.documentAllocations?.where?.isCancelled || a.isCancelled === false)
+          );
+        }
+        if (include?.reversedEntry) {
+          res.reversedEntry = accountEntries.find((e) => e.id === item.reversesEntryId) ?? null;
+        }
+        if (include?.reversals) {
+          res.reversals = accountEntries.filter((e) => e.reversesEntryId === item.id);
+        }
+        return res;
+      },
+      findMany: async ({ where, include, orderBy }: any = {}) => {
+        let items = accountEntries.filter((e) => {
+          if (where?.tenantId && e.tenantId !== where.tenantId) return false;
+          if (where?.companyId && e.companyId !== where.companyId) return false;
+          if (where?.isReversed !== undefined && e.isReversed !== where.isReversed) return false;
+          if (where?.type?.in && !where.type.in.includes(e.type)) return false;
+          return true;
+        });
+        items.sort((a, b) => new Date(a.entryDate || a.createdAt).getTime() - new Date(b.entryDate || b.createdAt).getTime());
+        return items.map((item) => {
+          const res = { ...item };
+          if (include?.paymentAllocations) {
+            res.paymentAllocations = accountAllocations.filter(
+              (a) => a.paymentEntryId === item.id && (!include.paymentAllocations?.where?.isCancelled || a.isCancelled === false)
+            );
+          }
+          if (include?.documentAllocations) {
+            res.documentAllocations = accountAllocations.filter(
+              (a) => a.documentEntryId === item.id && (!include.documentAllocations?.where?.isCancelled || a.isCancelled === false)
+            );
+          }
+          if (include?.reversedEntry) {
+            res.reversedEntry = accountEntries.find((e) => e.id === item.reversesEntryId) ?? null;
+          }
+          if (include?.reversals) {
+            res.reversals = accountEntries.filter((e) => e.reversesEntryId === item.id);
+          }
+          return res;
+        });
+      },
+      create: async ({ data }: any) => {
+        const entry = {
+          id: fakeId('entry'),
+          createdAt: new Date(),
+          isReversed: false,
+          reversedAt: null,
+          ...data
+        };
+        accountEntries.push(entry);
+        return { ...entry, paymentAllocations: [], documentAllocations: [], reversedEntry: null, reversals: [] };
+      },
+      update: async ({ where, data }: any) => {
+        const entry = accountEntries.find((e) => e.id === where.id);
+        if (!entry) throw new Error(`Lançamento ${where.id} não encontrado no fake client`);
+        Object.assign(entry, data);
+        return { ...entry };
+      }
+    },
+
+    crmAccountAllocation: {
+      findMany: async ({ where }: any = {}) => {
+        return accountAllocations.filter((a) => {
+          if (where?.tenantId && a.tenantId !== where.tenantId) return false;
+          if (where?.companyId && a.companyId !== where.companyId) return false;
+          if (where?.isCancelled !== undefined && a.isCancelled !== where.isCancelled) return false;
+          return true;
+        });
+      },
+      create: async ({ data }: any) => {
+        const alloc = {
+          id: fakeId('alloc'),
+          createdAt: new Date(),
+          isCancelled: false,
+          cancelledAt: null,
+          ...data
+        };
+        accountAllocations.push(alloc);
+        return alloc;
+      },
+      update: async ({ where, data }: any) => {
+        const alloc = accountAllocations.find((a) => a.id === where.id);
+        if (!alloc) throw new Error(`Alocação ${where.id} não encontrada no fake client`);
+        Object.assign(alloc, data);
+        return { ...alloc };
       }
     }
   };

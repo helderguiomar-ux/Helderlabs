@@ -53,6 +53,8 @@ model Tenant {
   communications Communication[]
   proposals      Proposal[]
   companyDocuments CompanyDocument[]
+  crmAccountEntries CrmAccountEntry[]
+  crmAccountAllocations CrmAccountAllocation[]
   buildings      Building[]
 
   settings            TenantSetting[]
@@ -245,6 +247,8 @@ model Company {
   opportunities Opportunity[]
   communications Communication[]
   proposals     Proposal[]
+  accountEntries CrmAccountEntry[]
+  accountAllocations CrmAccountAllocation[]
 
   @@index([tenantId])
   @@index([status])
@@ -414,6 +418,7 @@ model Proposal {
 
   items              ProposalItem[]
   contracts          Contract[]
+  accountEntries     CrmAccountEntry[]
 
   @@unique([tenantId, proposalNumber])
   @@index([tenantId])
@@ -2497,3 +2502,68 @@ model EmailSendLog {
   @@index([tenantId, status])
   @@map("email_send_logs")
 }
+
+// =============================================================================
+// CONTA CORRENTE DE CLIENTES (CRM FASE B7)
+//
+// Registo de documentos emitidos em software de faturação certificado e
+// pagamentos recebidos. O HelderLabs CRM não emite faturas nem serve de
+// documento fiscal.
+// Entradas imutáveis: correções são feitas via lançamentos REVERSAL.
+// =============================================================================
+
+model CrmAccountEntry {
+  id                     String                 @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant                 @relation(fields: [tenantId], references: [id])
+  companyId              String
+  company                Company                @relation(fields: [companyId], references: [id])
+  entryDate              DateTime               @default(now())
+  type                   String                 // OPENING_BALANCE | INVOICE | DEBIT_NOTE | CREDIT_NOTE | PAYMENT | REFUND | ADJUSTMENT | REVERSAL
+  externalDocumentNumber String?
+  dueDate                DateTime?
+  amountCents            Int
+  method                 String?                // TRANSFER | MBWAY | MULTIBANCO | CASH | CARD | DIRECT_DEBIT | OTHER
+  reference              String?
+  notes                  String?
+  proposalId             String?
+  proposal               Proposal?              @relation(fields: [proposalId], references: [id])
+  reversesEntryId        String?
+  reversedEntry          CrmAccountEntry?       @relation("AccountEntryReversals", fields: [reversesEntryId], references: [id])
+  reversals              CrmAccountEntry[]      @relation("AccountEntryReversals")
+  createdBy              String?
+  isReversed             Boolean                @default(false)
+  reversedAt             DateTime?
+  createdAt              DateTime               @default(now())
+
+  paymentAllocations     CrmAccountAllocation[] @relation("PaymentAllocations")
+  documentAllocations    CrmAccountAllocation[] @relation("DocumentAllocations")
+
+  @@index([tenantId, companyId])
+  @@index([tenantId, entryDate])
+  @@index([tenantId, type])
+  @@index([reversesEntryId])
+  @@map("crm_account_entries")
+}
+
+model CrmAccountAllocation {
+  id              String          @id @default(cuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  companyId       String
+  company         Company         @relation(fields: [companyId], references: [id])
+  paymentEntryId  String
+  paymentEntry    CrmAccountEntry @relation("PaymentAllocations", fields: [paymentEntryId], references: [id])
+  documentEntryId String
+  documentEntry   CrmAccountEntry @relation("DocumentAllocations", fields: [documentEntryId], references: [id])
+  amountCents     Int
+  isCancelled     Boolean         @default(false)
+  cancelledAt     DateTime?
+  createdAt       DateTime        @default(now())
+
+  @@index([tenantId, companyId])
+  @@index([paymentEntryId])
+  @@index([documentEntryId])
+  @@map("crm_account_allocations")
+}
+

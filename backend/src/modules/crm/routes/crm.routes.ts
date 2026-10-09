@@ -161,6 +161,51 @@ const sendProposalEmailSchema = z
   })
   .strict();
 
+const createAccountEntrySchema = z
+  .object({
+    type: z.enum([
+      'OPENING_BALANCE',
+      'INVOICE',
+      'DEBIT_NOTE',
+      'CREDIT_NOTE',
+      'PAYMENT',
+      'REFUND',
+      'ADJUSTMENT',
+      'REVERSAL'
+    ]),
+    amountCents: z.number().int().positive('O montante deve ser um número inteiro positivo em cêntimos.'),
+    entryDate: z.string().optional().nullable(),
+    externalDocumentNumber: z.string().trim().optional().nullable(),
+    dueDate: z.string().optional().nullable(),
+    method: z.string().trim().optional().nullable(),
+    reference: z.string().trim().optional().nullable(),
+    notes: z.string().trim().optional().nullable(),
+    proposalId: z.string().optional().nullable(),
+    autoAllocate: z.boolean().optional().default(false)
+  })
+  .strict();
+
+const allocatePaymentSchema = z
+  .object({
+    paymentEntryId: z.string().min(1, 'ID do lançamento de pagamento é obrigatório.'),
+    documentEntryId: z.string().min(1, 'ID do documento a liquidar é obrigatório.'),
+    amountCents: z.number().int().positive('Montante a alocar deve ser um inteiro positivo em cêntimos.')
+  })
+  .strict();
+
+const reverseEntrySchema = z
+  .object({
+    reason: z.string().trim().min(1, 'Motivo do estorno é obrigatório.')
+  })
+  .strict();
+
+const sendStatementEmailSchema = z
+  .object({
+    to: z.string().trim().toLowerCase().email('Email de destino inválido.'),
+    notes: z.string().trim().optional().nullable()
+  })
+  .strict();
+
 const companyBaseShape = {
   tradeName: z.string().trim().min(1, 'Nome Comercial é obrigatório'),
   legalName: z.string().trim().optional().nullable(),
@@ -838,6 +883,70 @@ export async function crmRoutes(app: FastifyInstance) {
       };
       const result = await controller.sendProposalEmail(contextFrom(request), id, body, actor);
       return reply.status(200).send({ success: true, result, message: 'Proposta enviada por email com sucesso!' });
+    });
+
+    // =========================================================================
+    // CONTA CORRENTE DE CLIENTES (FASE B7)
+    // =========================================================================
+
+    protectedApp.get<{ Params: { id: string } }>('/companies/:id/account/statement', async (request, reply) => {
+      const { id } = request.params;
+      const query = request.query as any;
+      const statement = await controller.getCustomerStatement(contextFrom(request), id, query);
+      return reply.status(200).send(statement);
+    });
+
+    protectedApp.get<{ Params: { id: string } }>('/companies/:id/account/balances', async (request, reply) => {
+      const { id } = request.params;
+      const balances = await controller.getCustomerBalances(contextFrom(request), id);
+      return reply.status(200).send(balances);
+    });
+
+    protectedApp.get<{ Params: { id: string } }>('/companies/:id/account/statement/print', async (request, reply) => {
+      const { id } = request.params;
+      const query = request.query as any;
+      const html = await controller.renderStatementHtml(contextFrom(request), id, query);
+      return reply.type('text/html; charset=utf-8').send(html);
+    });
+
+    protectedApp.post<{ Params: { id: string } }>('/companies/:id/account/entries', async (request, reply) => {
+      const { id } = request.params;
+      const data = createAccountEntrySchema.parse(request.body);
+      const entry = await controller.createAccountEntry(contextFrom(request), id, data);
+      return reply.status(201).send({ success: true, entry, message: 'Lançamento de conta corrente registado com sucesso!' });
+    });
+
+    protectedApp.post<{ Params: { id: string } }>('/companies/:id/account/allocate', async (request, reply) => {
+      const { id } = request.params;
+      const data = allocatePaymentSchema.parse(request.body);
+      const allocation = await controller.allocatePayment(contextFrom(request), id, data);
+      return reply.status(201).send({ success: true, allocation, message: 'Alocação de pagamento efetuada com sucesso!' });
+    });
+
+    protectedApp.post<{ Params: { id: string } }>('/account/entries/:id/reverse', async (request, reply) => {
+      const { id } = request.params;
+      const body = reverseEntrySchema.parse(request.body || {});
+      const result = await controller.createReversal(contextFrom(request), id, body.reason);
+      return reply.status(200).send({ ...result, message: 'Lançamento estornado com sucesso!' });
+    });
+
+    protectedApp.get('/account/balances/summary', async (request, reply) => {
+      const summary = await controller.getGlobalAccountSummary(contextFrom(request));
+      return reply.status(200).send(summary);
+    });
+
+    protectedApp.post<{ Params: { id: string } }>('/companies/:id/account/statement/send', async (request, reply) => {
+      const { id } = request.params;
+      const body = sendStatementEmailSchema.parse(request.body || {});
+      const actor = {
+        userId: (request.user as any)?.sub || (request.user as any)?.id,
+        email: (request.user as any)?.email,
+        role: (request.user as any)?.role,
+        ipAddress: request.ip,
+        userAgent: request.headers['user-agent']
+      };
+      const result = await controller.sendStatementEmail(contextFrom(request), id, body, actor);
+      return reply.status(200).send({ success: true, result, message: 'Extrato enviado por email com sucesso!' });
     });
   });
 }

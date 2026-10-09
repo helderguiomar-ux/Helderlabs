@@ -16,7 +16,7 @@
 
     async switchCRMView(view) {
       this.currentView = view;
-      ['companies', 'pipeline', 'leads', 'activities', 'proposals', 'contracts', 'documents'].forEach(v => {
+      ['companies', 'pipeline', 'leads', 'activities', 'proposals', 'contracts', 'documents', 'account'].forEach(v => {
         const btn = document.getElementById(`crm-btn-subview-${v}`);
         const panel = document.getElementById(`crm-view-${v}`);
         if (btn) btn.classList.toggle('active', v === view);
@@ -35,6 +35,21 @@
         await window.CRMContractsModule.init();
       } else if (view === 'documents' && window.CRMDocuments) {
         await window.CRMDocuments.loadDocuments();
+      } else if (view === 'account' && window.CRMAccount) {
+        const sel = document.getElementById('crm-account-company-selector');
+        if (sel) {
+          const res = await window.appFetch('/api/crm/companies?limit=100');
+          if (res.ok) {
+            const data = await res.json();
+            const list = data.companies || data || [];
+            sel.innerHTML = '<option value="">-- Selecione uma empresa para ver a conta corrente --</option>' +
+              list.map((c) => `<option value="${c.id}">${c.tradeName} (${c.taxNumber || 'S/NIF'})</option>`).join('');
+            if (list.length > 0 && !sel.value) {
+              sel.value = list[0].id;
+              window.CRMAccount.loadCompanyAccount(list[0].id);
+            }
+          }
+        }
       } else if (view === 'companies' && window.CRMCompanies) {
         await window.CRMCompanies.loadCompanies();
       }

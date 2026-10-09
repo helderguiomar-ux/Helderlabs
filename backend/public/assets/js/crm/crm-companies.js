@@ -209,6 +209,7 @@
           <button class="btn btn-sm ${this.active360Tab === 'contacts' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('contacts')">Contactos (${c.contacts?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'contracts' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('contracts')">Contratos (${c.contracts?.length || 0})</button>
           <button class="btn btn-sm ${this.active360Tab === 'documents' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('documents')">Documentos (${c.documents?.length || 0})</button>
+          <button class="btn btn-sm ${this.active360Tab === 'account' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('account')">Conta Corrente</button>
           <button class="btn btn-sm ${this.active360Tab === 'finance' ? 'btn-primary' : ''}" onclick="window.CRMCompanies.set360Tab('finance')">Finanças & Faturas (${c.transactions?.length || 0})</button>
         </div>
         <div id="company-360-tab-content">
@@ -437,6 +438,15 @@
             </table>
           </div>
         `;
+      }
+
+      if (this.active360Tab === 'account') {
+        setTimeout(() => {
+          if (window.CRMAccount) {
+            window.CRMAccount.loadCompanyAccount(c.id);
+          }
+        }, 50);
+        return `<div id="company-tab-account"></div>`;
       }
 
       if (this.active360Tab === 'finance') {

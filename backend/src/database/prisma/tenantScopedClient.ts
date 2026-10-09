@@ -45,6 +45,8 @@ const TENANT_SCOPED_MODELS = new Set([
   'Communication',
   'Proposal',
   'CompanyDocument',
+  'CrmAccountEntry',
+  'CrmAccountAllocation',
   'Building',
   'FinanceAccount',
   'CostCenter',
